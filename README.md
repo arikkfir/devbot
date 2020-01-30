@@ -1,2 +1,3 @@
 # devbot
-Development bot for GitHub
+
+> Development bot for GitHub
