@@ -24,6 +24,10 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.8'
+          architecture: x64
       - uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
