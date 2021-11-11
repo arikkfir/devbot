@@ -24,6 +24,7 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - run: apt update && apt install -y libsqlite3-0
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
