@@ -1,0 +1,42 @@
+name: Verify
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify.yml
+      - api/**
+      - deploy/**
+      - portal/**
+      - go.*
+      - skaffold.yaml
+  workflow_dispatch:
+defaults:
+  run:
+    shell: bash -exu {0}
+jobs:
+  verify:
+    runs-on: ubuntu-20.04
+    env:
+      SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
+      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: google-github-actions/setup-gcloud@master
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - id: auth
+        uses: google-github-actions/auth@v0.3.1
+        with:
+          create_credentials_file: 'true'
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github-actions
+          service_account: devbot-github-actions@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+      - run: gcloud auth login --brief --cred-file="${{ steps.auth.outputs.credentials_file_path }}"
+      - run: gcloud info
+#      - uses: actions/checkout@v2
+#      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
+#      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
+#      - run: skaffold config set --global collect-metrics false
+#      - run: skaffold build --file-output=tags.json
+#      - run: skaffold test --build-artifacts=tags.json
