@@ -16,6 +16,7 @@ defaults:
 jobs:
   verify:
     runs-on: ubuntu-20.04
+    container: ubuntu:21.04
     env:
       SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
       CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
