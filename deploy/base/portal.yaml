@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: devbot
+    app.kubernetes.io/component: portal
+    app.kubernetes.io/version: dev
+  name: portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: devbot
+      app.kubernetes.io/component: portal
+      app.kubernetes.io/version: dev
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: devbot
+        app.kubernetes.io/component: portal
+        app.kubernetes.io/version: dev
+    spec:
+      containers:
+        - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
+          name: portal
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 50Mi
+            limits:
+              cpu: 500m
+              memory: 100Mi

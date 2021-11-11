@@ -1,0 +1,15 @@
+### Build web application
+FROM node:16.13 as node
+WORKDIR /workspace
+
+# Copy the Node manifest, download dependencies & cache them before building and copying actual source code, so when
+# source code changes, downloaded dependencies stay cached and are not downloaded again (unless manifest changes too.)
+COPY portal/package.json ./
+COPY portal/package-lock.json ./
+RUN npm ci
+
+# Now build the actual web application
+COPY portal/public ./public
+COPY portal/src ./src
+COPY portal/tsconfig.json ./
+ENTRYPOINT ["npm", "run", "start"]

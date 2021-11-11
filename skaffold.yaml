@@ -1,0 +1,52 @@
+apiVersion: skaffold/v2beta25
+kind: Config
+metadata:
+  name: devbot
+build:
+  artifacts:
+  - image: europe-docker.pkg.dev/arikkfir/public/devbot/api
+    context: .
+    docker:
+      dockerfile: api/Dockerfile.debug
+  - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
+    context: .
+    docker:
+      dockerfile: portal/Dockerfile.debug
+    sync:
+      manual:
+        - src: portal/public/**
+          dest: /workspace/public/
+        - src: portal/src/**
+          dest: /workspace/src/
+          strip: portal/src/
+  local:
+    push: false
+deploy:
+  kustomize:
+    paths: [./deploy/local]
+portForward:
+  - resourceType: deployment
+    resourceName: api
+    port: http
+    localPort: 8081
+  - resourceType: deployment
+    resourceName: portal
+    port: http
+    localPort: 8080
+profiles:
+  - name: prod
+    build:
+      local:
+        push: true
+    patches:
+      - op: replace
+        path: /build/artifacts/0/docker/dockerfile
+        value: [api/Dockerfile]
+      - op: replace
+        path: /build/artifacts/1/docker/dockerfile
+        value: [portal/Dockerfile]
+      - op: replace
+        path: /deploy/kustomize/paths
+        value: [./deploy/prod]
+
+# TODO: run go vet, golink, go fmt?
