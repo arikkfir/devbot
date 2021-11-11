@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-20.04
     container: ubuntu:21.04
     env:
+      KUBECTL_DOWNLOAD_URL: https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl
       SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
       CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     permissions:
@@ -25,6 +26,9 @@ jobs:
       id-token: write
     steps:
       - run: apt update && apt install -y libsqlite3-0
+      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
+      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
+#      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
       - uses: actions/setup-python@v2
         with:
           python-version: '3.8'
@@ -40,9 +44,7 @@ jobs:
           service_account: devbot-github-actions@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
       - run: gcloud auth login --brief --cred-file="${{ steps.auth.outputs.credentials_file_path }}"
       - run: gcloud info
-#      - uses: actions/checkout@v2
-#      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
-#      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
-#      - run: skaffold config set --global collect-metrics false
-#      - run: skaffold build --file-output=tags.json
+      - uses: actions/checkout@v2
+      - run: skaffold config set --global collect-metrics false
+      - run: skaffold build --file-output=tags.json
 #      - run: skaffold test --build-artifacts=tags.json
