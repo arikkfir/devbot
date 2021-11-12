@@ -32,14 +32,14 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
+      - run: gcloud auth configure-docker
+      - run: gcloud info
+      - uses: actions/checkout@v2
 
 #      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
 #      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
 #      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
 #      - run: gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
-#      - run: gcloud auth configure-docker
-#      - run: gcloud info
-#      - uses: actions/checkout@v2
 #      - run: skaffold config set --global collect-metrics false
 #      - run: skaffold build --file-output=tags.json
 #      - run: skaffold test --build-artifacts=tags.json
