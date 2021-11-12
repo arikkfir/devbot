@@ -27,7 +27,7 @@ jobs:
     steps:
 #      - run: apt update && apt install -y libsqlite3-0 curl
 #      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
-#      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
+      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
 #      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
 #      - uses: actions/setup-python@v2
 #        with:
