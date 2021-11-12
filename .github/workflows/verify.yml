@@ -43,6 +43,7 @@ jobs:
           workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-actions/providers/github-actions
           service_account: devbot-github-actions@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
       - run: gcloud auth login --brief --cred-file="${{ steps.auth.outputs.credentials_file_path }}"
+      - run: gcloud auth configure-docker
       - run: gcloud info
       - uses: actions/checkout@v2
       - run: skaffold config set --global collect-metrics false
