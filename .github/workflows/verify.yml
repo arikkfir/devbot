@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: 3.9.x
           architecture: x64
-      - run: apt update && apt install -y libsqlite3-0 curl
+      - run: apt update && apt install -y libsqlite3-0 curl docker
       - uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
