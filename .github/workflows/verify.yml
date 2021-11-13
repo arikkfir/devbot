@@ -16,25 +16,22 @@ defaults:
 jobs:
   verify:
     runs-on: ubuntu-20.04
-    container: ubuntu:21.04
+    container: alpine:3.14
 #    env:
 #      KUBECTL_DOWNLOAD_URL: https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl
 #      SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
 #      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     steps:
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.9.x
-          architecture: x64
-      - run: apt update && apt install -y libsqlite3-0 curl docker
+      - run: apk add --no-cache python3 py3-pip git docker-cli
+#      - run: apt update && apt install -y libsqlite3-0 curl docker
       - uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
-      - run: gcloud auth configure-docker
+#      - run: gcloud auth configure-docker
       - run: gcloud info
-      - uses: actions/checkout@v2
+#      - uses: actions/checkout@v2
 
 #      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
 #      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
