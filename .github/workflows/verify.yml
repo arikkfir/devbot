@@ -19,11 +19,13 @@ jobs:
     container: alpine:3.14
     env:
       SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
-#      KUBECTL_DOWNLOAD_URL: https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl
-#      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
+      KUBECTL_DOWNLOAD_URL: https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl
+      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     steps:
       - run: apk add --no-cache curl docker-cli git python3 py3-pip
       - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
+      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
+      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
       - uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -35,7 +37,4 @@ jobs:
       - uses: actions/checkout@v2
       - run: skaffold config set --global collect-metrics false
       - run: skaffold build --file-output=tags.json
-
-#      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
-#      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
 #      - run: skaffold test --build-artifacts=tags.json
