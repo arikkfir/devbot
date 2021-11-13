@@ -35,6 +35,5 @@ jobs:
       - run: gcloud auth configure-docker
       - run: gcloud info
       - uses: actions/checkout@v2
-      - run: skaffold config set --global collect-metrics false
-      - run: skaffold build --file-output=tags.json
+      - run: skaffold build --file-output=tags.json --profile=ci
 #      - run: skaffold test --build-artifacts=tags.json
