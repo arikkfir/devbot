@@ -35,10 +35,10 @@ portForward:
     localPort: 8080
 profiles:
   - name: ci
-    build:
-      local:
-        push: true
     patches:
+      - op: replace
+        path: /build/local/push
+        value: true
       - op: replace
         path: /build/artifacts/0/docker/dockerfile
         value: [api/Dockerfile]
