@@ -41,20 +41,13 @@ profiles:
         value: true
       - op: replace
         path: /build/artifacts/0/docker/dockerfile
-        value: [api/Dockerfile]
+        value: api/Dockerfile
       - op: replace
         path: /build/artifacts/1/docker/dockerfile
-        value: [portal/Dockerfile]
+        value: portal/Dockerfile
   - name: prod
     patches:
       - op: replace
-        path: /build/artifacts/0/docker/dockerfile
-        value: [api/Dockerfile]
-      - op: replace
-        path: /build/artifacts/1/docker/dockerfile
-        value: [portal/Dockerfile]
-      - op: replace
         path: /deploy/kustomize/paths
         value: [./deploy/prod]
-
 # TODO: run go vet, golink, go fmt?
