@@ -23,14 +23,14 @@ jobs:
 #      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     steps:
       - run: apk add --no-cache python3 py3-pip git docker-cli
-#      - run: apt update && apt install -y libsqlite3-0 curl docker
       - uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           export_default_credentials: true
-#      - run: gcloud auth configure-docker
+      - run: gcloud auth configure-docker
       - run: gcloud info
+      - run: docker run hello-world
 #      - uses: actions/checkout@v2
 
 #      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
