@@ -23,11 +23,10 @@ jobs:
       CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     timeout-minutes: 5
     steps:
-      - run: go version
-        uses: docker://golang:1.17
+      - uses: docker://golang:1.17
         with:
-          args: version
           entrypoint: go
+          args: version
 #      - run: ls -l /
 #        uses: docker://golang:1.17
       - run: apk add --no-cache curl docker-cli git python3 py3-pip
