@@ -7,11 +7,18 @@ build:
   - image: europe-docker.pkg.dev/arikkfir/public/devbot/api
     context: .
     docker:
-      dockerfile: api/Dockerfile.debug
+      dockerfile: api/Dockerfile.dev
+    hooks:
+      before:
+        - command: [go, vet, ./api/...]
+        - command:
+            - bash
+            - -ec
+            - "[[ -z \"$(gofmt -d -e -l . | tee gofmt-errors.txt)\" ]] || (cat gofmt-errors.txt && exit 1)"
   - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
     context: .
     docker:
-      dockerfile: portal/Dockerfile.debug
+      dockerfile: portal/Dockerfile.dev
     sync:
       manual:
         - src: portal/public/**
@@ -50,4 +57,3 @@ profiles:
       - op: replace
         path: /deploy/kustomize/paths
         value: [./deploy/prod]
-# TODO: run go vet, golink, go fmt?
