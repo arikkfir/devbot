@@ -26,7 +26,11 @@ jobs:
       - uses: docker://golang:1.17
         with:
           entrypoint: ls
-          args: /github/
+          args: /github/workflow
+      - uses: docker://golang:1.17
+        with:
+          entrypoint: ls
+          args: /github/workspace
       - run: apk add --no-cache curl docker-cli git python3 py3-pip
       - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
       - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
