@@ -25,10 +25,8 @@ jobs:
     steps:
       - uses: docker://golang:1.17
         with:
-          entrypoint: go
-          args: version
-#      - run: ls -l /
-#        uses: docker://golang:1.17
+          entrypoint: ls
+          args: /
       - run: apk add --no-cache curl docker-cli git python3 py3-pip
       - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
       - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
