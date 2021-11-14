@@ -23,6 +23,11 @@ jobs:
       CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     timeout-minutes: 5
     steps:
+#      - run: go vet ./...
+#        uses: golang:1.17
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.17'
       - run: apk add --no-cache curl docker-cli git python3 py3-pip
       - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
       - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
