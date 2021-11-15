@@ -41,13 +41,5 @@ jobs:
           container-structure-test-version: 1.10.0
           command: build
           profile: ci
-#      - uses: docker://golang:1.17
-#        with:
-#          entrypoint: gofmt
-#          args:
-#      - run: apk add --no-cache curl docker-cli git python3 py3-pip
-#      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
 #      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
-#      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
-#      - run: skaffold build --file-output=tags.json --profile=ci
 ##      - run: skaffold test --build-artifacts=tags.json
