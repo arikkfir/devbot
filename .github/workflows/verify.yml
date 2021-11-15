@@ -16,25 +16,14 @@ defaults:
 jobs:
   verify:
     runs-on: ubuntu-20.04
-    container: alpine:3.14
-    env:
-      SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
-      KUBECTL_DOWNLOAD_URL: https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl
-      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
+#    env:
+#      SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
+#      KUBECTL_DOWNLOAD_URL: https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl
+#      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     timeout-minutes: 5
     steps:
-      - uses: docker://golang:1.17
-        with:
-          entrypoint: ls
-          args: /github/workflow
-      - uses: docker://golang:1.17
-        with:
-          entrypoint: ls
-          args: /github/workspace
-      - run: apk add --no-cache curl docker-cli git python3 py3-pip
-      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
-      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
-      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
+      - uses: actions/checkout@v2
+      - uses: hiberbee/github-action-minikube@1.6.0
       - uses: google-github-actions/setup-gcloud@master
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -42,6 +31,21 @@ jobs:
           export_default_credentials: true
       - run: gcloud auth configure-docker europe-docker.pkg.dev
       - run: gcloud info
-      - uses: actions/checkout@v2
-      - run: skaffold build --file-output=tags.json --profile=ci
-#      - run: skaffold test --build-artifacts=tags.json
+      - uses: hiberbee/github-action-skaffold@1.12.0
+        with:
+          skaffold-version: 1.34.0
+          container-structure-test-version: 1.10.0
+          command: build
+          push: false
+          concurrency: 1
+          profile: ci
+#      - uses: docker://golang:1.17
+#        with:
+#          entrypoint: gofmt
+#          args:
+#      - run: apk add --no-cache curl docker-cli git python3 py3-pip
+#      - run: curl -sSL -o /usr/local/bin/skaffold "${SKAFFOLD_DOWNLOAD_URL}" && chmod +x /usr/local/bin/skaffold
+#      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
+#      - run: curl -sSL -o /usr/local/bin/container-structure-test "${CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL}" && chmod +x /usr/local/bin/container-structure-test
+#      - run: skaffold build --file-output=tags.json --profile=ci
+##      - run: skaffold test --build-artifacts=tags.json
