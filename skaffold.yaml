@@ -8,13 +8,6 @@ build:
     context: .
     docker:
       dockerfile: api/Dockerfile.dev
-    hooks:
-      before:
-        - command: [go, vet, ./api/...]
-        - command:
-            - bash
-            - -ec
-            - "[[ -z \"$(gofmt -d -e -l . | tee gofmt-errors.txt)\" ]] || (cat gofmt-errors.txt && exit 1)"
   - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
     context: .
     docker:
