@@ -41,6 +41,4 @@ jobs:
           container-structure-test-version: 1.10.0
           command: build
           profile: ci
-      - run: kubectl version
-#      - run: curl -sSL -o /usr/local/bin/kubectl "${KUBECTL_DOWNLOAD_URL}" && chmod +x /usr/local/bin/kubectl
 ##      - run: skaffold test --build-artifacts=tags.json
