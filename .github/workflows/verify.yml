@@ -16,10 +16,6 @@ defaults:
 jobs:
   verify:
     runs-on: ubuntu-20.04
-#    env:
-#      SKAFFOLD_DOWNLOAD_URL: https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64
-#      KUBECTL_DOWNLOAD_URL: https://dl.k8s.io/release/v1.22.3/bin/linux/amd64/kubectl
-#      CONTAINER_STRUCTURE_TEST_DOWNLOAD_URL: https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v2
