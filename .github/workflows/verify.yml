@@ -30,10 +30,10 @@ jobs:
       - name: Authenticate to Google Artifact Registry
         run: gcloud auth configure-docker europe-docker.pkg.dev
       - name: Pull the API Docker image of the previous commit
-        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/api:$(git rev-parse ${{ github.ref }}^ | cut -c 1-7)
+        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/api:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
         continue-on-error: true
       - name: Pull the Portal Docker image of the previous commit
-        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/portal:$(git rev-parse ${{ github.ref }}^ | cut -c 1-7)
+        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/portal:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
         continue-on-error: true
       - name: Setup Skaffold
         run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
