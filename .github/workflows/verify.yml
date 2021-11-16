@@ -31,11 +31,11 @@ jobs:
         run: gcloud auth configure-docker europe-docker.pkg.dev
       - name: Pull the API Docker image of the previous commit
         run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/api:$(git rev-parse HEAD^ | cut -c 1-7)
-        shell: bash -ex
+        shell: bash
         continue-on-error: true
       - name: Pull the Portal Docker image of the previous commit
         run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/portal:$(git rev-parse HEAD^ | cut -c 1-7)
-        shell: bash -ex
+        shell: bash
         continue-on-error: true
       - name: Setup Skaffold
         run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
