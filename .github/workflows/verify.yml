@@ -37,7 +37,10 @@ jobs:
 #          kubernetes-version: 1.22.3
 #          nodes: 1
 #          cpus: 2
-      - run: skaffold build --file-output=build.json --profile=ci
-      - run: skaffold render --build-artifacts=build.json --profile=ci --output=devbot.yaml
+      - run: git status
+      - name: Build
+        run: skaffold build --file-output=build.json --profile=ci
+      - name: Render Kubernetes manifests
+        run: skaffold render --build-artifacts=build.json --profile=ci --output=devbot.yaml
       # TODO: clone infrastructure repo, commit devbot.yaml for FluxCD to apply to cluster
 
