@@ -4,3 +4,4 @@
 *.swp
 *.swo
 *~
+/gcloud_google_credentials
