@@ -46,7 +46,6 @@ jobs:
 #          kubernetes-version: 1.22.3
 #          nodes: 1
 #          cpus: 2
-      - run: git status
       - name: Build
         run: skaffold build --file-output=build.json --profile=ci
       - name: Render Kubernetes manifests
