@@ -5,25 +5,25 @@ metadata:
 build:
   artifacts:
   - image: europe-docker.pkg.dev/arikkfir/public/devbot/api
-    context: .
+    context: ./api
     docker:
-      dockerfile: api/Dockerfile.dev
+      dockerfile: Dockerfile.dev
   - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
-    context: .
+    context: ./portal
     docker:
-      dockerfile: portal/Dockerfile.dev
+      dockerfile: Dockerfile.dev
     sync:
       manual:
-        - src: portal/public/**
+        - src: public/**
           dest: /workspace/public/
-        - src: portal/src/**
+        - src: src/**
           dest: /workspace/src/
-          strip: portal/src/
+          strip: src/
   local:
     push: false
 deploy:
   kustomize:
-    paths: [./deploy/local]
+    paths: [./deploy]
 portForward:
   - resourceType: deployment
     resourceName: api
@@ -41,12 +41,7 @@ profiles:
         value: true
       - op: replace
         path: /build/artifacts/0/docker/dockerfile
-        value: api/Dockerfile
+        value: Dockerfile
       - op: replace
         path: /build/artifacts/1/docker/dockerfile
-        value: portal/Dockerfile
-  - name: prod
-    patches:
-      - op: replace
-        path: /deploy/kustomize/paths
-        value: [./deploy/prod]
+        value: Dockerfile

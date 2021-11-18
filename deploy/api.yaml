@@ -4,7 +4,6 @@ metadata:
   labels:
     app.kubernetes.io/name: devbot
     app.kubernetes.io/component: api
-    app.kubernetes.io/version: dev
   name: api
 spec:
   replicas: 1
@@ -12,7 +11,6 @@ spec:
     matchLabels:
       app.kubernetes.io/name: devbot
       app.kubernetes.io/component: api
-      app.kubernetes.io/version: dev
   strategy:
     type: Recreate
   template:
@@ -20,11 +18,12 @@ spec:
       labels:
         app.kubernetes.io/name: devbot
         app.kubernetes.io/component: api
-        app.kubernetes.io/version: dev
     spec:
       containers:
         - args:
             - --http-address=:8080
+            - --log-caller-info
+            - --http-log-response-body
           image: europe-docker.pkg.dev/arikkfir/public/devbot/api
           name: api
           ports:

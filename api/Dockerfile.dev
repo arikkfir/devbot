@@ -8,13 +8,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Now build the actual executable
-COPY api/ ./api/
+COPY main.go ./
+COPY internal ./internal
 ENV CGO_ENABLED="0"
 ENV GOARCH="amd64"
 ENV GOOS="linux"
 ENV GO111MODULE="on"
 ARG SKAFFOLD_GO_GCFLAGS
-RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -o bin/api ./api/main.go
+RUN go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -o bin/api main.go
 
 ENV GOTRACEBACK=all
 ENTRYPOINT ["bin/api"]

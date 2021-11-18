@@ -18,10 +18,6 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - name: Setup Google Cloud SDK
         uses: google-github-actions/setup-gcloud@master
         with:
@@ -31,24 +27,28 @@ jobs:
           credentials_file_path: gcloud_google_credentials
       - name: Authenticate to Google Artifact Registry
         run: gcloud auth configure-docker europe-docker.pkg.dev
+      - name: Setup Skaffold
+        run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Pull the API Docker image of the previous commit
         run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/api:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
         continue-on-error: true
       - name: Pull the Portal Docker image of the previous commit
         run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/portal:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
         continue-on-error: true
-      - name: Setup Skaffold
-        run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
-      # TODO: deploy to Minikube & run test suite
-#      - name: Setup Minikube
-#        uses: hiberbee/github-action-minikube@1.6.0
-#        with:
-#          kubernetes-version: 1.22.3
-#          nodes: 1
-#          cpus: 2
       - name: Build
         run: skaffold build --file-output=build.json --profile=ci
+      - name: Setup Minikube
+        uses: hiberbee/github-action-minikube@1.6.0
+      - name: Deploy to Minikube
+        run: skaffold deploy --file-output=build.json --profile=ci
+      - run: |-
+          kubectl port-forward deploy/api 9001 &
+          sleep 3
+          curl -isSL http://localhost:9001/health
       - name: Render Kubernetes manifests
         run: skaffold render --build-artifacts=build.json --profile=ci --output=devbot.yaml
       # TODO: clone infrastructure repo, commit devbot.yaml for FluxCD to apply to cluster
-
