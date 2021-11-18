@@ -44,7 +44,7 @@ jobs:
       - name: Setup Minikube
         uses: hiberbee/github-action-minikube@1.6.0
       - name: Deploy to Minikube
-        run: skaffold deploy --file-output=build.json --profile=ci
+        run: skaffold deploy --build-artifacts=build.json --profile=ci
       - run: |-
           kubectl port-forward deploy/api 9001 &
           sleep 3
