@@ -14,14 +14,6 @@ spec:
       protocol: TCP
       port: 80
       targetPort: http
-    - name: metrics
-      protocol: TCP
-      port: 9000
-      targetPort: metrics
-    - name: health
-      protocol: TCP
-      port: 9001
-      targetPort: health
 ---
 apiVersion: apps/v1
 kind: Deployment
