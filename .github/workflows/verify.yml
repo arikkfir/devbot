@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - uses: ./.github/actions/setup-runner
         with:
           project-id: ${{ secrets.GCP_PROJECT_ID }}
@@ -33,8 +35,6 @@ jobs:
         run: gcloud auth configure-docker europe-docker.pkg.dev
       - name: Setup Skaffold
         run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
-      - name: Checkout
-        uses: actions/checkout@v2
         with:
           fetch-depth: 0
 #      - name: Pull the API Docker image of the previous commit
