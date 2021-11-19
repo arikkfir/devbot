@@ -33,16 +33,16 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Pull the API Docker image of the previous commit
-        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/api:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
-        continue-on-error: true
-      - name: Pull the Portal Docker image of the previous commit
-        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/portal:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
-        continue-on-error: true
-      - name: Build
-        run: skaffold build --file-output=build.json --profile=ci
+#      - name: Pull the API Docker image of the previous commit
+#        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/api:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
+#        continue-on-error: true
+#      - name: Pull the Portal Docker image of the previous commit
+#        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/portal:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
+#        continue-on-error: true
       - name: Setup Minikube
         uses: hiberbee/github-action-minikube@1.6.0
+      - name: Build
+        run: skaffold build --file-output=build.json --profile=ci
       - name: Deploy to Minikube
         run: skaffold deploy --build-artifacts=build.json --profile=ci
       - run: |-
