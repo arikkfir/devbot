@@ -39,8 +39,11 @@ spec:
       containers:
         - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
           name: portal
+          env:
+            - name: PORT
+              value: "80"
           ports:
-            - containerPort: 3000
+            - containerPort: 80
               name: http
               protocol: TCP
           resources:
