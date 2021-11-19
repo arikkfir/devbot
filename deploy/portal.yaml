@@ -4,7 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/name: devbot
     app.kubernetes.io/component: portal
-  name: api
+  name: portal
 spec:
   selector:
     app.kubernetes.io/name: devbot
