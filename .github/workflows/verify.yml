@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 defaults:
   run:
-    shell: sh -eu {0}
+    shell: bash -eu {0}
 jobs:
   verify:
     runs-on: ubuntu-20.04
@@ -21,30 +21,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - name: Setup Runner
         uses: ./.github/actions/setup-runner
         with:
           gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
           gcp-service-account-key: ${{ secrets.GCP_SA_KEY }}
-#      - name: Setup Google Cloud SDK
-#        uses: google-github-actions/setup-gcloud@master
-#        with:
-#          project_id: ${{ secrets.GCP_PROJECT_ID }}
-#          service_account_key: ${{ secrets.GCP_SA_KEY }}
-#          export_default_credentials: true
-#          credentials_file_path: gcloud_google_credentials
-#      - name: Pull the API Docker image of the previous commit
-#        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/api:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
-#        continue-on-error: true
-#      - name: Pull the Portal Docker image of the previous commit
-#        run: docker pull europe-docker.pkg.dev/arikkfir/public/devbot/portal:$(git rev-parse ${{ github.sha }}^ | cut -c 1-7)
-#        continue-on-error: true
       - name: Build
         run: skaffold build --file-output=build.json --profile=ci
       - name: Deploy to Minikube
         run: skaffold deploy --build-artifacts=build.json --profile=ci
+      - run: |-
+          minikube service list
+          minikube service example --url
+          curl $(minikube service example --url)
       - run: |-
           kubectl port-forward deploy/api 9001 &
           sleep 3
