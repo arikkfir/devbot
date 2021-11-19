@@ -1,3 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: devbot
+    app.kubernetes.io/component: portal
+  name: api
+spec:
+  selector:
+    app.kubernetes.io/name: devbot
+    app.kubernetes.io/component: portal
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
