@@ -31,15 +31,8 @@ jobs:
       - name: Deploy to Minikube
         run: skaffold deploy --build-artifacts=build.json --profile=ci
       - run: |-
-          minikube service list
-          minikube service api --url
-          minikube service portal --url
           curl $(minikube service api --url)
           curl $(minikube service portal --url)
-      - run: |-
-          kubectl port-forward deploy/api 9001 &
-          sleep 3
-          curl -isSL http://localhost:9001/health
       - name: Render Kubernetes manifests
         run: skaffold render --build-artifacts=build.json --profile=ci --output=devbot.yaml
       # TODO: clone infrastructure repo, commit devbot.yaml for FluxCD to apply to cluster
