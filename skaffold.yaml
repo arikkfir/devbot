@@ -25,14 +25,14 @@ deploy:
   kustomize:
     paths: [./deploy]
 portForward:
-  - resourceType: deployment
-    resourceName: api
-    port: http
-    localPort: 8081
-  - resourceType: deployment
+  - resourceType: service
     resourceName: portal
     port: http
     localPort: 8080
+  - resourceType: service
+    resourceName: api
+    port: http
+    localPort: 8081
 profiles:
   - name: ci
     patches:
