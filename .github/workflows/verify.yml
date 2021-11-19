@@ -18,13 +18,17 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
-      - name: Setup Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@master
+      - uses: ./.github/actions/setup-runner
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
-          credentials_file_path: gcloud_google_credentials
+          project-id: ${{ secrets.GCP_PROJECT_ID }}
+          service-account-key: ${{ secrets.GCP_SA_KEY }}
+#      - name: Setup Google Cloud SDK
+#        uses: google-github-actions/setup-gcloud@master
+#        with:
+#          project_id: ${{ secrets.GCP_PROJECT_ID }}
+#          service_account_key: ${{ secrets.GCP_SA_KEY }}
+#          export_default_credentials: true
+#          credentials_file_path: gcloud_google_credentials
       - name: Authenticate to Google Artifact Registry
         run: gcloud auth configure-docker europe-docker.pkg.dev
       - name: Setup Skaffold

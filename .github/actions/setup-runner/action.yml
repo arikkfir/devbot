@@ -1,0 +1,19 @@
+name: Setup Runner
+description: Setup the runner for devbot workflows.
+inputs:
+  gcp-project-id:
+    required: true
+    description: GCP alphanumeric project ID.
+  gcp-service-account-key:
+    required: true
+    description: GCP service account JSON key.
+runs:
+  using: composite
+  steps:
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@master
+      with:
+        project_id: ${{ inputs.gcp-project-id }}
+        service_account_key: ${{ inputs.gcp-service-account-key }}
+        export_default_credentials: true
+        credentials_file_path: gcloud_google_credentials
