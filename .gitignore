@@ -5,3 +5,4 @@
 *.swo
 *~
 /gcloud_google_credentials
+/skaffold-tags.json

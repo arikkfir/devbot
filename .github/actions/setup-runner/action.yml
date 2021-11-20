@@ -19,9 +19,11 @@ runs:
         credentials_file_path: gcloud_google_credentials
     - name: Authenticate to Google Artifact Registry
       run: gcloud auth configure-docker europe-docker.pkg.dev
-      shell: sh -eu {0}
+      shell: bash -eu {0}
+    - name: Setup Kind
+      uses: helm/kind-action@v1.2.0
+      with:
+        cluster_name: testing
     - name: Setup Skaffold
       run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
-      shell: sh -eu {0}
-    - name: Setup Minikube
-      uses: hiberbee/github-action-minikube@1.6.0
+      shell: bash -eu {0}

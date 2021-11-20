@@ -6,6 +6,7 @@ metadata:
     app.kubernetes.io/component: api
   name: api
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: devbot
     app.kubernetes.io/component: api

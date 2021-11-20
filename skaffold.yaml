@@ -19,8 +19,6 @@ build:
         - src: src/**
           dest: /workspace/src/
           strip: src/
-  local:
-    push: false
 deploy:
   kustomize:
     paths: [./deploy]
@@ -36,9 +34,6 @@ portForward:
 profiles:
   - name: ci
     patches:
-      - op: replace
-        path: /build/local/push
-        value: true
       - op: replace
         path: /build/artifacts/0/docker/dockerfile
         value: Dockerfile
