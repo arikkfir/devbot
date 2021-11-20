@@ -19,23 +19,26 @@ jobs:
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Setup Runner
-        uses: ./.github/actions/setup-runner
+      - uses: google-github-actions/setup-gcloud@master
         with:
-          gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
-          gcp-service-account-key: ${{ secrets.GCP_SA_KEY }}
-      - name: Build
-        run: skaffold build --file-output=skaffold-tags.json --profile=ci
-      - name: Deploy to local cluster
-        run: skaffold deploy --build-artifacts=skaffold-tags.json --profile=ci
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+          credentials_file_path: gcloud_google_credentials
+      - run: gcloud auth configure-docker europe-docker.pkg.dev
+      - uses: actions/checkout@v2
+      - run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
+      - run: skaffold build --file-output=skaffold-tags.json --profile=ci
+      - uses: helm/kind-action@v1.2.0
+      - run: skaffold deploy --build-artifacts=skaffold-tags.json --profile=ci
       - run: |-
+          echo "::group::Setting up port-forwarding"
           kubectl port-forward service/api 8081:80 &
           kubectl port-forward service/portal 8080:80 &
-          sleep 3
+          echo "Sleeping a bit..." && sleep 3
+          echo "::endgroup::"
+
           curl -isSL http://localhost:8080
           curl -isSL http://localhost:8081
-      - name: Render Kubernetes manifests
-        run: skaffold render --build-artifacts=build.json --profile=ci --output=devbot.yaml
+      - run: skaffold render --build-artifacts=skaffold-tags.json --profile=ci --output=devbot.yaml
       # TODO: clone infrastructure repo, commit devbot.yaml for FluxCD to apply to cluster
