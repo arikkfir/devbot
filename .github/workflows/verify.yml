@@ -42,13 +42,16 @@ jobs:
           curl -isSL http://localhost:8080
           curl -isSL http://localhost:8081
           echo "::endgroup::"
-      - run: skaffold render --build-artifacts=skaffold-tags.json --profile=ci --output=devbot.yaml
       - uses: actions/checkout@v2
         with:
           repository: arikkfir/infrastructure
           ref: main
-          # TODO: do we need this? token: ''
-          # TODO: do we need this? ssh-key: ''
+          token: ${{ secrets.PAT }}
           path: infrastructure
-          clean: false
-      # TODO: clone infrastructure repo, commit devbot.yaml for FluxCD to apply to cluster
+      - run: skaffold render --build-artifacts=skaffold-tags.json --profile=ci --output=devbot-deployment
+        working-directory: infrastructure/kubernetes/manifests/devbot
+      - name: Commit changes
+        uses: EndBug/add-and-commit@v7
+        with:
+          default_author: github_actions
+          message: Update Devbot Kubernetes manifest
