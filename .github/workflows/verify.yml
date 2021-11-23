@@ -43,4 +43,12 @@ jobs:
           curl -isSL http://localhost:8081
           echo "::endgroup::"
       - run: skaffold render --build-artifacts=skaffold-tags.json --profile=ci --output=devbot.yaml
+      - uses: actions/checkout@v2
+        with:
+          repository: arikkfir/infrastructure
+          ref: main
+          # TODO: do we need this? token: ''
+          # TODO: do we need this? ssh-key: ''
+          path: infrastructure
+          clean: false
       # TODO: clone infrastructure repo, commit devbot.yaml for FluxCD to apply to cluster
