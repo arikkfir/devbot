@@ -48,10 +48,11 @@ jobs:
           ref: main
           token: ${{ secrets.PAT }}
           path: infrastructure
-      - run: skaffold render --build-artifacts=skaffold-tags.json --profile=ci --output=devbot-deployment
-        working-directory: infrastructure/kubernetes/manifests/devbot
+      - run: skaffold render --build-artifacts=skaffold-tags.json --profile=ci --output=infrastructure/kubernetes/manifests/devbot/devbot-deployment.yaml
       - name: Commit changes
         uses: EndBug/add-and-commit@v7
         with:
-          default_author: github_actions
+          cwd: ./infrastructure
+          author_name: Devbot
+          author_email: arik+devbot@kfirs.com
           message: Update Devbot Kubernetes manifest
