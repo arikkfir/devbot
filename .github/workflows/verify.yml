@@ -53,6 +53,6 @@ jobs:
         uses: EndBug/add-and-commit@v7
         with:
           cwd: ./infrastructure
-          author_name: Devbot
-          author_email: arik+devbot@kfirs.com
+          author_name: github-actions
+          author_email: <github-actions@users.noreply.github.com>
           message: Update Devbot Kubernetes manifest
