@@ -23,15 +23,13 @@ jobs:
       id-token: write
     timeout-minutes: 15
     steps:
-      - run: |-
-          apt-get update && apt-get install -y curl python3
-          curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
+      - run: apt-get update && apt-get install -y curl python3
       - run: |-
           curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-366.0.0-linux-x86_64.tar.gz | tar xz -C /usr/local
-          /usr/local/google-cloud-sdk/install.sh --quiet --additional-components kubectl
-          ln -s /usr/local/google-cloud-sdk/bin/gcloud /usr/local/google-cloud-sdk/bin/gsutil /usr/local/google-cloud-sdk/bin/kubectl /usr/local/bin/
+          /usr/local/google-cloud-sdk/install.sh --quiet --additional-components docker-credential-gcr kubectl kustomize skaffold
+          pushd /usr/local/google-cloud-sdk/bin && ln -s $(pwd)/docker-credential-gcr $(pwd)/gcloud $(pwd)/gsutil $(pwd)/kubectl $(pwd)/kustomize $(pwd)/skaffold /usr/local/bin/ && popd
         env:
-          DEBIAN_FRONTEND: noninteractive
+            DEBIAN_FRONTEND: noninteractive
       - uses: google-github-actions/auth@v0.4.0
         with:
           workload_identity_provider: projects/8909046976/locations/global/workloadIdentityPools/github-actions/providers/default
