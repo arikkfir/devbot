@@ -1,5 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - api.yaml
-  - portal.yaml
+components:
+  - github.com/arikkfir/infrastructure//kubernetes/manifests/devbot/components/api?ref=main
+  - github.com/arikkfir/infrastructure//kubernetes/manifests/devbot/components/portal?ref=main
+patches:
+  - patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args
+        value: [--log-caller-info, --http-log-response-body]
+    target:
+      group: apps
+      name: api
+      version: v1
