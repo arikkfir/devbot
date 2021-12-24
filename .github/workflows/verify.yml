@@ -20,15 +20,9 @@ jobs:
         with:
           service_account: devbot-github-actions@arikkfir.iam.gserviceaccount.com
       - name: Setup Docker
-        run: apt-get update && apt-get install -y docker.io
-        env:
-          DEBIAN_FRONTEND: noninteractive
+        uses: arikkfir/infrastructure/.github/actions/setup-docker@main
       - name: Setup Skaffold
         uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
-#      - name: Install Skaffold
-#        run: curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
-      - name: Authenticate to Google Artifact Registry
-        run: gcloud auth configure-docker europe-docker.pkg.dev
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Build Docker images
