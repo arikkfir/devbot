@@ -26,7 +26,7 @@ jobs:
       - name: Setup build container
         run: |-
           echo "::group::Setting up dependencies"
-          apt-get update && apt-get install -y curl python3
+          apt-get update && apt-get install -y curl python3 docker.io
           echo "::endgroup::"
           echo "::group::Installing skaffold"
           curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
