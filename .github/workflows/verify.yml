@@ -58,6 +58,7 @@ jobs:
       - name: Build Docker images
         run: skaffold build --file-output=skaffold-tags.json --profile=ci
       - uses: helm/kind-action@v1.2.0
+      - run: docker ps -a
       - name: Deploy to local cluster
         run: skaffold deploy --build-artifacts=skaffold-tags.json --profile=ci
       - name: Test
