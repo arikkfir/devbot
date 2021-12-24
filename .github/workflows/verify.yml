@@ -24,12 +24,25 @@ jobs:
     timeout-minutes: 15
     steps:
       - run: |-
+          echo "::group::Setting up dependencies"
           apt-get update && apt-get install -y curl python3
+          echo "::endgroup::"
+          echo "::group::Installing skaffold"
           curl -sSL -o /usr/local/bin/skaffold "https://storage.googleapis.com/skaffold/releases/latest/skaffold-linux-amd64" && chmod +x /usr/local/bin/skaffold
-      - run: |-
-          curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-366.0.0-linux-x86_64.tar.gz | tar xz -C /usr/local
-          /usr/local/google-cloud-sdk/install.sh --quiet --additional-components docker-credential-gcr kubectl kustomize
-          pushd /usr/local/google-cloud-sdk/bin && ln -s $(pwd)/docker-credential-gcr $(pwd)/gcloud $(pwd)/gsutil $(pwd)/kubectl $(pwd)/kustomize /usr/local/bin/ && popd
+          echo "::endgroup::"
+          echo "::group::Installing Google Cloud SDK"
+          curl -sSL https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-367.0.0-linux-x86_64.tar.gz | tar xz -C /usr/local \
+            && /usr/local/google-cloud-sdk/install.sh --quiet --additional-components kubectl kustomize \
+            && pushd /usr/local/google-cloud-sdk/bin \
+            && ln -s $(pwd)/bq \
+                     $(pwd)/docker-credential-gcloud \
+                     $(pwd)/gcloud \
+                     $(pwd)/gsutil \
+                     $(pwd)/kubectl \
+                     $(pwd)/kustomize \
+                     /usr/local/bin/ \
+            && popd
+          echo "::endgroup::"
         env:
             DEBIAN_FRONTEND: noninteractive
       - uses: google-github-actions/auth@v0.4.0
