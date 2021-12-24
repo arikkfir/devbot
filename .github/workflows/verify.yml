@@ -49,38 +49,23 @@ jobs:
         uses: actions/checkout@v2
       - name: Build Docker images
         run: skaffold build --file-output=skaffold-tags.json --profile=ci
-      - uses: helm/kind-action@v1.2.0
-      - run: docker ps -a
-      - name: Deploy to local cluster
-        run: skaffold deploy --build-artifacts=skaffold-tags.json --profile=ci
-      - name: Test
-        run: |-
-          echo "::group::Setting up port-forwarding"
-          kubectl port-forward service/api 8081:80 &
-          kubectl port-forward service/portal 8080:80 &
-          echo "Sleeping a bit..." && sleep 3
-          echo "::endgroup::"
-          echo "::group::Testing"
-          curl -isSL http://localhost:8080
-          curl -isSL http://localhost:8081
-          echo "::endgroup::"
-      - name: Checkout Infrastructure
-        uses: actions/checkout@v2
-        with:
-          repository: arikkfir/infrastructure
-          ref: main
-          token: ${{ secrets.PAT }}
-          path: infrastructure
-      - name: Patch Infrastructure
-        run: |-
-          kustomize edit set image \
-            $(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/api") | .tag') \
-            $(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/portal") | .tag')
-        working-directory: infrastructure/kubernetes/manifests/devbot
-      - name: Commit changes
-        uses: EndBug/add-and-commit@v7
-        with:
-          cwd: ./infrastructure
-          author_name: github-actions
-          author_email: <github-actions@users.noreply.github.com>
-          message: Update Devbot Kubernetes manifest
+#      - name: Checkout Infrastructure
+#        uses: actions/checkout@v2
+#        with:
+#          repository: arikkfir/infrastructure
+#          ref: main
+#          token: ${{ secrets.PAT }}
+#          path: infrastructure
+#      - name: Patch Infrastructure
+#        run: |-
+#          kustomize edit set image \
+#            $(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/api") | .tag') \
+#            $(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/portal") | .tag')
+#        working-directory: infrastructure/kubernetes/manifests/devbot
+#      - name: Commit changes
+#        uses: EndBug/add-and-commit@v7
+#        with:
+#          cwd: ./infrastructure
+#          author_name: github-actions
+#          author_email: <github-actions@users.noreply.github.com>
+#          message: Update Devbot Kubernetes manifest
