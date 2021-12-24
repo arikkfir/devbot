@@ -15,11 +15,12 @@ jobs:
       id-token: write
     timeout-minutes: 15
     steps:
-      - uses: arikkfir/infrastructure/.github/actions/setup-gcloud@main
+      - name: Setup Google Cloud SDK
+        uses: arikkfir/infrastructure/.github/actions/setup-gcloud@main
         with:
           service_account: devbot-github-actions@arikkfir.iam.gserviceaccount.com
-      - name: Install Docker
-        run: apt-get update && apt-get install -y curl python3 docker.io
+      - name: Setup Docker
+        run: apt-get update && apt-get install -y docker.io
         env:
           DEBIAN_FRONTEND: noninteractive
       - name: Setup Skaffold
