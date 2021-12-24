@@ -23,7 +23,8 @@ jobs:
       id-token: write
     timeout-minutes: 15
     steps:
-      - run: |-
+      - name: Setup build container
+        run: |-
           echo "::group::Setting up dependencies"
           apt-get update && apt-get install -y curl python3
           echo "::endgroup::"
@@ -45,16 +46,22 @@ jobs:
           echo "::endgroup::"
         env:
             DEBIAN_FRONTEND: noninteractive
-      - uses: google-github-actions/auth@v0.4.0
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v0.4.0
         with:
           workload_identity_provider: projects/8909046976/locations/global/workloadIdentityPools/github-actions/providers/default
           service_account: devbot-github-actions@arikkfir.iam.gserviceaccount.com
-      - run: gcloud auth configure-docker europe-docker.pkg.dev
-      - uses: actions/checkout@v2
-      - run: skaffold build --file-output=skaffold-tags.json --profile=ci
+      - name: Authenticate to Google Artifact Registry
+        run: gcloud auth configure-docker europe-docker.pkg.dev
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build Docker images
+        run: skaffold build --file-output=skaffold-tags.json --profile=ci
       - uses: helm/kind-action@v1.2.0
-      - run: skaffold deploy --build-artifacts=skaffold-tags.json --profile=ci
-      - run: |-
+      - name: Deploy to local cluster
+        run: skaffold deploy --build-artifacts=skaffold-tags.json --profile=ci
+      - name: Test
+        run: |-
           echo "::group::Setting up port-forwarding"
           kubectl port-forward service/api 8081:80 &
           kubectl port-forward service/portal 8080:80 &
@@ -64,13 +71,15 @@ jobs:
           curl -isSL http://localhost:8080
           curl -isSL http://localhost:8081
           echo "::endgroup::"
-      - uses: actions/checkout@v2
+      - name: Checkout Infrastructure
+        uses: actions/checkout@v2
         with:
           repository: arikkfir/infrastructure
           ref: main
           token: ${{ secrets.PAT }}
           path: infrastructure
-      - run: |-
+      - name: Patch Infrastructure
+        run: |-
           kustomize edit set image \
             $(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/api") | .tag') \
             $(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/portal") | .tag')
