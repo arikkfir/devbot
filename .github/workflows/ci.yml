@@ -23,6 +23,8 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-docker@main
       - name: Setup Skaffold
         uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
+      - name: Setup Helm
+        uses: arikkfir/infrastructure/.github/actions/setup-helm@main
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Build Docker images
