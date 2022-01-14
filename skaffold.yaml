@@ -7,11 +7,11 @@ build:
   - image: europe-docker.pkg.dev/arikkfir/public/devbot/api
     context: ./api
     docker:
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
   - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
     context: ./portal
     docker:
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     sync:
       manual:
         - src: public/**
@@ -22,26 +22,43 @@ build:
   local:
     push: false
 deploy:
-  kustomize:
-    paths: [./deploy]
+  helm:
+    releases:
+      - name: local
+        chartPath: ./chart
+        artifactOverrides:
+          api:
+            image: europe-docker.pkg.dev/arikkfir/public/devbot/api
+          portal:
+            image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
+        imageStrategy:
+          helm: {}
+        valuesFiles:
+          - values-dev.yaml
 portForward:
   - resourceType: service
-    resourceName: portal
+    namespace: default
+    resourceName: devbot-local-portal
     port: http
     localPort: 8080
   - resourceType: service
-    resourceName: api
+    namespace: default
+    resourceName: devbot-local-api
     port: http
     localPort: 8081
 profiles:
-  - name: ci
+  - name: dev
+    activation:
+      - command: dev
+    patches:
+      - op: replace
+        path: /build/artifacts/0/docker/dockerfile
+        value: Dockerfile.dev
+      - op: replace
+        path: /build/artifacts/1/docker/dockerfile
+        value: Dockerfile.dev
+  - name: push
     patches:
       - op: replace
         path: /build/local/push
         value: true
-      - op: replace
-        path: /build/artifacts/0/docker/dockerfile
-        value: Dockerfile
-      - op: replace
-        path: /build/artifacts/1/docker/dockerfile
-        value: Dockerfile

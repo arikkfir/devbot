@@ -1,0 +1,70 @@
+name: CI
+on:
+  push:
+    branches: [*]
+  workflow_dispatch:
+defaults:
+  run:
+    shell: bash -eu {0}
+jobs:
+  verify:
+    runs-on: ubuntu-20.04
+    container: ubuntu:21.10
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 15
+    steps:
+      - name: Setup Google Cloud SDK
+        uses: arikkfir/infrastructure/.github/actions/setup-gcloud@main
+        with:
+          service_account: devbot-github-actions@arikkfir.iam.gserviceaccount.com
+      - name: Setup Docker
+        uses: arikkfir/infrastructure/.github/actions/setup-docker@main
+      - name: Setup Skaffold
+        uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build Docker images
+        run: skaffold build --file-output=skaffold-tags.json --profile=push
+      - name: Package Helm Chart
+        run: |-
+          mkdir .repo
+          cd .repo
+          helm package ../chart
+      - name: Index Helm Repository
+        run: |-
+          gsutil cp gs://arikkfir-helm-repository/index.yaml .
+          helm repo index . --merge=./index.yaml --url=https://arikkfir-helm-repository.storage.googleapis.com/
+        working-directory: .repo
+      - name: Upload Helm Repository
+        run: gsutil cp ./index.yaml *.tgz gs://arikkfir-helm-repository/
+        working-directory: .repo
+#      - name: Checkout Infrastructure
+#        uses: actions/checkout@v2
+#        with:
+#          repository: arikkfir/infrastructure
+#          ref: main
+#          token: ${{ secrets.PAT }}
+#          path: infrastructure
+#      - name: Patch Infrastructure
+#        run: |-
+#          if [[ ! -f "./${{ github.ref_name }}/kustomization.yaml" ]]; then
+#
+#          fi
+#          # TODO: create env if missing
+#          API_IMAGE="$(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/api") | .tag')"
+#          API_TAG="$(echo -n "${API_IMAGE}" | cut -d':' -f2)"
+#          PORTAL_IMAGE="$(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/portal") | .tag')"
+#          PORTAL_TAG="$(echo -n "${PORTAL_IMAGE}" | cut -d':' -f2)"
+#          yq eval -i ".spec.values.api.image.tag |= \"${API_TAG}\"" devbot.yaml
+#          yq eval -i ".spec.values.portal.image.tag |= \"${PORTAL_TAG}\"" devbot.yaml
+#          git diff
+#        working-directory: infrastructure/kubernetes/manifests/environments/${{ github.ref_name }}/devbot
+#      - name: Commit changes
+#        uses: EndBug/add-and-commit@v7
+#        with:
+#          cwd: ./infrastructure
+#          author_name: github-actions
+#          author_email: <github-actions@users.noreply.github.com>
+#          message: Update Devbot Kubernetes manifest

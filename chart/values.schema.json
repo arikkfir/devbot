@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/schema#",
+  "$defs": {
+    "rbac": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {"type": "boolean"},
+        "name": {"type": "string"},
+        "gcpWorkloadIdentityProject": {"type": "string"}
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[^:]+$"
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "^[^:/]+$"
+        }
+      }
+    },
+    "cpuAndMemory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "type": "string"
+        },
+        "memory": {
+          "type": "string"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "$ref": "#/$defs/cpuAndMemory"
+        },
+        "limits": {
+          "$ref": "#/$defs/cpuAndMemory"
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rbac": {"$ref": "#/$defs/rbac"},
+        "serviceAccount": {"$ref": "#/$defs/serviceAccount"},
+        "image": {"$ref": "#/$defs/image"},
+        "resources": {"$ref": "#/$defs/resources"},
+        "tolerations": {
+          "type": "array"
+        }
+      }
+    },
+    "portal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rbac": {"$ref": "#/$defs/rbac"},
+        "serviceAccount": {"$ref": "#/$defs/serviceAccount"},
+        "image": {"$ref": "#/$defs/image"},
+        "resources": {"$ref": "#/$defs/resources"},
+        "tolerations": {
+          "type": "array"
+        }
+      }
+    },
+    "issuerRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["ClusterIssuer", "Issuer"]
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["A", "CNAME"]
+        },
+        "ttl": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "zone": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "namespace": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        "rrdatas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "certificate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issuerRef": {"$ref": "#/$defs/issuerRef"}
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "dns": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "record": {"$ref": "#/$defs/record"},
+            "certificate": {"$ref": "#/$defs/certificate"}
+          }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "api": {"$ref": "#/$defs/api"},
+    "portal": {"$ref": "#/$defs/portal"},
+    "ingress": {"$ref": "#/$defs/ingress"}
+  }
+}

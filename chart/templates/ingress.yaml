@@ -1,0 +1,151 @@
+{{- if eq .Values.ingress.enabled true -}}
+{{- if empty .Values.ingress.dns.record.name -}}
+{{- fail "value required for 'ingress.dns.record.name'" -}}
+{{- end }}
+{{- if empty .Values.ingress.dns.record.type -}}
+{{- fail "value required for 'ingress.dns.record.type'" -}}
+{{- end }}
+{{- if empty .Values.ingress.dns.record.zone.namespace -}}
+{{- fail "value required for 'ingress.dns.record.zone.namespace'" -}}
+{{- end }}
+{{- if empty .Values.ingress.dns.record.zone.name -}}
+{{- fail "value required for 'ingress.dns.record.zone.name'" -}}
+{{- end }}
+{{- if empty .Values.ingress.dns.record.rrdatas -}}
+{{- fail "value required for 'ingress.dns.record.rrdatas'" -}}
+{{- end }}
+{{- if empty .Values.ingress.dns.certificate.issuerRef.kind -}}
+{{- fail "value required for 'ingress.dns.certificate.issuerRef.kind'" -}}
+{{- end }}
+{{- if empty .Values.ingress.dns.certificate.issuerRef.name -}}
+{{- fail "value required for 'ingress.dns.certificate.issuerRef.name'" -}}
+{{- end }}
+{{- $name := print .Chart.Name "-" .Release.Name -}}
+apiVersion: dns.cnrm.cloud.google.com/v1beta1
+kind: DNSRecordSet
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name | quote }}
+    helm.sh/chart: {{ print .Chart.Name "-" .Chart.Version | replace "+" "_" | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/component: ingress
+  name: {{ $name | quote }}
+spec:
+  name: {{ print .Values.ingress.dns.record.name "." | quote }}
+  type: {{ .Values.ingress.dns.record.type | quote }}
+  ttl: {{ .Values.ingress.dns.record.ttl }}
+  managedZoneRef:
+    namespace: {{ .Values.ingress.dns.record.zone.namespace | quote }}
+    name: {{ .Values.ingress.dns.record.zone.name | quote }}
+  rrdatas:
+    {{- range .Values.ingress.dns.record.rrdatas }}
+    - {{ . | quote }}
+    {{- end }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name | quote }}
+    helm.sh/chart: {{ print .Chart.Name "-" .Chart.Version | replace "+" "_" | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/component: ingress
+  name: {{ $name | quote }}
+spec:
+  secretName: {{ print $name "-ingress-tls" | quote }}
+  issuerRef:
+    kind: {{ .Values.ingress.dns.certificate.issuerRef.kind | quote }}
+    name: {{ .Values.ingress.dns.certificate.issuerRef.name | quote }}
+  dnsNames:
+    - {{ print .Values.ingress.dns.record.name "." | quote }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name | quote }}
+    helm.sh/chart: {{ print .Chart.Name "-" .Chart.Version | replace "+" "_" | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/component: ingress
+  name: {{ print $name "-redirect-to-https" | quote }}
+spec:
+  redirectScheme:
+    scheme: https
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name | quote }}
+    helm.sh/chart: {{ print .Chart.Name "-" .Chart.Version | replace "+" "_" | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/component: ingress
+  name: {{ print $name "-web" | quote }}
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: HostRegexp(`{{ .Values.ingress.dns.record.name }}`)
+      kind: Rule
+      middlewares:
+        - name: {{ print $name "-redirect-to-https" | quote }}
+      services:
+        - kind: TraefikService
+          name: noop@internal
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name | quote }}
+    helm.sh/chart: {{ print .Chart.Name "-" .Chart.Version | replace "+" "_" | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/component: ingress
+  name: {{ print $name "-strip-api-prefix" | quote }}
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name | quote }}
+    helm.sh/chart: {{ print .Chart.Name "-" .Chart.Version | replace "+" "_" | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+    app.kubernetes.io/instance: {{ .Release.Name | quote }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/component: ingress
+  name: {{ print $name "-websecure" | quote }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: HostRegexp(`{{ .Values.ingress.dns.record.name }}`) && PathPrefix(`/api`)
+      kind: Rule
+      middlewares:
+        - name: {{ print $name "-strip-api-prefix" | quote }}
+      services:
+        - kind: Service
+          name: {{ print .Chart.Name "-" .Release.Name "-api" }}
+          port: 80
+    - match: HostRegexp(`{{ .Values.ingress.dns.record.name }}`)
+      kind: Rule
+      services:
+        - kind: Service
+          name: {{ print .Chart.Name "-" .Release.Name "-portal" }}
+          port: 80
+  tls:
+    secretName: {{ print $name "-ingress-tls" | quote }}
+{{- end }}
