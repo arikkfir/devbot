@@ -21,6 +21,7 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-gcloud@main
         with:
           service_account: devbot-github-actions@arikkfir.iam.gserviceaccount.com
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Setup Docker
         uses: arikkfir/infrastructure/.github/actions/setup-docker@main
       - name: Setup Skaffold
@@ -31,17 +32,19 @@ jobs:
         run: skaffold build --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
         run: |-
-          mkdir .repo
-          cd .repo
-          helm package ../chart
+          gsutil cp gs://arikkfir-helm-repository/devbot-$(yq e '.version' Chart.yaml).tgz ../ || echo "Package does not exist"
+          if [[ -e "../devbot-$(yq e '.version' Chart.yaml).tgz" ]]; then
+            echo "Package already exists!" >&2
+            exit 1
+          fi 
+          helm package --destination=../
+        working-directory: chart
       - name: Index Helm Repository
         run: |-
           gsutil cp gs://arikkfir-helm-repository/index.yaml .
           helm repo index . --merge=./index.yaml --url=https://arikkfir-helm-repository.storage.googleapis.com/
-        working-directory: .repo
       - name: Upload Helm Repository
         run: gsutil cp ./index.yaml *.tgz gs://arikkfir-helm-repository/
-        working-directory: .repo
 #      - name: Checkout Infrastructure
 #        uses: actions/checkout@v2
 #        with:
