@@ -41,7 +41,7 @@ jobs:
             echo "Package already exists!" >&2
             exit 1
           fi 
-          helm package --destination=../
+          helm package . --destination=../
         working-directory: chart
       - name: Index Helm Repository
         run: |-
