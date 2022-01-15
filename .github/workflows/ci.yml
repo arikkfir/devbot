@@ -34,6 +34,8 @@ jobs:
         run: skaffold build --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
         run: |-
+          yq e ".version += \"-${GITHUB_SHA::7}\"" Chart.yaml
+          yq e ".appVersion = \"${GITHUB_SHA::7}\"" Chart.yaml
           gsutil cp gs://arikkfir-helm-repository/devbot-$(yq e '.version' Chart.yaml).tgz ../ || echo "Package does not exist"
           if [[ -e "../devbot-$(yq e '.version' Chart.yaml).tgz" ]]; then
             echo "Package already exists!" >&2
