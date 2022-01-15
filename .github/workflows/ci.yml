@@ -28,6 +28,8 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
       - name: Setup Helm
         uses: arikkfir/infrastructure/.github/actions/setup-helm@main
+      - name: Setup YQ
+        uses: arikkfir/infrastructure/.github/actions/setup-yq@main
       - name: Build Docker images
         run: skaffold build --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
