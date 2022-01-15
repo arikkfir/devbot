@@ -15,6 +15,8 @@ jobs:
       id-token: write
     timeout-minutes: 15
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Setup Google Cloud SDK
         uses: arikkfir/infrastructure/.github/actions/setup-gcloud@main
         with:
@@ -25,8 +27,6 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
       - name: Setup Helm
         uses: arikkfir/infrastructure/.github/actions/setup-helm@main
-      - name: Checkout code
-        uses: actions/checkout@v2
       - name: Build Docker images
         run: skaffold build --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
