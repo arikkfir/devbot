@@ -28,27 +28,31 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
       - name: Setup Helm
         uses: arikkfir/infrastructure/.github/actions/setup-helm@main
-      - name: Setup YQ
-        uses: arikkfir/infrastructure/.github/actions/setup-yq@main
+#      - name: Setup YQ
+#        uses: arikkfir/infrastructure/.github/actions/setup-yq@main
       - name: Build Docker images
         run: skaffold build --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
-        run: |-
-          yq e -i ".version += \"-${GITHUB_SHA::7}\"" Chart.yaml
-          yq e -i ".appVersion = \"${GITHUB_SHA::7}\"" Chart.yaml
-          gsutil cp gs://arikkfir-helm-repository/devbot-$(yq e '.version' Chart.yaml).tgz ../ || echo "Package does not exist"
-          if [[ -e "../devbot-$(yq e '.version' Chart.yaml).tgz" ]]; then
-            echo "Package already exists!" >&2
-            exit 1
-          fi 
-          helm package . --destination=../
-        working-directory: chart
-      - name: Index Helm Repository
-        run: |-
-          gsutil cp gs://arikkfir-helm-repository/index.yaml .
-          helm repo index . --merge=./index.yaml --url=https://arikkfir-helm-repository.storage.googleapis.com/
-      - name: Upload Helm Repository
-        run: gsutil cp ./index.yaml *.tgz gs://arikkfir-helm-repository/
+        uses: arikkfir/infrastructure/.github/actions/package-helm-chart@main
+        with:
+          directory: chart
+#      - name: Package Helm Chart
+#        run: |-
+#          yq e -i ".version += \"-${GITHUB_SHA::7}\"" Chart.yaml
+#          yq e -i ".appVersion = \"${GITHUB_SHA::7}\"" Chart.yaml
+#          gsutil cp gs://arikkfir-helm-repository/devbot-$(yq e '.version' Chart.yaml).tgz ../ || echo "Package does not exist"
+#          if [[ -e "../devbot-$(yq e '.version' Chart.yaml).tgz" ]]; then
+#            echo "Package already exists!" >&2
+#            exit 1
+#          fi
+#          helm package . --destination=../
+#        working-directory: chart
+#      - name: Index Helm Repository
+#        run: |-
+#          gsutil cp gs://arikkfir-helm-repository/index.yaml .
+#          helm repo index . --merge=./index.yaml --url=https://arikkfir-helm-repository.storage.googleapis.com/
+#      - name: Upload Helm Repository
+#        run: gsutil cp ./index.yaml *.tgz gs://arikkfir-helm-repository/
 #      - name: Checkout Infrastructure
 #        uses: actions/checkout@v2
 #        with:
