@@ -30,6 +30,11 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-helm@main
       - name: Setup YQ
         uses: arikkfir/infrastructure/.github/actions/setup-yq@main
+      - name: Package Helm Chart
+        id: package-helm-chart
+        uses: arikkfir/infrastructure/.github/actions/package-helm-chart@main
+        with:
+          directory: chart
       - name: Prepare environment
         id: prepare-environment
         uses: arikkfir/infrastructure/.github/actions/prepare-deployment-environment@main
@@ -42,12 +47,13 @@ jobs:
           yq --prettyPrint eval --inplace '
             ((.[] | {.path:.}) as $i ireduce ({}; . * $i)) * 
               {
-                "/spec/chart/spec/version": {"op": "replace", "path": "/spec/chart/spec/version", "value": "'${GITHUB_REF::7}'"},
+                "/spec/chart/spec/version": {"op": "replace", "path": "/spec/chart/spec/version", "value": "${{ steps.package-helm-chart.outputs.version }}"},
                 "/spec/values/ingress/dns/record/name": "www.${{ github.ref_name }}.kfirs.com"
               } 
               | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
           for f in $(ls); do echo "${f}:"; cat "${f}"; sleep 2; done
+          git status
           git diff
         working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
 #      - name: Commit changes
@@ -59,7 +65,3 @@ jobs:
 #          message: Update Devbot Kubernetes manifest
       - name: Build Docker images
         run: skaffold build --build-concurrency=2 --file-output=skaffold-tags.json --profile=push
-      - name: Package Helm Chart
-        uses: arikkfir/infrastructure/.github/actions/package-helm-chart@main
-        with:
-          directory: chart
