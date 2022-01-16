@@ -38,8 +38,7 @@ jobs:
           token: ${{ secrets.PAT }}
       - name: Patch Infrastructure
         run: |-
-          pwd
-          ls -la
+          set -x
           yq --prettyPrint eval --inplace '
             ((.[] | {.path:.}) as $i ireduce ({}; . * $i)) * 
               {
@@ -48,7 +47,7 @@ jobs:
               } 
               | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
-          for f in $(ls); do echo "${f}:"; cat "${f}"; done
+          for f in $(ls); do echo "${f}:"; cat "${f}"; sleep 2; done
           git diff
         working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
 #      - name: Commit changes
