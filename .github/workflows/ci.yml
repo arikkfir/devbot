@@ -49,7 +49,7 @@ jobs:
               | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
           git diff
-        working-directory: ${{ steps.prepare-environment.outputs.directory }}
+        working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
 #      - name: Commit changes
 #        uses: EndBug/add-and-commit@v7
 #        with:
