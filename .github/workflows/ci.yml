@@ -53,8 +53,8 @@ jobs:
               | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
           for f in $(ls); do cat "${f}"; sleep 3; done
-          git status
-          git diff
+          git add .
+          git diff --cached
         working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
 #      - name: Commit changes
 #        uses: EndBug/add-and-commit@v7
