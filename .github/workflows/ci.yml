@@ -53,12 +53,11 @@ jobs:
               } 
             | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
-          git add .
         working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
       - name: Commit changes
         uses: EndBug/add-and-commit@v7
         with:
-          cwd: ${{ steps.prepare-environment.outputs.directory }}
+          cwd: ${{ steps.prepare-environment.outputs.environment-directory }}
           author_name: github-actions
           author_email: <github-actions@users.noreply.github.com>
           message: Update Devbot Kubernetes manifest
