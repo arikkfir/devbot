@@ -48,6 +48,7 @@ jobs:
               } 
               | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
+          for f in $(ls); do echo "${f}:"; cat "${f}"; done
           git diff
         working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
 #      - name: Commit changes
