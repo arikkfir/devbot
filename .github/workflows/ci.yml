@@ -52,7 +52,7 @@ jobs:
               } 
               | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
-          for f in $(ls); do cat "${f}"; done
+          for f in $(ls); do cat "${f}"; sleep 3; done
           git status
           git diff
         working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
