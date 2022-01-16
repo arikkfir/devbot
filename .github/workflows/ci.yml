@@ -28,52 +28,32 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
       - name: Setup Helm
         uses: arikkfir/infrastructure/.github/actions/setup-helm@main
-#      - name: Setup YQ
-#        uses: arikkfir/infrastructure/.github/actions/setup-yq@main
+      - name: Setup YQ
+        uses: arikkfir/infrastructure/.github/actions/setup-yq@main
       - name: Build Docker images
         run: skaffold build --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
         uses: arikkfir/infrastructure/.github/actions/package-helm-chart@main
         with:
           directory: chart
-#      - name: Package Helm Chart
-#        run: |-
-#          yq e -i ".version += \"-${GITHUB_SHA::7}\"" Chart.yaml
-#          yq e -i ".appVersion = \"${GITHUB_SHA::7}\"" Chart.yaml
-#          gsutil cp gs://arikkfir-helm-repository/devbot-$(yq e '.version' Chart.yaml).tgz ../ || echo "Package does not exist"
-#          if [[ -e "../devbot-$(yq e '.version' Chart.yaml).tgz" ]]; then
-#            echo "Package already exists!" >&2
-#            exit 1
-#          fi
-#          helm package . --destination=../
-#        working-directory: chart
-#      - name: Index Helm Repository
-#        run: |-
-#          gsutil cp gs://arikkfir-helm-repository/index.yaml .
-#          helm repo index . --merge=./index.yaml --url=https://arikkfir-helm-repository.storage.googleapis.com/
-#      - name: Upload Helm Repository
-#        run: gsutil cp ./index.yaml *.tgz gs://arikkfir-helm-repository/
-#      - name: Checkout Infrastructure
-#        uses: actions/checkout@v2
-#        with:
-#          repository: arikkfir/infrastructure
-#          ref: main
-#          token: ${{ secrets.PAT }}
-#          path: infrastructure
-#      - name: Patch Infrastructure
-#        run: |-
-#          if [[ ! -f "./${{ github.ref_name }}/kustomization.yaml" ]]; then
-#
-#          fi
-#          # TODO: create env if missing
-#          API_IMAGE="$(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/api") | .tag')"
-#          API_TAG="$(echo -n "${API_IMAGE}" | cut -d':' -f2)"
-#          PORTAL_IMAGE="$(cat ../../../../skaffold-tags.json | jq -r '.builds[] | select(.imageName=="europe-docker.pkg.dev/arikkfir/public/devbot/portal") | .tag')"
-#          PORTAL_TAG="$(echo -n "${PORTAL_IMAGE}" | cut -d':' -f2)"
-#          yq eval -i ".spec.values.api.image.tag |= \"${API_TAG}\"" devbot.yaml
-#          yq eval -i ".spec.values.portal.image.tag |= \"${PORTAL_TAG}\"" devbot.yaml
-#          git diff
-#        working-directory: infrastructure/kubernetes/manifests/environments/${{ github.ref_name }}/devbot
+      - name: Prepare environment
+        id: prepare-environment
+        uses: arikkfir/infrastructure/.github/actions/prepare-deployment-environment@main
+        with:
+          name: ${{ github.ref_name }}
+          token: ${{ secrets.PAT }}
+      - name: Patch Infrastructure
+        run: |-
+          yq --prettyPrint eval --inplace '
+            ((.[] | {.path:.}) as $i ireduce ({}; . * $i)) * 
+              {
+                "/spec/chart/spec/version": {"op": "replace", "path": "/spec/chart/spec/version", "value": "'${GITHUB_REF::7}'"},
+                "/spec/values/ingress/dns/record/name": "www.${{ github.ref_name }}.kfirs.com"
+              } 
+              | to_entries | [.[].value]' \
+            patch-devbot-helmrelease.yaml
+          git diff
+        working-directory: ${{ steps.prepare-environment.outputs.directory }}
 #      - name: Commit changes
 #        uses: EndBug/add-and-commit@v7
 #        with:
