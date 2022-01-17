@@ -1,0 +1,13 @@
+apiVersion: v2
+name: devbot
+version: 0.0.6
+appVersion: UNKNOWN
+type: application
+description: Development bot for GitHub
+home: https://github.com/arikkfir/devbot
+sources:
+  - https://github.com/arikkfir/devbot
+maintainers:
+  - name: Arik Kfir
+    email: arik@kfirs.com
+icon: https://github.com/arikkfir/infrastructure/kubernetes/charts/devbot/devbot.png

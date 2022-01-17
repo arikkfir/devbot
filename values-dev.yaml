@@ -1,0 +1,12 @@
+api:
+  extraArgs:
+    - --log-caller-info
+    - --http-log-response-body
+portal:
+  resources:
+    requests:
+      cpu: 2000m
+      memory: 500Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi

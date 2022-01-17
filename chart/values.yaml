@@ -1,0 +1,53 @@
+api:
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: ""
+    gcpWorkloadIdentityProject: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 50Mi
+    limits:
+      cpu: 500m
+      memory: 100Mi
+  image:
+    repository: europe-docker.pkg.dev/arikkfir/public/devbot/api
+    #tag: latest
+  tolerations: []
+  extraArgs: []
+portal:
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: ""
+    gcpWorkloadIdentityProject: ""
+  image:
+    repository: europe-docker.pkg.dev/arikkfir/public/devbot/portal
+    #tag: latest
+  resources:
+    requests:
+      cpu: 100m
+      memory: 50Mi
+    limits:
+      cpu: 500m
+      memory: 100Mi
+  tolerations: []
+  extraArgs: []
+ingress:
+  enabled: false
+  dns:
+    record:
+      name: ""
+      type: "A"
+      ttl: 300
+      zone:
+        namespace: ""
+        name: ""
+      rrdatas: []
+    certificate:
+      issuerRef:
+        kind: "ClusterIssuer"
+        name: ""
