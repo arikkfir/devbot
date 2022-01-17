@@ -48,7 +48,7 @@ jobs:
             ((.[] | {.path:.}) as $i ireduce ({}; . * $i)) * 
               {
                 "/spec/chart/spec/version": {"op": "replace", "path": "/spec/chart/spec/version", "value": "${{ steps.package-helm-chart.outputs.version }}"},
-                "/spec/values/ingress/dns/record/name": {"op": "replace", "path": "/spec/values/ingress/dns/record/name", "value": "www.${{ github.ref_name }}.kfirs.com"}
+                "/spec/values/ingress/dns/record/name": {"op": "replace", "path": "/spec/values/ingress/dns/record/name", "value": "devbot.${{ github.ref_name }}.kfirs.com"}
               } 
             | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
