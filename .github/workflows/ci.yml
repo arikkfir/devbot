@@ -30,8 +30,8 @@ jobs:
         uses: arikkfir/infrastructure/.github/actions/setup-helm@main
       - name: Setup YQ
         uses: arikkfir/infrastructure/.github/actions/setup-yq@main
-      - name: Build Docker images
-        run: skaffold build --build-concurrency=2 --file-output=skaffold-tags.json --profile=push
+#      - name: Build Docker images
+#        run: skaffold build --build-concurrency=2 --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
         id: package-helm-chart
         uses: arikkfir/infrastructure/.github/actions/package-helm-chart@main
@@ -58,6 +58,8 @@ jobs:
       - name: Commit changes
         uses: EndBug/add-and-commit@v7
         with:
+          branch: main
+          branch_mode: create
           cwd: ${{ steps.prepare-environment.outputs.environment-directory }}
           author_name: github-actions
           author_email: <github-actions@users.noreply.github.com>
