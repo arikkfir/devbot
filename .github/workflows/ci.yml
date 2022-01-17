@@ -22,14 +22,9 @@ jobs:
         with:
           service_account: devbot-github-actions@arikkfir.iam.gserviceaccount.com
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-      - name: Setup Docker
-        uses: arikkfir/infrastructure/.github/actions/setup-docker@main
-      - name: Setup Skaffold
-        uses: arikkfir/infrastructure/.github/actions/setup-skaffold@main
-      - name: Setup Helm
-        uses: arikkfir/infrastructure/.github/actions/setup-helm@main
-      - name: Setup YQ
-        uses: arikkfir/infrastructure/.github/actions/setup-yq@main
+      - name: Setup Tools
+        uses: arikkfir/infrastructure/.github/actions/setup-tools@main
+        with: { docker: "true", helm: "true", skaffold: "true", yq: "true" }
       - name: Build Docker images
         run: skaffold build --tag=${GITHUB_SHA::7} --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
@@ -54,7 +49,6 @@ jobs:
             | to_entries | [.[].value]' \
             patch-devbot-helmrelease.yaml
         working-directory: ${{ steps.prepare-environment.outputs.environment-directory }}
-      - run: ls -la ${{ steps.prepare-environment.outputs.environment-directory }}
       - name: Commit changes
         uses: EndBug/add-and-commit@v7
         with:
