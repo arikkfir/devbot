@@ -31,7 +31,7 @@ jobs:
       - name: Setup YQ
         uses: arikkfir/infrastructure/.github/actions/setup-yq@main
       - name: Build Docker images
-        run: skaffold build --build-concurrency=2 --file-output=skaffold-tags.json --profile=push
+        run: skaffold build --file-output=skaffold-tags.json --profile=push
       - name: Package Helm Chart
         id: package-helm-chart
         uses: arikkfir/infrastructure/.github/actions/package-helm-chart@main

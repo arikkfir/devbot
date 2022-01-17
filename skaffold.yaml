@@ -19,8 +19,14 @@ build:
         - src: src/**
           dest: /workspace/src/
           strip: src/
+  tagPolicy:
+    gitCommit:
+      variant: Tags
   local:
+    tryImportMissing: true
+    useBuildkit: true
     push: false
+    concurrency: 3
 deploy:
   helm:
     releases:
