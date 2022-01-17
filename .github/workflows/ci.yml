@@ -60,4 +60,4 @@ jobs:
           cwd: ${{ steps.prepare-environment.outputs.environment-directory }}
           author_name: github-actions
           author_email: <github-actions@users.noreply.github.com>
-          message: Deploy devbot-${{ steps.package-helm-chart.outputs.version }} in ${{ github.ref_name }}
+          message: Deploy "devbot-${{ steps.package-helm-chart.outputs.version }}" in "${{ github.ref_name }}"
