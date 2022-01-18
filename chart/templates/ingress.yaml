@@ -41,7 +41,7 @@ spec:
     name: {{ .Values.ingress.dns.record.zone.name | quote }}
   rrdatas:
     {{- range .Values.ingress.dns.record.rrdatas }}
-    - {{ . | quote }}
+    - {{ print . "." | quote }}
     {{- end }}
 ---
 apiVersion: cert-manager.io/v1
