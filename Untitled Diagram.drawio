@@ -1,60 +1,53 @@
-<mxfile host="app.diagrams.net" modified="2023-10-20T10:39:54.794Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36" etag="3v4jQBvCLEs0NXFwqXax" version="22.0.5" type="github">
+<mxfile host="app.diagrams.net" modified="2023-10-20T11:47:24.360Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36" etag="wfkY7CqpTsbx0CuPHlrG" version="22.0.5" type="github">
   <diagram name="Page-1" id="2YBvvXClWsGukQMizWep">
-    <mxGraphModel dx="920" dy="608" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1242" dy="821" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-3" value="App-specific&lt;br&gt;Build Workflow" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;" vertex="1" parent="1">
-          <mxGeometry x="400" y="40" width="120" height="80" as="geometry" />
+        <UserObject label="Build&lt;br&gt;Workflow(s)" tags="Workflow" id="FHP0eQv9WTITVZ7bon9y-3">
+          <mxCell style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;" parent="1" vertex="1">
+            <mxGeometry x="400" y="40" width="120" height="80" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-4" value="CommitHandler&lt;br&gt;(webhook)" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;" parent="1" vertex="1">
+          <mxGeometry x="200" y="240" width="120" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-4" value="CommitHandler&lt;br&gt;(webhook)" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;" vertex="1" parent="1">
-          <mxGeometry x="140" y="240" width="120" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-23" value="Commit&lt;br&gt;Event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-6" target="FHP0eQv9WTITVZ7bon9y-4">
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-23" value="Commit&lt;br&gt;Event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="FHP0eQv9WTITVZ7bon9y-6" target="FHP0eQv9WTITVZ7bon9y-4" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-6" target="FHP0eQv9WTITVZ7bon9y-3">
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="FHP0eQv9WTITVZ7bon9y-6" target="FHP0eQv9WTITVZ7bon9y-3" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-6" value="&lt;br&gt;App&lt;br&gt;Repo" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;" vertex="1" parent="1">
-          <mxGeometry x="160" y="40" width="80" height="80" as="geometry" />
-        </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-27" value="Commit&lt;br&gt;Event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-8" target="FHP0eQv9WTITVZ7bon9y-26">
+        <UserObject label="Application&lt;br&gt;Repository" tags="Repository" id="FHP0eQv9WTITVZ7bon9y-6">
+          <mxCell style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;spacingTop=12;" parent="1" vertex="1">
+            <mxGeometry x="200" y="40" width="120" height="80" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-27" value="Commit&lt;br&gt;Event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="FHP0eQv9WTITVZ7bon9y-8" target="FHP0eQv9WTITVZ7bon9y-26" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-8" value="&lt;br&gt;Delivery&lt;br&gt;Repo" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;" vertex="1" parent="1">
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-8" value="&lt;br&gt;Delivery&lt;br&gt;Repo" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;" parent="1" vertex="1">
           <mxGeometry x="160" y="420" width="80" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-9" value="Developer" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-9" value="Developer" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" parent="1" vertex="1">
           <mxGeometry x="40" y="40" width="40" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-9" target="FHP0eQv9WTITVZ7bon9y-6">
+        <UserObject label="&lt;br&gt;GHCR" tags="Registry" id="FHP0eQv9WTITVZ7bon9y-14">
+          <mxCell style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;" parent="1" vertex="1">
+            <mxGeometry x="640" y="40" width="80" height="80" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-25" value="Commit:&lt;br&gt;Update Manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" parent="1" source="FHP0eQv9WTITVZ7bon9y-4" target="FHP0eQv9WTITVZ7bon9y-8" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-11" value="Commit" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="FHP0eQv9WTITVZ7bon9y-10">
-          <mxGeometry x="0.0589" y="-2" relative="1" as="geometry">
-            <mxPoint x="-2" y="-10" as="offset" />
-          </mxGeometry>
+        <mxCell id="FHP0eQv9WTITVZ7bon9y-26" value="DeliveryCommitAnalyzer&lt;br&gt;(webhook)" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;direction=west;" parent="1" vertex="1">
+          <mxGeometry x="530" y="490" width="160" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-14" value="&lt;br&gt;GHCR" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;" vertex="1" parent="1">
-          <mxGeometry x="650" y="30" width="65" height="90" as="geometry" />
-        </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=-0.046;entryY=0.561;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-3" target="FHP0eQv9WTITVZ7bon9y-14">
+        <mxCell id="ATKwstre9XeDdN67ooxD-1" value="Commit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-9" target="FHP0eQv9WTITVZ7bon9y-6">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-16" value="Store Image" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="FHP0eQv9WTITVZ7bon9y-15">
-          <mxGeometry x="0.1773" y="1" relative="1" as="geometry">
-            <mxPoint x="-12" y="-10" as="offset" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-25" value="Commit:&lt;br&gt;Update Manifests" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-4" target="FHP0eQv9WTITVZ7bon9y-8">
+        <mxCell id="ATKwstre9XeDdN67ooxD-2" value="Store" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="FHP0eQv9WTITVZ7bon9y-3" target="FHP0eQv9WTITVZ7bon9y-14">
           <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-26" value="DeliveryCommitAnalyzer&lt;br&gt;(webhook)" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;direction=west;" vertex="1" parent="1">
-          <mxGeometry x="380" y="240" width="160" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="FHP0eQv9WTITVZ7bon9y-28" value="DeliveryCommitAnalyzer&lt;br&gt;(webhook)" style="rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;strokeWidth=2;" vertex="1" parent="1">
-          <mxGeometry x="600" y="240" width="160" height="50" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
