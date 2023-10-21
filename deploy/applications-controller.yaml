@@ -1,3 +1,74 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: applications-controller
+rules:
+  - apiGroups:
+      - devbot.kfirs.com
+    resources:
+      - applications
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - devbot.kfirs.com
+    resources:
+      - applications/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - devbot.kfirs.com
+    resources:
+      - applications/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: applications-controller
+  name: leader-election
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -6,6 +77,36 @@ metadata:
   labels:
     app.kubernetes.io/component: applications-controller
   name: applications-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: applications-controller
+  name: applications-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: applications-controller
+subjects:
+  - kind: ServiceAccount
+    name: applications-controller
+    namespace: devbot
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: applications-controller
+  name: applications-controller-leader-election
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: leader-election
+subjects:
+  - kind: ServiceAccount
+    name: applications-controller
+    namespace: devbot
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -28,6 +129,8 @@ spec:
     spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/applications-controller
+          args:
+            - --leader-elect
           name: server
           livenessProbe:
             httpGet:
@@ -57,11 +160,11 @@ spec:
               cpu: 50m
               memory: 32Mi
           startupProbe:
+            failureThreshold: 3
             httpGet:
               port: health
               path: /healthz
-            failureThreshold: 5
-            periodSeconds: 1
-            timeoutSeconds: 1
+            periodSeconds: 3
+            timeoutSeconds: 3
       enableServiceLinks: false
       serviceAccountName: applications-controller

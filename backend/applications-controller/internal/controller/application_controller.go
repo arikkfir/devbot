@@ -1,5 +1,3 @@
-//go:generate controller-gen rbac:roleName=applications-controller paths="." output:rbac:artifacts:config=/tmp/applications-controller-rbac
-//go:generate mv /tmp/applications-controller-rbac/role.yaml ../../../../deploy/applications-controller-rbac.yaml
 package controller
 
 import (
@@ -17,10 +15,6 @@ type ApplicationReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
-
-//+kubebuilder:rbac:groups=devbot.kfirs.com,resources=applications,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=devbot.kfirs.com,resources=applications/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=devbot.kfirs.com,resources=applications/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

@@ -3,10 +3,8 @@ kind: Kustomization
 commonLabels:
   app.kubernetes.io/name: devbot
 namePrefix: devbot-
+namespace: devbot
 resources:
   - crd/devbot.kfirs.com_applications.yaml
-  - crd/devbot.kfirs.com_deployments.yaml
   - application-commit-handler.yaml
   - applications-controller.yaml
-  - applications-controller-rbac.yaml
-  - deployments-controller-rbac.yaml
