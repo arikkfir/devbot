@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/arikkfir/devbot/backend/application-commit-handler/internal"
-	appsv1 "github.com/arikkfir/devbot/backend/applications-controller/api/v1"
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal"
 	"github.com/jessevdk/go-flags"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -17,7 +17,7 @@ import (
 	"strconv"
 )
 
-var cfg internal.Config
+var cfg internal.WebhookCommandConfig
 
 func init() {
 	parser := flags.NewParser(&cfg, flags.HelpFlag|flags.PassDoubleDash)
@@ -77,12 +77,12 @@ func main() {
 	ctx := context.Background()
 
 	// Setup health check
-	hc := internal.NewHealthCheckServer(cfg.HTTP.HealthPort)
+	hc := internal.NewHealthCheckServer(cfg.HealthPort)
 	go hc.Start(ctx)
 	defer hc.Stop(ctx)
 
 	// Register used CRDs
-	err := appsv1.AddToScheme(scheme.Scheme)
+	err := apiv1.AddToScheme(scheme.Scheme)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to register CRDs")
 	}
@@ -94,16 +94,12 @@ func main() {
 	}
 
 	// Setup push handler
-	handler := internal.NewPushHandler(k8sClient, cfg.WebhookSecret)
+	handler := internal.NewPushHandler(k8sClient, cfg.Webhook.Secret)
 
 	// Setup server
 	server := &http.Server{
-		Addr: ":" + strconv.Itoa(cfg.HTTP.Port),
-		Handler: internal.AccessLogMiddleware(
-			cfg.HTTP.AccessLogExcludeRemoteAddr,
-			cfg.HTTP.AccessLogExcludedHeaders,
-			handler.Handler,
-		),
+		Addr:    ":" + strconv.Itoa(cfg.Webhook.Port),
+		Handler: internal.AccessLogMiddleware(false, nil, handler.Handler),
 	}
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Err(err).Msg("HTTP server failed")

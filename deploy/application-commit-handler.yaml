@@ -83,6 +83,13 @@ spec:
     spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/application-commit-handler
+          env:
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: secret
+                  name: webhooks
+                  optional: false
           name: server
           livenessProbe:
             httpGet:

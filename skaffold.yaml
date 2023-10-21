@@ -1,0 +1,35 @@
+# nonk8s
+apiVersion: skaffold/v4beta7
+kind: Config
+metadata:
+  name: devbot
+build:
+  artifacts:
+    - image: ghcr.io/arikkfir/devbot/application-commit-handler
+      context: backend
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          BACKEND: application-commit-handler
+    - image: ghcr.io/arikkfir/devbot/applications-controller
+      context: backend
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          BACKEND: applications-controller
+    - image: ghcr.io/arikkfir/devbot/deployments-controller
+      context: backend
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          BACKEND: deployments-controller
+  local:
+    useBuildkit: true
+manifests:
+  kustomize:
+    paths:
+      - deploy
+deploy:
+  kubeContext: kind-devbot
+  statusCheck: true
+  statusCheckDeadlineSeconds: 300

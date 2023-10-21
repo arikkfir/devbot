@@ -1,10 +1,8 @@
-//go:generate controller-gen rbac:roleName=deployments-controller paths="." output:rbac:artifacts:config=/tmp/applications-controller-rbac
-//go:generate mv /tmp/applications-controller-rbac/role.yaml ../../../../deploy/deployments-controller-rbac.yaml
-package controller
+package internal
 
 import (
 	"context"
-	api "github.com/arikkfir/devbot/backend/deployments-controller/api/v1"
+	api "github.com/arikkfir/devbot/backend/api/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"

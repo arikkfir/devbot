@@ -1,8 +1,8 @@
-package controller
+package internal
 
 import (
 	"context"
-	api "github.com/arikkfir/devbot/backend/applications-controller/api/v1"
+	api "github.com/arikkfir/devbot/backend/api/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"

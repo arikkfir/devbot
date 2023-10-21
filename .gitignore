@@ -17,3 +17,6 @@ backend/*/bin/*
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+
+# Secret files
+deploy/webhook-secret.txt

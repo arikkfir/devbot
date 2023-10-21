@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	appsv1 "github.com/arikkfir/devbot/backend/applications-controller/api/v1"
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
@@ -50,14 +50,14 @@ func NewPushHandler(k8sClient *rest.Config, secret string) *PushHandler {
 }
 
 func (ph *PushHandler) handlePush(ctx context.Context, clientset *kubernetes.Clientset, payload github.PushPayload) {
-	path := fmt.Sprintf("/apis/%s/%s/applications", appsv1.GroupVersion.Group, appsv1.GroupVersion.Version)
+	path := fmt.Sprintf("/apis/%s/%s/applications", apiv1.GroupVersion.Group, apiv1.GroupVersion.Version)
 	raw, err := clientset.RESTClient().Get().AbsPath(path).DoRaw(ctx)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get applications")
 		return
 	}
 
-	applications := appsv1.ApplicationList{}
+	applications := apiv1.ApplicationList{}
 	if err := json.Unmarshal(raw, &applications); err != nil {
 		log.Error().Err(err).Msg("Failed to unmarshal applications")
 		return
@@ -76,18 +76,18 @@ func (ph *PushHandler) handlePush(ctx context.Context, clientset *kubernetes.Cli
 	log.Warn().Str("repository", payload.Repository.FullName).Msg("Received push event for an unknown repository")
 }
 
-func (ph *PushHandler) handleApplication(_ context.Context, _ *kubernetes.Clientset, payload github.PushPayload, app appsv1.Application) {
+func (ph *PushHandler) handleApplication(_ context.Context, _ *kubernetes.Clientset, payload github.PushPayload, app apiv1.Application) {
 	if payload.Deleted {
 		if app.Status.Refs != nil {
 			delete(app.Status.Refs, payload.Ref)
 		}
 	} else {
 		if app.Status.Refs == nil {
-			app.Status.Refs = make(map[string]appsv1.RefStatus)
+			app.Status.Refs = make(map[string]apiv1.RefStatus)
 		}
 		refStatus, ok := app.Status.Refs[payload.Ref]
 		if !ok {
-			refStatus = appsv1.RefStatus{}
+			refStatus = apiv1.RefStatus{}
 			app.Status.Refs[payload.Ref] = refStatus
 		}
 		refStatus.LatestAvailableCommit = payload.After

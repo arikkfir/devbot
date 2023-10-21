@@ -6,6 +6,14 @@ namePrefix: devbot-
 namespace: devbot
 resources:
   - crd/devbot.kfirs.com_applications.yaml
+  - crd/devbot.kfirs.com_deployments.yaml
   - namespace.yaml
+  - leader-election.yaml
   - application-commit-handler.yaml
   - applications-controller.yaml
+  - deployments-controller.yaml
+secretGenerator:
+  - name: webhooks
+    type: Opaque
+    files:
+      - secret=webhook-secret.txt
