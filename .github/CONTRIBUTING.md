@@ -1,12 +1,16 @@
-## Contributing
-
-[fork]: /fork
-[pr]: /compare
-[code-of-conduct]: CODE_OF_CONDUCT.md
+# Contributing
 
 Hi there! We're thrilled that you'd like to contribute to this project. Your help is essential for keeping it great.
 
-Please note that this project is released with a [Contributor Code of Conduct][code-of-conduct]. By participating in this project you agree to abide by its terms.
+Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+
+## Setup
+
+```bash
+$ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
+```
+
+This is still WIP.
 
 ## Issues and PRs
 
@@ -16,13 +20,13 @@ We'd also love PRs. If you're thinking of a large PR, we advise opening up an is
 
 ## Submitting a pull request
 
-1. [Fork][fork] and clone the repository.
-1. Configure and install the dependencies: `npm install`.
-1. Make sure the tests pass on your machine: `npm test`, note: these tests also apply the linter, so there's no need to lint separately.
-1. Create a new branch: `git checkout -b my-branch-name`.
-1. Make your change, add tests, and make sure the tests still pass.
-1. Push to your fork and [submit a pull request][pr].
-1. Pat your self on the back and wait for your pull request to be reviewed and merged.
+1. [Fork](https://github.com/arikkfir/devbot/fork) and clone the repository.
+2. Configure and install the dependencies: `npm install`.
+3. Make sure the tests pass on your machine: `npm test`, note: these tests also apply the linter, so there's no need to lint separately.
+4. Create a new branch: `git checkout -b my-branch-name`.
+5. Make your change, add tests, and make sure the tests still pass.
+6. Push to your fork and [submit a pull request](https://github.com/arikkfir/devbot/compare).
+7. Pat your self on the back and wait for your pull request to be reviewed and merged.
 
 Here are a few things you can do that will increase the likelihood of your pull request being accepted:
 
