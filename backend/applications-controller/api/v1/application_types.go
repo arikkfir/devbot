@@ -4,12 +4,31 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// ApplicationGitHubRepository defines the GitHub repository of the application
+type ApplicationGitHubRepository struct {
+	Owner string `json:"owner,omitempty"`
+	Name  string `json:"name,omitempty"`
+}
+
+// ApplicationRepository defines the source repository of the application
+type ApplicationRepository struct {
+	GitHub *ApplicationGitHubRepository `json:"github,omitempty"`
+}
+
 // ApplicationSpec defines the desired state of Application
 type ApplicationSpec struct {
+	// Application source repository
+	Repository ApplicationRepository `json:"repository,omitempty"`
+}
+
+type RefStatus struct {
+	LastAppliedCommit     string `json:"lastAppliedCommit,omitempty"`
+	LatestAvailableCommit string `json:"latestAvailableCommit,omitempty"`
 }
 
 // ApplicationStatus defines the observed state of Application
 type ApplicationStatus struct {
+	Refs map[string]RefStatus `json:"refs,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+commonLabels:
+  app.kubernetes.io/name: devbot
+namePrefix: devbot-
+resources:
+  - crd/devbot.kfirs.com_applications.yaml
+  - crd/devbot.kfirs.com_deployments.yaml
+  - application-commit-handler.yaml
+  - applications-controller.yaml
+  - applications-controller-rbac.yaml
+  - deployments-controller-rbac.yaml

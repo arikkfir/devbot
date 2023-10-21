@@ -1,4 +1,5 @@
-//go:generate controller-gen rbac:roleName=applications-controller paths="." output:rbac:artifacts:config=../../manifests
+//go:generate controller-gen rbac:roleName=applications-controller paths="." output:rbac:artifacts:config=/tmp/applications-controller-rbac
+//go:generate mv /tmp/applications-controller-rbac/role.yaml ../../../../deploy/applications-controller-rbac.yaml
 package controller
 
 import (
