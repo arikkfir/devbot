@@ -2,13 +2,14 @@ module github.com/arikkfir/devbot/backend/application-commit-handler
 
 go 1.21
 
+replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
+
 require (
 	github.com/arikkfir/devbot/backend/applications-controller v0.0.0-20231021111703-8c1fa45e23ba
 	github.com/go-playground/webhooks/v6 v6.3.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/rs/zerolog v1.31.0
 	github.com/secureworks/errors v0.1.2
-	k8s.io/apimachinery v0.28.3
 	k8s.io/client-go v0.28.3
 )
 
@@ -45,6 +46,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.28.3 // indirect
+	k8s.io/apimachinery v0.28.3 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 // indirect
 	k8s.io/utils v0.0.0-20230406110748-d93618cff8a2 // indirect
