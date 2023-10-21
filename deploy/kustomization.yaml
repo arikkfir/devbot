@@ -6,5 +6,6 @@ namePrefix: devbot-
 namespace: devbot
 resources:
   - crd/devbot.kfirs.com_applications.yaml
+  - namespace.yaml
   - application-commit-handler.yaml
   - applications-controller.yaml
