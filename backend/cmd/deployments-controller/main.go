@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/arikkfir/devbot/backend/internal/controllers"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -17,7 +18,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal"
 )
 
 var (
@@ -68,7 +68,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&internal.DeploymentReconciler{
+	if err = (&controllers.DeploymentReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

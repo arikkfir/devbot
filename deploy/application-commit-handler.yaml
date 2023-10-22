@@ -90,7 +90,7 @@ spec:
                   key: secret
                   name: webhooks
                   optional: false
-          name: server
+          name: application-commit-handler
           livenessProbe:
             httpGet:
               port: health

@@ -92,7 +92,7 @@ spec:
         - image: ghcr.io/arikkfir/devbot/applications-controller
           args:
             - --leader-elect
-          name: server
+          name: applications-controller
           livenessProbe:
             httpGet:
               port: health

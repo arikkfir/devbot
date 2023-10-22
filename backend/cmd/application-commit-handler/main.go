@@ -5,7 +5,8 @@ import (
 	"context"
 	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal"
+	"github.com/arikkfir/devbot/backend/internal/util"
+	"github.com/arikkfir/devbot/backend/internal/webhooks"
 	"github.com/jessevdk/go-flags"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -17,7 +18,7 @@ import (
 	"strconv"
 )
 
-var cfg internal.WebhookCommandConfig
+var cfg webhooks.WebhookCommandConfig
 
 func init() {
 	parser := flags.NewParser(&cfg, flags.HelpFlag|flags.PassDoubleDash)
@@ -77,7 +78,7 @@ func main() {
 	ctx := context.Background()
 
 	// Setup health check
-	hc := internal.NewHealthCheckServer(cfg.HealthPort)
+	hc := util.NewHealthCheckServer(cfg.HealthPort)
 	go hc.Start(ctx)
 	defer hc.Stop(ctx)
 
@@ -94,12 +95,12 @@ func main() {
 	}
 
 	// Setup push handler
-	handler := internal.NewPushHandler(k8sClient, cfg.Webhook.Secret)
+	handler := webhooks.NewPushHandler(k8sClient, cfg.Webhook.Secret)
 
 	// Setup server
 	server := &http.Server{
 		Addr:    ":" + strconv.Itoa(cfg.Webhook.Port),
-		Handler: internal.AccessLogMiddleware(false, nil, handler.Handler),
+		Handler: util.AccessLogMiddleware(false, nil, handler.Handler),
 	}
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Err(err).Msg("HTTP server failed")
