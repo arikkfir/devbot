@@ -8,6 +8,7 @@ import (
 	"github.com/arikkfir/devbot/backend/internal/util"
 	"github.com/arikkfir/devbot/backend/internal/webhooks"
 	"github.com/jessevdk/go-flags"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
@@ -82,6 +83,12 @@ func main() {
 	go hc.Start(ctx)
 	defer hc.Stop(ctx)
 
+	// Setup Redis client
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
+		DB:   0,
+	})
+
 	// Register used CRDs
 	err := apiv1.AddToScheme(scheme.Scheme)
 	if err != nil {
@@ -95,7 +102,7 @@ func main() {
 	}
 
 	// Setup push handler
-	handler := webhooks.NewPushHandler(k8sClient, cfg.Webhook.Secret)
+	handler := webhooks.NewPushHandler(k8sClient, cfg.Webhook.Secret, redisClient)
 
 	// Setup server
 	server := &http.Server{

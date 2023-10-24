@@ -8,6 +8,7 @@ resources:
   - crd/devbot.kfirs.com_applications.yaml
   - crd/devbot.kfirs.com_deployments.yaml
   - namespace.yaml
+  - redis.yaml
   - leader-election.yaml
   - application-commit-handler.yaml
   - applications-controller.yaml
