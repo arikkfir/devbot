@@ -102,12 +102,21 @@ func main() {
 	}
 
 	// Setup push handler
-	handler := webhooks.NewPushHandler(k8sClient, cfg.Webhook.Secret, redisClient)
+	handler, err := webhooks.NewPushHandler(k8sClient, redisClient, cfg.Webhook.Secret)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create push handler")
+	}
+	defer func(handler *webhooks.PushHandler) {
+		err := handler.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to close push handler")
+		}
+	}(handler)
 
 	// Setup server
 	server := &http.Server{
 		Addr:    ":" + strconv.Itoa(cfg.Webhook.Port),
-		Handler: util.AccessLogMiddleware(false, nil, handler.Handler),
+		Handler: util.AccessLogMiddleware(false, nil, handler.HandleRequest),
 	}
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Err(err).Msg("HTTP server failed")

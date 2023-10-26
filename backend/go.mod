@@ -7,6 +7,7 @@ replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
 require (
 	github.com/go-playground/webhooks/v6 v6.3.0
 	github.com/jessevdk/go-flags v1.5.0
+	github.com/redis/go-redis/v9 v9.2.1
 	github.com/rs/zerolog v1.31.0
 	github.com/secureworks/errors v0.1.2
 	k8s.io/apimachinery v0.28.3

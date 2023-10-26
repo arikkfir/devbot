@@ -8,21 +8,15 @@ build:
     - image: ghcr.io/arikkfir/devbot/application-commit-handler
       context: backend
       docker:
-        dockerfile: Dockerfile
-        buildArgs:
-          BACKEND: application-commit-handler
+        dockerfile: Dockerfile.application-commit-handler
     - image: ghcr.io/arikkfir/devbot/applications-controller
       context: backend
       docker:
-        dockerfile: Dockerfile
-        buildArgs:
-          BACKEND: applications-controller
+        dockerfile: Dockerfile.applications-controller
     - image: ghcr.io/arikkfir/devbot/deployments-controller
       context: backend
       docker:
-        dockerfile: Dockerfile
-        buildArgs:
-          BACKEND: deployments-controller
+        dockerfile: Dockerfile.deployments-controller
   local:
     useBuildkit: true
 manifests:
