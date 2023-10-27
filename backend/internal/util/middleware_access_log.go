@@ -26,7 +26,7 @@ func (r *responseRecorder) WriteHeader(status int) {
 	r.ResponseWriter.WriteHeader(status)
 }
 
-func AccessLogMiddleware(excludeRemoteAddr bool, excludedHeaderPatterns []string, next http.HandlerFunc) http.HandlerFunc {
+func AccessLogMiddleware(excludeRemoteAddr bool, excludedHeaderPatterns []string, next http.Handler) http.HandlerFunc {
 	patterns := make([]regexp.Regexp, len(excludedHeaderPatterns))
 	for i, pattern := range excludedHeaderPatterns {
 		patterns[i] = *regexp.MustCompile(pattern)
@@ -99,7 +99,7 @@ func AccessLogMiddleware(excludeRemoteAddr bool, excludedHeaderPatterns []string
 
 		// Invoke & time the next handler
 		start := time.Now()
-		next(responseRecorder, r.WithContext(event.Logger().WithContext(r.Context())))
+		next.ServeHTTP(responseRecorder, r.WithContext(event.Logger().WithContext(r.Context())))
 		duration := time.Since(start)
 
 		// Add request & response bodies

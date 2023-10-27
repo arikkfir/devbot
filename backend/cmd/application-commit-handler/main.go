@@ -60,10 +60,14 @@ func main() {
 		}
 	}(handler)
 
+	// Setup routing
+	mux := http.NewServeMux()
+	mux.HandleFunc("/github/webhook", handler.HandleRequest)
+
 	// Setup server
 	server := &http.Server{
 		Addr:    ":" + strconv.Itoa(cfg.Webhook.Port),
-		Handler: util.AccessLogMiddleware(false, nil, handler.HandleRequest),
+		Handler: util.AccessLogMiddleware(false, nil, mux),
 	}
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Err(err).Msg("HTTP server failed")

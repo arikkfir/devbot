@@ -25,5 +25,9 @@ manifests:
       - deploy
 deploy:
   kubeContext: kind-devbot
-  statusCheck: true
-  statusCheckDeadlineSeconds: 300
+portForward:
+  - resourceType: service
+    resourceName: devbot-application-commit-handler
+    namespace: devbot
+    port: 80
+    localPort: 8080

@@ -15,16 +15,8 @@ type Config interface {
 	GetLogLevel() string
 }
 
-func Initialize(cfg Config) {
-	parser := flags.NewParser(cfg, flags.HelpFlag|flags.PassDoubleDash)
-
-	if _, err := parser.Parse(); err != nil {
-		fmt.Printf("ERROR: %s\n\n", err)
-		parser.WriteHelp(os.Stderr)
-		os.Exit(1)
-	}
-
-	if cfg.IsDevMode() {
+func InitializeLogging(devMode bool, logLevel string) {
+	if devMode {
 		// Set an error stack marshaller which simply prints the stack trace as a string
 		// This string will be used afterward by the "FormatExtra" to print it nicely AFTER
 		// the log message line
@@ -60,11 +52,22 @@ func Initialize(cfg Config) {
 		}
 	}
 
-	if level, err := zerolog.ParseLevel(cfg.GetLogLevel()); err != nil {
+	if level, err := zerolog.ParseLevel(logLevel); err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	} else {
 		zerolog.SetGlobalLevel(level)
 	}
 
 	zerolog.DefaultContextLogger = &log.Logger
+}
+
+func Initialize(cfg Config) {
+	parser := flags.NewParser(cfg, flags.HelpFlag|flags.PassDoubleDash)
+	if _, err := parser.Parse(); err != nil {
+		fmt.Printf("ERROR: %s\n\n", err)
+		parser.WriteHelp(os.Stderr)
+		os.Exit(1)
+	}
+
+	InitializeLogging(cfg.IsDevMode(), cfg.GetLogLevel())
 }
