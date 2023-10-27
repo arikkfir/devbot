@@ -82,6 +82,8 @@ spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/application-commit-handler
           env:
+            - name: DEV_MODE
+              value: "true"
             - name: REDIS_HOST
               value: redis
             - name: WEBHOOK_SECRET

@@ -12,3 +12,11 @@ type CommandConfig struct {
 	HealthPort int         `env:"HEALTH_PORT" value-name:"PORT" long:"health-port" description:"Port to listen on for health checks" default:"9000"`
 	Redis      RedisConfig `group:"redis" namespace:"redis" env-namespace:"REDIS"`
 }
+
+func (c *CommandConfig) IsDevMode() bool {
+	return c.DevMode
+}
+
+func (c *CommandConfig) GetLogLevel() string {
+	return c.LogLevel
+}
