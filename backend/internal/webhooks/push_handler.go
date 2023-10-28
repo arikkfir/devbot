@@ -21,29 +21,27 @@ var (
 )
 
 type PushHandler struct {
-	webhook      *github.Webhook
-	k8sClient    *rest.Config
-	k8sClientSet *kubernetes.Clientset
-	redisClient  *redis.Client
-	pubsub       *redis.PubSub
+	webhook     *github.Webhook
+	k8sClient   *kubernetes.Clientset
+	redisClient *redis.Client
+	pubsub      *redis.PubSub
 }
 
-func NewPushHandler(k8sClient *rest.Config, redisClient *redis.Client, secret string) (*PushHandler, error) {
+func NewPushHandler(kubeConfig *rest.Config, redisClient *redis.Client, secret string) (*PushHandler, error) {
 	hook, err := github.New(github.Options.Secret(secret))
 	if err != nil {
 		return nil, errors.New("failed to create GitHub webhook", err)
 	}
 
-	clientset, err := kubernetes.NewForConfig(k8sClient)
+	k8sClient, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
 		return nil, errors.New("failed to create Kubernetes client", err)
 	}
 
 	ph := PushHandler{
-		webhook:      hook,
-		k8sClient:    k8sClient,
-		k8sClientSet: clientset,
-		redisClient:  redisClient,
+		webhook:     hook,
+		k8sClient:   k8sClient,
+		redisClient: redisClient,
 	}
 
 	return &ph, nil
@@ -108,7 +106,7 @@ func (ph *PushHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ph *PushHandler) handlePushEvent(ctx context.Context, payload github.PushPayload) error {
-	raw, err := ph.k8sClientSet.RESTClient().Get().AbsPath(GetApplicationsURI).DoRaw(ctx)
+	raw, err := ph.k8sClient.RESTClient().Get().AbsPath(GetApplicationsURI).DoRaw(ctx)
 	if err != nil {
 		return errors.New("failed to get applications", err)
 	}

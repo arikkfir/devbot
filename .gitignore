@@ -20,4 +20,4 @@ backend/*/bin/*
 *.out
 
 # Secret files
-deploy/webhook-secret.txt
+*-secret.txt

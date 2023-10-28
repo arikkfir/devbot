@@ -3,7 +3,7 @@ package util
 import "math/rand"
 
 var (
-	hashLetters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	hashLetters = []rune("abcdefghijklmnopqrstuvwxyz")
 )
 
 func RandomHash(n int) string {

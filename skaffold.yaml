@@ -22,7 +22,7 @@ build:
 manifests:
   kustomize:
     paths:
-      - deploy
+      - deploy/local
 deploy:
   kubeContext: kind-devbot
 portForward:
