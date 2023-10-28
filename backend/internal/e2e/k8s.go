@@ -65,8 +65,8 @@ func (k *K8sTestClient) Close() {
 	}
 }
 
-func (c *K8sTestClient) Cleanup(f func() error) {
-	c.cleanup = append([]func() error{f}, c.cleanup...)
+func (k *K8sTestClient) Cleanup(f func() error) {
+	k.cleanup = append([]func() error{f}, k.cleanup...)
 }
 
 func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo string) (*apiv1.Application, error) {
@@ -118,5 +118,26 @@ func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo strin
 		}
 		return nil
 	})
+	return &app, nil
+}
+
+func (k *K8sTestClient) GetApplication(ctx context.Context, name string) (*apiv1.Application, error) {
+	app := apiv1.Application{}
+	err := k.k8sClient.RESTClient().
+		Get().
+		Namespace(k.namespace).
+		Resource("Application").
+		Name(name).
+		Body(&metav1.GetOptions{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: apiv1.GroupVersion.String(),
+				Kind:       "Application",
+			},
+		}).
+		Do(ctx).
+		Into(&app)
+	if err != nil {
+		return nil, errors.New("failed to get Application", err)
+	}
 	return &app, nil
 }

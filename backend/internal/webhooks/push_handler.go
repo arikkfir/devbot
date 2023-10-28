@@ -82,13 +82,17 @@ func (ph *PushHandler) handlePubsubMessages() {
 }
 
 func (ph *PushHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
-	payload, err := ph.webhook.Parse(r, github.PushEvent)
+	payload, err := ph.webhook.Parse(r, github.PushEvent, github.PingEvent)
 	if err != nil {
 		if errors.Is(err, github.ErrEventNotFound) {
 			log.Warn().Err(err).Msg("Unexpected event received - webhook configuration needs to be adjusted")
 		} else {
 			log.Error().Err(err).Msg("Failed to parse GitHub webhook")
 		}
+		return
+	} else if _, ok := payload.(github.PingPayload); ok {
+		log.Info().Msg("Received ping event from GitHub")
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 

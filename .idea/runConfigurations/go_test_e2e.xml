@@ -14,6 +14,7 @@
       <ENTRIES>
         <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
         <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="local.env" />
+        <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="deploy/app/webhooks-secret.env" />
       </ENTRIES>
     </EXTENSION>
     <root_directory value="$PROJECT_DIR$/backend" />
@@ -22,6 +23,8 @@
     <directory value="$PROJECT_DIR$/backend/internal/e2e" />
     <filePath value="$PROJECT_DIR$" />
     <framework value="gotest" />
-    <method v="2" />
+    <method v="2">
+      <option name="GoBeforeRunTask" command="clean -testcache" />
+    </method>
   </configuration>
 </component>

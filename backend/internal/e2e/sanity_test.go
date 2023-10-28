@@ -7,6 +7,8 @@ import (
 )
 
 func TestSanity(t *testing.T) {
+	ctx := context.Background()
+
 	gh, err := NewGitHubTestClient(t, "devbot-testing")
 	if err != nil {
 		t.Fatalf("Failed to create GitHub client: %+v", err)
@@ -19,8 +21,6 @@ func TestSanity(t *testing.T) {
 	}
 	t.Cleanup(k8s.Close)
 
-	ctx := context.Background()
-
 	repo, err := gh.CreateRepository(ctx)
 	if err != nil {
 		t.Fatalf("Failed to create GitHub repository: %+v", err)
@@ -29,6 +29,27 @@ func TestSanity(t *testing.T) {
 		t.Fatalf("Failed to create GitHub repository webhook: %+v", err)
 	}
 
-	t.Log("Testing testing 1 2 3")
-	time.Sleep(10 * time.Second)
+	var appName string
+	if app, err := k8s.CreateApplication(ctx, gh.Owner, *repo.Name); err != nil {
+		t.Fatalf("Failed to create application: %+v", err)
+	} else {
+		appName = app.Name
+		t.Logf("Application: %+v", app)
+	}
+
+	if err := gh.CreateFile(ctx, *repo.Name, "main", "README.md", t.Name()); err != nil {
+		t.Fatalf("Failed to create GitHub file: %+v", err)
+	}
+
+	time.Sleep(5 * time.Second)
+	// TODO: verify redis pubsub message sent
+
+	if app, err := k8s.GetApplication(ctx, appName); err != nil {
+		t.Fatalf("Failed to get application: %+v", err)
+	} else {
+		// TODO: verify application status was updated correctly
+		t.Logf("Application: %+v", app)
+	}
+
+	time.Sleep(60 * time.Second)
 }

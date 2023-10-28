@@ -16,5 +16,6 @@ resources:
 secretGenerator:
   - name: webhooks
     type: Opaque
-    files:
-      - secret=webhook-secret.txt
+    behavior: create
+    envs:
+      - webhooks-secret.env

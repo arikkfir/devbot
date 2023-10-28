@@ -85,11 +85,11 @@ spec:
             - name: DEV_MODE
               value: "true"
             - name: REDIS_HOST
-              value: redis
+              value: devbot-redis
             - name: WEBHOOK_SECRET
               valueFrom:
                 secretKeyRef:
-                  key: secret
+                  key: WEBHOOK_SECRET
                   name: webhooks
                   optional: false
           name: application-commit-handler

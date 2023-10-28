@@ -33,7 +33,7 @@ func NewGitHubTestClient(t *testing.T, owner string) (*GitHubTestClient, error) 
 		Owner:          owner,
 		t:              t,
 		client:         github.NewClient(nil).WithAuthToken(token),
-		WebhooksSecret: util.RandomHash(32),
+		WebhooksSecret: os.Getenv("WEBHOOK_SECRET"),
 	}, nil
 }
 
