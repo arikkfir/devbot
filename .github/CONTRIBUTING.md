@@ -6,11 +6,32 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 ## Setup
 
+### Tools
+
 ```bash
-$ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
+$ brew install yq jq                                                  # used occasionally by various scripts
+$ brew install kubebuilder                                            # might be useful, not strictly required currently
+$ brew install kubernetes-cli kustomize                               # will be used by skaffold
+$ brew install skaffold datawire/blackbird/telepresence-arm64         # local development tools
+$ brew install redis                                                  # for local inspection of redis data
+$ brew install go                                                     # for backend development
+$ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0  # used to generate CRDs from controller code
+$ brew install node                                                   # for smee-client
+$ npm install -g smee-client                                          # used by tests to tunnel webhook requests
 ```
 
-This is still WIP.
+### Local Kubernetes cluster
+
+```bash
+$ brew install kind                                               # local development cluster
+$ brew install helm                                               # for installing packages into the cluster
+$ helm repo add datawire https://app.getambassador.io             # add the datawire repo (for telepresence)
+$ helm repo update                                                # update the repo index
+$ kubectl create namespace ambassador                             # prepare namespace for telepresence
+$ helm install traffic-manager datawire/telepresence \
+    --namespace ambassador \
+    --set ambassador-agent.enabled=false
+```
 
 ## Issues and PRs
 

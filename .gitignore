@@ -21,3 +21,4 @@ backend/*/bin/*
 
 # Secret files
 *-secret.txt
+*.env
