@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
@@ -42,6 +43,11 @@ func NewK8sTestClient(t *testing.T, namespace string) (*K8sTestClient, error) {
 	if err != nil {
 		return nil, errors.New("failed to create Kubernetes dynamic client", err)
 	}
+
+	if err := apiv1.AddToScheme(scheme.Scheme); err != nil {
+		return nil, errors.New("failed to register CRDs", err)
+	}
+
 	return &K8sTestClient{
 		t:                t,
 		kubeConfig:       kubeConfig,
