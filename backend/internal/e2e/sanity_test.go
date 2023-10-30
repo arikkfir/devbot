@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"testing"
-	"time"
 )
 
 func TestSanity(t *testing.T) {
@@ -41,7 +40,6 @@ func TestSanity(t *testing.T) {
 		t.Fatalf("Failed to create GitHub file: %+v", err)
 	}
 
-	time.Sleep(5 * time.Second)
 	// TODO: verify redis pubsub message sent
 
 	if app, err := k8s.GetApplication(ctx, appName); err != nil {
@@ -50,6 +48,4 @@ func TestSanity(t *testing.T) {
 		// TODO: verify application status was updated correctly
 		t.Logf("Application: %+v", app)
 	}
-
-	time.Sleep(60 * time.Second)
 }

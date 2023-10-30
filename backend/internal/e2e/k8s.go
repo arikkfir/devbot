@@ -19,13 +19,18 @@ import (
 type K8sTestClient struct {
 	t                *testing.T
 	kubeConfig       *rest.Config
-	k8sClient        *kubernetes.Clientset
+	k8sClientSet     *kubernetes.Clientset
 	k8sDynamicClient *dynamic.DynamicClient
+	appRESTClient    *rest.RESTClient
 	namespace        string
 	cleanup          []func() error
 }
 
 func NewK8sTestClient(t *testing.T, namespace string) (*K8sTestClient, error) {
+	if err := apiv1.AddToScheme(scheme.Scheme); err != nil {
+		return nil, errors.New("failed to register CRDs", err)
+	}
+
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, errors.New("failed to get user home dir", err)
@@ -35,7 +40,8 @@ func NewK8sTestClient(t *testing.T, namespace string) (*K8sTestClient, error) {
 	if err != nil {
 		return nil, errors.New("failed to read Kubernetes config", errors.Meta("path", kubeConfigPath), err)
 	}
-	k8sClient, err := kubernetes.NewForConfig(kubeConfig)
+
+	k8sClientSet, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
 		return nil, errors.New("failed to create Kubernetes static client", err)
 	}
@@ -44,15 +50,28 @@ func NewK8sTestClient(t *testing.T, namespace string) (*K8sTestClient, error) {
 		return nil, errors.New("failed to create Kubernetes dynamic client", err)
 	}
 
-	if err := apiv1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, errors.New("failed to register CRDs", err)
+	httpClient, err := rest.HTTPClientFor(kubeConfig)
+	if err != nil {
+		return nil, errors.New("failed to create Kubernetes HTTP client", err)
+	}
+	appConfig := *kubeConfig
+	appConfig.GroupVersion = &apiv1.GroupVersion
+	appConfig.APIPath = "/apis"
+	appConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	if appConfig.UserAgent == "" {
+		appConfig.UserAgent = rest.DefaultKubernetesUserAgent() // TODO: consider customizing API user-agent
+	}
+	appRESTClient, err := rest.RESTClientForConfigAndClient(&appConfig, httpClient)
+	if err != nil {
+		return nil, errors.New("failed to create Kubernetes REST client", err)
 	}
 
 	return &K8sTestClient{
 		t:                t,
 		kubeConfig:       kubeConfig,
-		k8sClient:        k8sClient,
+		k8sClientSet:     k8sClientSet,
 		k8sDynamicClient: k8sDynamicClient,
+		appRESTClient:    appRESTClient,
 		namespace:        namespace,
 	}, nil
 }
@@ -77,10 +96,10 @@ func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo strin
 	}
 	name := "devbot-test-" + owner + "-" + repo
 	app := apiv1.Application{}
-	err := k.k8sClient.RESTClient().
+	err := k.appRESTClient.
 		Post().
 		Namespace(k.namespace).
-		Resource("Application").
+		Resource("applications").
 		Body(&apiv1.Application{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: gvk.GroupVersion().String(),
@@ -105,15 +124,7 @@ func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo strin
 	k.Cleanup(func() error {
 		k.t.Helper()
 		k.t.Logf("Deleting application '%s/%s'...", k.namespace, name)
-		err := k.k8sClient.RESTClient().
-			Delete().
-			Namespace("default").
-			Resource("Application").
-			Name(name).
-			Body(&metav1.DeleteOptions{}).
-			Do(ctx).
-			Error()
-		if err != nil {
+		if err := k.DeleteApplication(ctx, name); err != nil {
 			return errors.New("failed to delete application", errors.Meta("app", name), err)
 		}
 		return nil
@@ -123,10 +134,10 @@ func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo strin
 
 func (k *K8sTestClient) GetApplication(ctx context.Context, name string) (*apiv1.Application, error) {
 	app := apiv1.Application{}
-	err := k.k8sClient.RESTClient().
+	err := k.appRESTClient.
 		Get().
 		Namespace(k.namespace).
-		Resource("Application").
+		Resource("applications").
 		Name(name).
 		Body(&metav1.GetOptions{
 			TypeMeta: metav1.TypeMeta{
@@ -140,4 +151,19 @@ func (k *K8sTestClient) GetApplication(ctx context.Context, name string) (*apiv1
 		return nil, errors.New("failed to get Application", err)
 	}
 	return &app, nil
+}
+
+func (k *K8sTestClient) DeleteApplication(ctx context.Context, name string) error {
+	err := k.appRESTClient.
+		Delete().
+		Namespace("default").
+		Resource("applications").
+		Name(name).
+		Body(&metav1.DeleteOptions{}).
+		Do(ctx).
+		Error()
+	if err != nil {
+		return errors.New("failed to delete application", errors.Meta("app", name), err)
+	}
+	return nil
 }

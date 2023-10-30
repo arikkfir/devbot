@@ -27,6 +27,11 @@ deploy:
   kubeContext: kind-devbot
 portForward:
   - resourceType: service
+    resourceName: devbot-redis
+    namespace: devbot
+    port: 6379
+    localPort: 6379
+  - resourceType: service
     resourceName: devbot-application-commit-handler
     namespace: devbot
     port: 80
