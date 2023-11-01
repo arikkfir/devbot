@@ -8,14 +8,14 @@ ARG TARGETARCH
 WORKDIR /workspace
 COPY go.mod go.mod
 COPY go.sum go.sum
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
 COPY cmd/application-commit-handler cmd/application-commit-handler/
 COPY internal/config internal/config/
 COPY internal/util internal/util/
 COPY internal/webhooks internal/webhooks/
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o application-commit-handler cmd/application-commit-handler/main.go
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o application-commit-handler cmd/application-commit-handler/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
