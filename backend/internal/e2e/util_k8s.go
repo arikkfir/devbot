@@ -26,33 +26,33 @@ type K8sTestClient struct {
 	cleanup          []func() error
 }
 
-func NewK8sTestClient(t *testing.T, namespace string) (*K8sTestClient, error) {
+func NewK8sTestClient(t *testing.T, namespace string) *K8sTestClient {
 	if err := apiv1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, errors.New("failed to register CRDs", err)
+		t.Fatalf("Failed to register CRDs: %+v", err)
 	}
 
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, errors.New("failed to get user home dir", err)
+		t.Fatalf("Failed to get user home dir: %+v", err)
 	}
 	kubeConfigPath := filepath.Join(userHomeDir, ".kube", "config")
 	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
-		return nil, errors.New("failed to read Kubernetes config", errors.Meta("path", kubeConfigPath), err)
+		t.Fatalf("Failed to read Kubernetes config: %+v", err)
 	}
 
 	k8sClientSet, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		return nil, errors.New("failed to create Kubernetes static client", err)
+		t.Fatalf("Failed to create Kubernetes static client: %+v", err)
 	}
 	k8sDynamicClient, err := dynamic.NewForConfig(kubeConfig)
 	if err != nil {
-		return nil, errors.New("failed to create Kubernetes dynamic client", err)
+		t.Fatalf("Failed to create Kubernetes dynamic client: %+v", err)
 	}
 
 	httpClient, err := rest.HTTPClientFor(kubeConfig)
 	if err != nil {
-		return nil, errors.New("failed to create Kubernetes HTTP client", err)
+		t.Fatalf("Failed to create custom Kubernetes HTTP client (for custom REST client): %+v", err)
 	}
 	appConfig := *kubeConfig
 	appConfig.GroupVersion = &apiv1.GroupVersion
@@ -63,17 +63,19 @@ func NewK8sTestClient(t *testing.T, namespace string) (*K8sTestClient, error) {
 	}
 	appRESTClient, err := rest.RESTClientForConfigAndClient(&appConfig, httpClient)
 	if err != nil {
-		return nil, errors.New("failed to create Kubernetes REST client", err)
+		t.Fatalf("Failed to create custom Kubernetes REST client: %+v", err)
 	}
 
-	return &K8sTestClient{
+	kc := &K8sTestClient{
 		t:                t,
 		kubeConfig:       kubeConfig,
 		k8sClientSet:     k8sClientSet,
 		k8sDynamicClient: k8sDynamicClient,
 		appRESTClient:    appRESTClient,
 		namespace:        namespace,
-	}, nil
+	}
+	t.Cleanup(kc.Close)
+	return kc
 }
 
 func (k *K8sTestClient) Close() {

@@ -26,15 +26,17 @@ type GitHubTestClient struct {
 	cleanup        []func() error
 }
 
-func NewGitHubTestClient(t *testing.T, owner string) (*GitHubTestClient, error) {
+func NewGitHubTestClient(t *testing.T, owner string) *GitHubTestClient {
 	t.Helper()
 	token := os.Getenv("GITHUB_TOKEN")
-	return &GitHubTestClient{
+	gh := &GitHubTestClient{
 		Owner:          owner,
 		t:              t,
 		client:         github.NewClient(nil).WithAuthToken(token),
 		WebhooksSecret: os.Getenv("WEBHOOK_SECRET"),
-	}, nil
+	}
+	t.Cleanup(gh.Close)
+	return gh
 }
 
 func (c *GitHubTestClient) Close() {
@@ -128,18 +130,18 @@ func (c *GitHubTestClient) CreateRepositoryWebhook(ctx context.Context, repoName
 	return nil
 }
 
-func (c *GitHubTestClient) CreateFile(ctx context.Context, repoName string, branch, path, message string) error {
+func (c *GitHubTestClient) CreateFile(ctx context.Context, repoName, branch, path, message string) (*github.RepositoryContentResponse, error) {
 	c.t.Helper()
 	c.t.Logf("Creating file '%s/%s' in GitHub repository '%s/%s'...", branch, path, c.Owner, repoName)
-	_, _, err := c.client.Repositories.CreateFile(ctx, c.Owner, repoName, path, &github.RepositoryContentFileOptions{
+	cr, _, err := c.client.Repositories.CreateFile(ctx, c.Owner, repoName, path, &github.RepositoryContentFileOptions{
 		Message: &message,
 		Content: []byte(util.RandomHash(32)),
 		Branch:  &branch,
 	})
 	if err != nil {
-		return errors.New("failed to create file", errors.Meta("repo", repoName), err)
+		return nil, errors.New("failed to create file", errors.Meta("repo", repoName), err)
 	}
-	return nil
+	return cr, nil
 }
 
 func (c *GitHubTestClient) UpdateFile(ctx context.Context, repoName string, branch, path, message string) error {
