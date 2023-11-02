@@ -48,10 +48,16 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to create Kubernetes client")
 	}
 
+	// Create Kubernetes client
+	k8sClient := util.NewK8sClient(kubeConfig)
+
 	// Setup push handler
-	handler, err := webhooks.NewPushHandler(kubeConfig, redisClient, cfg.Webhook.Secret)
+	handler, err := webhooks.NewPushHandler(k8sClient, redisClient, cfg.Webhook.Secret)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create push handler")
+	}
+	if err := handler.Start(ctx); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start push handler")
 	}
 	defer func(handler *webhooks.PushHandler) {
 		err := handler.Close()
@@ -62,7 +68,7 @@ func main() {
 
 	// Setup routing
 	mux := http.NewServeMux()
-	mux.HandleFunc("/github/webhook", handler.HandleRequest)
+	mux.HandleFunc("/github/webhook", handler.HandleWebhookRequest)
 
 	// Setup server
 	server := &http.Server{

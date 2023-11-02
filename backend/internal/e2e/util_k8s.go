@@ -3,13 +3,11 @@ package e2e
 import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/util"
 	"github.com/secureworks/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"path/filepath"
@@ -17,13 +15,10 @@ import (
 )
 
 type K8sTestClient struct {
-	t                *testing.T
-	kubeConfig       *rest.Config
-	k8sClientSet     *kubernetes.Clientset
-	k8sDynamicClient *dynamic.DynamicClient
-	appRESTClient    *rest.RESTClient
-	namespace        string
-	cleanup          []func() error
+	*util.K8sClient
+	t         *testing.T
+	namespace string
+	cleanup   []func() error
 }
 
 func NewK8sTestClient(t *testing.T, namespace string) *K8sTestClient {
@@ -41,38 +36,10 @@ func NewK8sTestClient(t *testing.T, namespace string) *K8sTestClient {
 		t.Fatalf("Failed to read Kubernetes config: %+v", err)
 	}
 
-	k8sClientSet, err := kubernetes.NewForConfig(kubeConfig)
-	if err != nil {
-		t.Fatalf("Failed to create Kubernetes static client: %+v", err)
-	}
-	k8sDynamicClient, err := dynamic.NewForConfig(kubeConfig)
-	if err != nil {
-		t.Fatalf("Failed to create Kubernetes dynamic client: %+v", err)
-	}
-
-	httpClient, err := rest.HTTPClientFor(kubeConfig)
-	if err != nil {
-		t.Fatalf("Failed to create custom Kubernetes HTTP client (for custom REST client): %+v", err)
-	}
-	appConfig := *kubeConfig
-	appConfig.GroupVersion = &apiv1.GroupVersion
-	appConfig.APIPath = "/apis"
-	appConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	if appConfig.UserAgent == "" {
-		appConfig.UserAgent = rest.DefaultKubernetesUserAgent() // TODO: consider customizing API user-agent
-	}
-	appRESTClient, err := rest.RESTClientForConfigAndClient(&appConfig, httpClient)
-	if err != nil {
-		t.Fatalf("Failed to create custom Kubernetes REST client: %+v", err)
-	}
-
 	kc := &K8sTestClient{
-		t:                t,
-		kubeConfig:       kubeConfig,
-		k8sClientSet:     k8sClientSet,
-		k8sDynamicClient: k8sDynamicClient,
-		appRESTClient:    appRESTClient,
-		namespace:        namespace,
+		K8sClient: util.NewK8sClient(kubeConfig),
+		t:         t,
+		namespace: namespace,
 	}
 	t.Cleanup(kc.Close)
 	return kc
@@ -98,7 +65,7 @@ func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo strin
 	}
 	name := "devbot-test-" + owner + "-" + repo
 	app := apiv1.Application{}
-	err := k.appRESTClient.
+	err := k.AppRESTClient.
 		Post().
 		Namespace(k.namespace).
 		Resource("applications").
@@ -136,7 +103,7 @@ func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo strin
 
 func (k *K8sTestClient) GetApplication(ctx context.Context, name string) (*apiv1.Application, error) {
 	app := apiv1.Application{}
-	err := k.appRESTClient.
+	err := k.AppRESTClient.
 		Get().
 		Namespace(k.namespace).
 		Resource("applications").
@@ -156,7 +123,7 @@ func (k *K8sTestClient) GetApplication(ctx context.Context, name string) (*apiv1
 }
 
 func (k *K8sTestClient) DeleteApplication(ctx context.Context, name string) error {
-	err := k.appRESTClient.
+	err := k.AppRESTClient.
 		Delete().
 		Namespace("default").
 		Resource("applications").
