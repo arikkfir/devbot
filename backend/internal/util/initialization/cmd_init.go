@@ -42,7 +42,7 @@ func InitializeLogging(devMode bool, logLevel string) {
 				return nil
 			},
 		}
-		log.Logger = log.Output(writer)
+		log.Logger = log.Output(writer).With().Stack().Logger()
 		zerolog.DefaultContextLogger = &log.Logger
 	} else {
 		zerolog.ErrorStackMarshaler = func(err error) interface{} {
@@ -50,6 +50,7 @@ func InitializeLogging(devMode bool, logLevel string) {
 			errors.PrintStackChain(&buffer, err)
 			return buffer.String()
 		}
+		log.Logger = log.With().Stack().Logger()
 	}
 
 	if level, err := zerolog.ParseLevel(logLevel); err != nil {
