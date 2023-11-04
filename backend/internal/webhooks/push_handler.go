@@ -5,26 +5,40 @@ import (
 	"context"
 	"encoding/json"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/util"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"net/http"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 )
 
 type PushHandler struct {
 	webhook *github.Webhook
-	k       *util.K8sClient
+	k       client.Client
 	r       *redis.Client
 	pubsub  *redis.PubSub
 }
 
-func NewPushHandler(k8sClient *util.K8sClient, redisClient *redis.Client, secret string) (*PushHandler, error) {
+// NewPushHandler creates a new GitHub Push event handler instance.
+//
+// This object, when started (calling the [PushHandler.Start] method), will handle GitHub "push" events, and forward
+// them to an internal Redis-based Pub/Sub channel for asynchronous processing by the [PushHandler.handlePubsubMessages]
+// method.
+//
+// It should also be stopped by a call to the [PushHandler.Close] method.
+func NewPushHandler(kubeConfig *rest.Config, redisClient *redis.Client, secret string) (*PushHandler, error) {
 	hook, err := github.New(github.Options.Secret(secret))
 	if err != nil {
 		return nil, errors.New("failed to create GitHub webhook", err)
+	}
+
+	k8sClient, err := client.New(kubeConfig, client.Options{Scheme: scheme.Scheme})
+	if err != nil {
+		return nil, errors.New("failed to create Kubernetes client", err)
 	}
 
 	ph := PushHandler{
@@ -36,12 +50,16 @@ func NewPushHandler(k8sClient *util.K8sClient, redisClient *redis.Client, secret
 	return &ph, nil
 }
 
+// Start will make this object subscribe to the Redis-based Pub/Sub channel for GitHub "push" events, sent there by the
+// [PushHandler.HandleWebhookRequest]; that method should be used as a [http.HandlerFunc] by an HTTP server maintained
+// by the user of this object (e.g. the "main" function).
 func (ph *PushHandler) Start(ctx context.Context) error {
 	ph.pubsub = ph.r.Subscribe(ctx, "github.push")
 	go ph.handlePubsubMessages(ctx)
 	return nil
 }
 
+// Close will stop this object from accepting GitHub "push" events, and will unsubscribe from the Redis Pub/Sub channel.
 func (ph *PushHandler) Close() error {
 	if err := ph.pubsub.Close(); err != nil {
 		return errors.New("failed to close PubSub receiver", err)
@@ -49,6 +67,12 @@ func (ph *PushHandler) Close() error {
 	return nil
 }
 
+// HandleWebhookRequest is a [http.HandlerFunc] which should be used by an HTTP server maintained by the user of this
+// object (e.g. the "main" function).
+//
+// It will accept & validate GitHub webhook calls of the "push" event type, and if
+// valid, forward them to the Redis Pub/Sub channel for asynchronous processing by the
+// [PushHandler.handlePubsubMessages] method.
 func (ph *PushHandler) HandleWebhookRequest(w http.ResponseWriter, r *http.Request) {
 	payload, err := ph.webhook.Parse(r, github.PushEvent, github.PingEvent)
 	if err != nil {
@@ -77,6 +101,8 @@ func (ph *PushHandler) HandleWebhookRequest(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// handlePubsubMessages is a blocking method which will receive GitHub "push" events from the Redis Pub/Sub channel, and
+// will handle them by updating the status of the relevant Application CRD objects in the Kubernetes cluster.
 func (ph *PushHandler) handlePubsubMessages(ctx context.Context) {
 	channel := ph.pubsub.Channel(redis.WithChannelSize(10))
 	for {
@@ -100,13 +126,14 @@ func (ph *PushHandler) handlePubsubMessages(ctx context.Context) {
 	}
 }
 
+// handlePushPayload will handle a single GitHub "push" event, by updating the status of the relevant Application CRD
+// object in the Kubernetes cluster.
 func (ph *PushHandler) handlePushPayload(ctx context.Context, payload github.PushPayload) error {
-	applications, err := ph.k.GetApplications(ctx)
-	if err != nil {
-		return errors.New("failed to get applications", err)
+	apps := apiv1.ApplicationList{}
+	if err := ph.k.List(ctx, &apps); err != nil {
+		return errors.New("failed to list applications", err)
 	}
-
-	for _, app := range applications {
+	for _, app := range apps.Items {
 		if app.Spec.Repository.GitHub == nil {
 			continue
 		} else if app.Spec.Repository.GitHub.Owner != payload.Repository.Owner.Login {
@@ -144,9 +171,9 @@ func (ph *PushHandler) handleApplication(ctx context.Context, payload github.Pus
 			return nil
 		}
 	}
-	if err := ph.k.UpdateApplicationStatus(ctx, app); err != nil {
+	// TODO: ensure that if this fails, we retry (can be solved by a Pub/Sub retry mechanism as long as order is maintained)
+	if err := ph.k.Status().Update(ctx, app); err != nil {
 		return errors.New("failed to update application status", err)
-	} else {
-		return nil
 	}
+	return nil
 }

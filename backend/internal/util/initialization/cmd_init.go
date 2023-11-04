@@ -39,6 +39,7 @@ func InitializeLogging(devMode bool, logLevel string) {
 						panic(err)
 					}
 				}
+				// TODO: add metadata & tags from event error, if any
 				return nil
 			},
 		}
@@ -50,6 +51,7 @@ func InitializeLogging(devMode bool, logLevel string) {
 			errors.PrintStackChain(&buffer, err)
 			return buffer.String()
 		}
+		// TODO: add metadata & tags from event error, if any
 		log.Logger = log.With().Stack().Logger()
 	}
 

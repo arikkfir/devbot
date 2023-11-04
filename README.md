@@ -9,6 +9,10 @@ most inclusive interpretation of the term:
 * Full integration with existing 3rd-party tools and provides such as GitHub, Slack, etc.
 * One-stop dashboard to see everything related to product development in one place
 
+## Contributing
+
+Please see the [contributing guide](.github/CONTRIBUTING.md) for details.
+
 ## Status
 
 Alpha. Do not use.

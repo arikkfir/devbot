@@ -48,11 +48,8 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to create Kubernetes client")
 	}
 
-	// Create Kubernetes client
-	k8sClient := util.NewK8sClient(kubeConfig)
-
 	// Setup push handler
-	handler, err := webhooks.NewPushHandler(k8sClient, redisClient, cfg.Webhook.Secret)
+	handler, err := webhooks.NewPushHandler(kubeConfig, redisClient, cfg.Webhook.Secret)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create push handler")
 	}
