@@ -71,7 +71,7 @@ func (k *K8sTestClient) Cleanup(f func() error) {
 }
 
 func (k *K8sTestClient) CreateApplication(ctx context.Context, owner, repo string) (*apiv1.Application, error) {
-	name := "devbot-test-" + owner + "-" + repo
+	name := owner + "-" + repo
 	app := apiv1.Application{
 		TypeMeta:   metav1.TypeMeta{APIVersion: appGVK.GroupVersion().String(), Kind: appGVK.Kind},
 		ObjectMeta: metav1.ObjectMeta{Namespace: k.namespace, Name: name},

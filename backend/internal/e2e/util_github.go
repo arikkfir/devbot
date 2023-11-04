@@ -55,7 +55,7 @@ func (c *GitHubTestClient) Cleanup(f func() error) {
 
 func (c *GitHubTestClient) CreateRepository(ctx context.Context) (*github.Repository, error) {
 	c.t.Helper()
-	repoName := "devbot-test-" + util.RandomHash(7)
+	repoName := util.RandomHash(7)
 	c.t.Logf("Creating GitHub repository '%s/%s'...", c.Owner, repoName)
 	repo, _, err := c.client.Repositories.Create(ctx, c.Owner, &github.Repository{
 		Name:        &[]string{repoName}[0],

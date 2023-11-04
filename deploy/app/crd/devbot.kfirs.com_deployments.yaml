@@ -33,6 +33,11 @@ spec:
             type: object
           spec:
             description: DeploymentSpec defines the desired state of Deployment
+            properties:
+              application:
+                type: string
+              commit:
+                type: string
             type: object
           status:
             description: DeploymentStatus defines the observed state of Deployment

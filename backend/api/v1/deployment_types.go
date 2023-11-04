@@ -6,6 +6,8 @@ import (
 
 // DeploymentSpec defines the desired state of Deployment
 type DeploymentSpec struct {
+	Application string `json:"application,omitempty"`
+	Commit      string `json:"commit,omitempty"`
 }
 
 // DeploymentStatus defines the observed state of Deployment

@@ -158,11 +158,11 @@ func (ph *PushHandler) handleApplication(ctx context.Context, payload github.Pus
 		}
 	} else {
 		if app.Status.Refs == nil {
-			app.Status.Refs = make(map[string]apiv1.RefStatus)
+			app.Status.Refs = make(map[string]*apiv1.RefStatus)
 		}
 		refStatus, ok := app.Status.Refs[payload.Ref]
 		if !ok {
-			refStatus = apiv1.RefStatus{}
+			refStatus = &apiv1.RefStatus{}
 			app.Status.Refs[payload.Ref] = refStatus
 		}
 		if refStatus.LatestAvailableCommit != payload.After {

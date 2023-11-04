@@ -28,7 +28,7 @@ type RefStatus struct {
 
 // ApplicationStatus defines the observed state of Application
 type ApplicationStatus struct {
-	Refs map[string]RefStatus `json:"refs,omitempty"`
+	Refs map[string]*RefStatus `json:"refs,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -123,9 +123,18 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 	*out = *in
 	if in.Refs != nil {
 		in, out := &in.Refs, &out.Refs
-		*out = make(map[string]RefStatus, len(*in))
+		*out = make(map[string]*RefStatus, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val
+			var outVal *RefStatus
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				inVal := (*in)[key]
+				in, out := &inVal, &outVal
+				*out = new(RefStatus)
+				**out = **in
+			}
+			(*out)[key] = outVal
 		}
 	}
 }
