@@ -4,6 +4,7 @@ FROM golang:1.21 as builder
 ARG TARGETOS
 # no default value, to default to the environment's architecture (e.g. linux/amd64)
 ARG TARGETARCH
+ARG SKAFFOLD_GO_GCFLAGS="all=-N -l"
 
 WORKDIR /workspace
 COPY go.mod go.mod
@@ -15,10 +16,11 @@ COPY cmd/application-commit-handler cmd/application-commit-handler/
 COPY internal/config internal/config/
 COPY internal/util internal/util/
 COPY internal/webhooks internal/webhooks/
-RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o application-commit-handler cmd/application-commit-handler/main.go
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o application-commit-handler cmd/application-commit-handler/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/application-commit-handler ./
 USER 65532:65532
+ENV GOTRACEBACK=single
 ENTRYPOINT ["/application-commit-handler"]

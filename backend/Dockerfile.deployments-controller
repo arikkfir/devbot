@@ -4,21 +4,23 @@ FROM golang:1.21 as builder
 ARG TARGETOS
 # no default value, to default to the environment's architecture (e.g. linux/amd64)
 ARG TARGETARCH
+ARG SKAFFOLD_GO_GCFLAGS="all=-N -l"
 
 WORKDIR /workspace
 COPY go.mod go.mod
 COPY go.sum go.sum
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
 COPY cmd/deployments-controller cmd/deployments-controller/
 COPY internal/config internal/config/
 COPY internal/util internal/util/
 COPY internal/controllers/deployments_controller.go internal/controllers/deployments_controller.go
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o deployments-controller cmd/deployments-controller/main.go
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o deployments-controller cmd/deployments-controller/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/deployments-controller ./
 USER 65532:65532
+ENV GOTRACEBACK=single
 ENTRYPOINT ["/deployments-controller"]

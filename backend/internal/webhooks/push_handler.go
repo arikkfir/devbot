@@ -20,13 +20,13 @@ type PushHandler struct {
 	webhook *github.Webhook
 	k       client.Client
 	r       *redis.Client
-	pubsub  *redis.PubSub
+	pubSub  *redis.PubSub
 }
 
 // NewPushHandler creates a new GitHub Push event handler instance.
 //
 // This object, when started (calling the [PushHandler.Start] method), will handle GitHub "push" events, and forward
-// them to an internal Redis-based Pub/Sub channel for asynchronous processing by the [PushHandler.handlePubsubMessages]
+// them to an internal Redis-based Pub/Sub channel for asynchronous processing by the [PushHandler.handlePubSubMessages]
 // method.
 //
 // It should also be stopped by a call to the [PushHandler.Close] method.
@@ -54,14 +54,14 @@ func NewPushHandler(kubeConfig *rest.Config, redisClient *redis.Client, secret s
 // [PushHandler.HandleWebhookRequest]; that method should be used as a [http.HandlerFunc] by an HTTP server maintained
 // by the user of this object (e.g. the "main" function).
 func (ph *PushHandler) Start(ctx context.Context) error {
-	ph.pubsub = ph.r.Subscribe(ctx, "github.push")
-	go ph.handlePubsubMessages(ctx)
+	ph.pubSub = ph.r.Subscribe(ctx, "github.push")
+	go ph.handlePubSubMessages(ctx)
 	return nil
 }
 
 // Close will stop this object from accepting GitHub "push" events, and will unsubscribe from the Redis Pub/Sub channel.
 func (ph *PushHandler) Close() error {
-	if err := ph.pubsub.Close(); err != nil {
+	if err := ph.pubSub.Close(); err != nil {
 		return errors.New("failed to close PubSub receiver", err)
 	}
 	return nil
@@ -72,7 +72,7 @@ func (ph *PushHandler) Close() error {
 //
 // It will accept & validate GitHub webhook calls of the "push" event type, and if
 // valid, forward them to the Redis Pub/Sub channel for asynchronous processing by the
-// [PushHandler.handlePubsubMessages] method.
+// [PushHandler.handlePubSubMessages] method.
 func (ph *PushHandler) HandleWebhookRequest(w http.ResponseWriter, r *http.Request) {
 	payload, err := ph.webhook.Parse(r, github.PushEvent, github.PingEvent)
 	if err != nil {
@@ -101,10 +101,10 @@ func (ph *PushHandler) HandleWebhookRequest(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-// handlePubsubMessages is a blocking method which will receive GitHub "push" events from the Redis Pub/Sub channel, and
+// handlePubSubMessages is a blocking method which will receive GitHub "push" events from the Redis Pub/Sub channel, and
 // will handle them by updating the status of the relevant Application CRD objects in the Kubernetes cluster.
-func (ph *PushHandler) handlePubsubMessages(ctx context.Context) {
-	channel := ph.pubsub.Channel(redis.WithChannelSize(10))
+func (ph *PushHandler) handlePubSubMessages(ctx context.Context) {
+	channel := ph.pubSub.Channel(redis.WithChannelSize(10))
 	for {
 		// TODO: verify correct pub/sub semantics (ack/nack, dead-letter, etc)
 

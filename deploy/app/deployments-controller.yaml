@@ -80,9 +80,7 @@ spec:
     matchLabels:
       app.kubernetes.io/component: deployments-controller
   strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+    type: Recreate
   template:
     metadata:
       labels:
@@ -90,29 +88,13 @@ spec:
     spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/deployments-controller
-          args:
-            - --leader-elect
+          args: []
           name: deployments-controller
-          livenessProbe:
-            httpGet:
-              port: health
-              path: /healthz
-            failureThreshold: 3
-            periodSeconds: 5
-            terminationGracePeriodSeconds: 30
-            timeoutSeconds: 3
           ports:
             - containerPort: 8000
               name: metrics
             - containerPort: 9000
               name: health
-          readinessProbe:
-            httpGet:
-              port: health
-              path: /readyz
-            failureThreshold: 3
-            periodSeconds: 1
-            timeoutSeconds: 1
           resources:
             limits:
               cpu: 50m
@@ -120,12 +102,5 @@ spec:
             requests:
               cpu: 50m
               memory: 32Mi
-          startupProbe:
-            failureThreshold: 3
-            httpGet:
-              port: health
-              path: /healthz
-            periodSeconds: 3
-            timeoutSeconds: 3
       enableServiceLinks: false
       serviceAccountName: deployments-controller

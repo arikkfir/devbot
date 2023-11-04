@@ -6,13 +6,12 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 ## Setup
 
-### Tools
+### Install required toolchains
 
 ```bash
 $ brew install yq jq                                                  # used occasionally by various scripts
 $ brew install kubebuilder                                            # might be useful, not strictly required currently
-$ brew install kubernetes-cli kustomize                               # will be used by skaffold
-$ brew install skaffold datawire/blackbird/telepresence-arm64         # local development tools
+$ brew install kubernetes-cli kustomize skaffold                      # Kubernetes tooling
 $ brew install redis                                                  # for local inspection of redis data
 $ brew install go                                                     # for backend development
 $ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0  # used to generate CRDs from controller code
@@ -20,40 +19,58 @@ $ brew install node                                                   # for smee
 $ npm install -g smee-client                                          # used by tests to tunnel webhook requests
 ```
 
-### Local Kubernetes cluster
+### Create a local Kubernetes cluster
 
 ```bash
-$ brew install kind                                               # local development cluster
-$ brew install helm                                               # for installing packages into the cluster
-$ helm repo add datawire https://app.getambassador.io             # add the datawire repo (for telepresence)
-$ helm repo update                                                # update the repo index
-$ kubectl create namespace ambassador                             # prepare namespace for telepresence
-$ helm install traffic-manager datawire/telepresence \
-    --namespace ambassador \
-    --set ambassador-agent.enabled=false
+$ brew install kind               # install the "kind" local cluster
+$ kind create cluster -n devbot   # create a local cluster for development
+```
+
+### Developing
+
+In our experience, the best development experience is to use Skaffold in conjunction with its respective IDE plugin 
+(either JetBrains or VSCode usually). This allows for a very fast development cycle, where changes are automatically
+reflected in the cluster.
+
+This will also allow for local debugging of the code.
+
+### Testing
+
+To run the full tests suite locally, you can do the following:
+
+```bash
+$ skaffold build -q --build-concurrency=0 | skaffold deploy --build-artifacts=- --kube-context=kind-devbot
+$ (cd backend && go test ./...)   # run backend tests
+$ (cd frontend && npm test)       # run frontend tests (NOT IMPLEMENTED YET)
+$ skaffold delete                 # undeploy from the local cluster
 ```
 
 ## Issues and PRs
 
-If you have suggestions for how this project could be improved, or want to report a bug, open an issue! We'd love all and any contributions. If you have questions, too, we'd love to hear them.
+If you have suggestions for how this project could be improved, or want to report a bug, open an issue! We'd love all
+and any contributions. If you have questions, too, we'd love to hear them.
 
-We'd also love PRs. If you're thinking of a large PR, we advise opening up an issue first to talk about it, though! Look at the links below if you're not sure how to open a PR.
+We'd also love PRs. If you're thinking of a large PR, we advise opening up an issue first to talk about it, though! Look
+at the links below if you're not sure how to open a PR.
 
 ## Submitting a pull request
 
-1. [Fork](https://github.com/arikkfir/devbot/fork) and clone the repository.
-2. Configure and install the dependencies: `npm install`.
-3. Make sure the tests pass on your machine: `npm test`, note: these tests also apply the linter, so there's no need to lint separately.
-4. Create a new branch: `git checkout -b my-branch-name`.
-5. Make your change, add tests, and make sure the tests still pass.
-6. Push to your fork and [submit a pull request](https://github.com/arikkfir/devbot/compare).
-7. Pat your self on the back and wait for your pull request to be reviewed and merged.
+1. Make sure you set up your local development environment as described above.
+2. [Fork](https://github.com/arikkfir/devbot/fork) and clone the repository.
+3. Create a new branch: `git checkout -b my-branch-name`.
+4. Make your change, add your feature/bug specific tests, and make sure the entire tests suite passes (see above)
+5. Push to your fork, and submit a pull request
+6. Pat your self on the back and wait for your pull request to be reviewed and merged.
 
 Here are a few things you can do that will increase the likelihood of your pull request being accepted:
 
 - Write and update tests.
-- Keep your changes as focused as possible. If there are multiple changes you would like to make that are not dependent upon each other, consider submitting them as separate pull requests.
+- Keep your changes as focused as possible
+  - Break up your change to smaller, separate & decoupled changes - reviewing will be easier & faster
+  - Keep each PR focused on one specific change
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
+- Provide any and all necessary information in the PR description to help reviewers understand the context and impact of
+  your change.
 
 Work in Progress pull requests are also welcome to get feedback early on, or if there is something blocked you.
 

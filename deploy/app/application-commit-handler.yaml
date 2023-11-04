@@ -82,8 +82,6 @@ spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/application-commit-handler
           env:
-            - name: DEV_MODE
-              value: "true"
             - name: REDIS_HOST
               value: devbot-redis
             - name: WEBHOOK_SECRET
@@ -93,26 +91,11 @@ spec:
                   name: webhooks
                   optional: false
           name: application-commit-handler
-          livenessProbe:
-            httpGet:
-              port: health
-              path: /healthz
-            failureThreshold: 3
-            periodSeconds: 5
-            terminationGracePeriodSeconds: 30
-            timeoutSeconds: 3
           ports:
             - containerPort: 8000
               name: http
             - containerPort: 9000
               name: health
-          readinessProbe:
-            httpGet:
-              port: health
-              path: /healthz
-            failureThreshold: 3
-            periodSeconds: 1
-            timeoutSeconds: 1
           resources:
             limits:
               cpu: 50m
@@ -120,12 +103,5 @@ spec:
             requests:
               cpu: 50m
               memory: 32Mi
-          startupProbe:
-            httpGet:
-              port: health
-              path: /healthz
-            failureThreshold: 5
-            periodSeconds: 1
-            timeoutSeconds: 1
       enableServiceLinks: false
       serviceAccountName: application-commit-handler

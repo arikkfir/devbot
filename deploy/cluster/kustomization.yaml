@@ -2,3 +2,56 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../app
+patches:
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          limits:
+            cpu: 150m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 32Mi
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe
+        value:
+          httpGet:
+            port: health
+            path: /healthz
+          failureThreshold: 3
+          periodSeconds: 5
+          terminationGracePeriodSeconds: 30
+          timeoutSeconds: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe
+        value:
+          httpGet:
+            port: health
+            path: /healthz
+          failureThreshold: 3
+          periodSeconds: 1
+          timeoutSeconds: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/startupProbe
+        value:
+          httpGet:
+            port: health
+            path: /healthz
+          failureThreshold: 3
+          periodSeconds: 1
+          timeoutSeconds: 1
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: (devbot-application-commit-handler|devbot-applications-controller|devbot-deployments-controller)
+  - patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: "--leader-elect"
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: (devbot-applications-controller|devbot-deployments-controller)

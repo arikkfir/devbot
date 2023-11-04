@@ -1,5 +1,5 @@
 # nonk8s
-apiVersion: skaffold/v4beta7
+apiVersion: skaffold/v4beta6
 kind: Config
 metadata:
   name: devbot
