@@ -17,7 +17,7 @@ type ApplicationRepository struct {
 
 // ApplicationSpec defines the desired state of Application
 type ApplicationSpec struct {
-	// Application source repository
+	// Repository is the location of this application's source code
 	Repository ApplicationRepository `json:"repository,omitempty"`
 }
 
