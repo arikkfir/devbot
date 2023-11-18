@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devbot-github-auth
+  namespace: devbot
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [devbot-github-auth]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devbot-github-auth-access-for-github-controller
+  namespace: devbot
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: devbot-github-auth
+subjects:
+  - kind: ServiceAccount
+    name: devbot-github-controller
+    namespace: devbot

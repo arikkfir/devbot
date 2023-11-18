@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util"
 	"github.com/arikkfir/devbot/backend/internal/util/initialization"
 	"github.com/arikkfir/devbot/backend/internal/webhooks"
-	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -16,7 +14,7 @@ import (
 	"strconv"
 )
 
-var cfg webhooks.WebhookCommandConfig
+var cfg webhooks.WebhookConfig
 
 func init() {
 	initialization.Initialize(&cfg)
@@ -29,12 +27,6 @@ func main() {
 	hc := util.NewHealthCheckServer(cfg.HealthPort)
 	go hc.Start(ctx)
 	defer hc.Stop(ctx)
-
-	// Setup Redis client
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port),
-		DB:   0,
-	})
 
 	// Register used CRDs
 	err := apiv1.AddToScheme(scheme.Scheme)
@@ -49,7 +41,7 @@ func main() {
 	}
 
 	// Setup push handler
-	handler, err := webhooks.NewPushHandler(kubeConfig, redisClient, cfg.Webhook.Secret)
+	handler, err := webhooks.NewPushHandler(kubeConfig, cfg.Secret)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create push handler")
 	}
@@ -69,7 +61,7 @@ func main() {
 
 	// Setup server
 	server := &http.Server{
-		Addr:    ":" + strconv.Itoa(cfg.Webhook.Port),
+		Addr:    ":" + strconv.Itoa(cfg.Port),
 		Handler: util.AccessLogMiddleware(false, nil, mux),
 	}
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

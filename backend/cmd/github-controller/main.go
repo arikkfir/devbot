@@ -6,6 +6,9 @@ import (
 	"github.com/arikkfir/devbot/backend/internal/util/initialization"
 	"github.com/go-logr/logr"
 	"github.com/rs/zerolog/log"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -35,7 +38,16 @@ func main() {
 	ctrl.SetLogger(logr.New(&util.ZeroLogLogrAdapter{}))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                        scheme,
+		Scheme: scheme,
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					// disable caching of secrets, as we might not get a "list" permission for them, and the default
+					// cache tries to list objects for caching...
+					&v1.Secret{},
+				},
+			},
+		},
 		Metrics:                       metricsserver.Options{BindAddress: cfg.MetricsAddr},
 		HealthProbeBindAddress:        cfg.HealthProbeAddr,
 		LeaderElection:                cfg.EnableLeaderElection,
@@ -49,14 +61,14 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	applicationReconciler := &controllers.ApplicationReconciler{Client: mgrClient, Scheme: mgrScheme}
-	if err := applicationReconciler.SetupWithManager(mgr); err != nil {
-		log.Fatal().Err(err).Msg("Unable to create application controller")
+	githubRepositoryReconciler := &controllers.GitHubRepositoryReconciler{Client: mgrClient, Scheme: mgrScheme}
+	if err := githubRepositoryReconciler.SetupWithManager(mgr); err != nil {
+		log.Fatal().Err(err).Msg("Unable to create GitHub repository controller")
 	}
 
-	applicationEnvReconciler := &controllers.ApplicationEnvironmentReconciler{Client: mgrClient, Scheme: mgrScheme}
-	if err := applicationEnvReconciler.SetupWithManager(mgr); err != nil {
-		log.Fatal().Err(err).Msg("Unable to create application environment controller")
+	githubRepositoryRefReconciler := &controllers.GitHubRepositoryRefReconciler{Client: mgrClient, Scheme: mgrScheme}
+	if err := githubRepositoryRefReconciler.SetupWithManager(mgr); err != nil {
+		log.Fatal().Err(err).Msg("Unable to create GitHub repository ref controller")
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

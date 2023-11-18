@@ -2,8 +2,24 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../app
+  - github-auth-access.yaml
+secretGenerator:
+  - type: Opaque
+    behavior: create
+    name: devbot-github-auth
+    namespace: devbot
+    options:
+      disableNameSuffixHash: true
+      immutable: true
+    envs:
+      - github-auth.env
 patches:
   - patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DEV_MODE
+          value: "true"
       - op: replace
         path: /spec/template/spec/containers/0/resources
         value:
@@ -17,15 +33,19 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-      name: (devbot-application-commit-handler|devbot-applications-controller|devbot-deployments-controller)
+      name: (devbot-github-webhook|devbot-applications-controller|devbot-github-controller)
   - patch: |
       - op: add
         path: /spec/template/spec/containers/0/env/-
         value:
-          name: DEV_MODE
-          value: "true"
+          name: SECRET
+          valueFrom:
+            secretKeyRef:
+              key: WEBHOOK_SECRET
+              name: devbot-github-auth
+              optional: false
     target:
       group: apps
       version: v1
       kind: Deployment
-      name: devbot-application-commit-handler
+      name: devbot-github-webhook

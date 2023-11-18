@@ -1,0 +1,64 @@
+package v1
+
+import (
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// +StatusCondition:GitHubRepository:Cloned
+// +StatusCondition:GitHubRepository:Current
+
+const (
+	ReasonPending             = "Pending"
+	ReasonConfigError         = "ConfigError"
+	ReasonMkdirFailed         = "MkdirFailed"
+	ReasonCloneFailed         = "CloneFailed"
+	ReasonStatFailed          = "StatFailed"
+	ReasonCloneOpenFailed     = "CloneOpenFailed"
+	ReasonRefInspectionFailed = "RefInspectionFailed"
+	ReasonObjPruneFailed      = "ObjPruneFailed"
+)
+
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+
+type GitHubRepository struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   GitHubRepositorySpec   `json:"spec,omitempty"`
+	Status GitHubRepositoryStatus `json:"status,omitempty"`
+}
+
+type GitHubRepositorySpec struct {
+	Owner string               `json:"owner,omitempty"`
+	Name  string               `json:"name,omitempty"`
+	Auth  GitHubRepositoryAuth `json:"auth,omitempty"`
+}
+
+type GitHubRepositoryAuth struct {
+	PersonalAccessToken *GitHubRepositoryAuthPersonalAccessToken `json:"personalAccessToken,omitempty"`
+}
+
+type GitHubRepositoryAuthPersonalAccessToken struct {
+	Secret corev1.ObjectReference `json:"secret,omitempty"`
+	Key    string                 `json:"key,omitempty"`
+}
+
+type GitHubRepositoryStatus struct {
+	Conditions     []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+	GitURL         string             `json:"gitURL,omitempty"`
+	LocalClonePath string             `json:"clonePath,omitempty"`
+}
+
+//+kubebuilder:object:root=true
+
+type GitHubRepositoryList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []GitHubRepository `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&GitHubRepository{}, &GitHubRepositoryList{})
+}

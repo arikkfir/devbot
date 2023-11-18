@@ -12,15 +12,15 @@ COPY go.sum go.sum
 RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
-COPY cmd/deployments-controller cmd/deployments-controller/
+COPY cmd/github-webhook cmd/github-webhook/
 COPY internal/config internal/config/
 COPY internal/util internal/util/
-COPY internal/controllers/deployments_controller.go internal/controllers/deployments_controller.go
-RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o deployments-controller cmd/deployments-controller/main.go
+COPY internal/webhooks internal/webhooks/
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o github-webhook cmd/github-webhook/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/deployments-controller ./
+COPY --from=builder /workspace/github-webhook ./
 USER 65532:65532
 ENV GOTRACEBACK=single
-ENTRYPOINT ["/deployments-controller"]
+ENTRYPOINT ["/github-webhook"]

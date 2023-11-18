@@ -3,6 +3,7 @@
 // +groupName=devbot.kfirs.com
 //
 //go:generate controller-gen object crd paths="." output:crd:artifacts:config=../../../deploy/app/crd
+//go:generate go run ../../scripts/generators/api-status-conditions/main.go
 package v1
 
 import (

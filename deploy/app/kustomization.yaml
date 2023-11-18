@@ -5,17 +5,13 @@ commonLabels:
 namePrefix: devbot-
 namespace: devbot
 resources:
+  - crd/devbot.kfirs.com_applicationenvironments.yaml
   - crd/devbot.kfirs.com_applications.yaml
-  - crd/devbot.kfirs.com_deployments.yaml
+  - crd/devbot.kfirs.com_githubrepositories.yaml
+  - crd/devbot.kfirs.com_githubrepositoryrefs.yaml
   - namespace.yaml
   - redis.yaml
   - leader-election.yaml
-  - application-commit-handler.yaml
+  - github-webhook.yaml
   - applications-controller.yaml
-  - deployments-controller.yaml
-secretGenerator:
-  - name: webhooks
-    type: Opaque
-    behavior: create
-    envs:
-      - webhooks-secret.env
+  - github-controller.yaml

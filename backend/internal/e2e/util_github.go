@@ -19,21 +19,19 @@ var (
 )
 
 type GitHubTestClient struct {
-	Owner          string
-	WebhooksSecret string
-	t              *testing.T
-	client         *github.Client
-	cleanup        []func() error
+	Owner   string
+	t       *testing.T
+	client  *github.Client
+	cleanup []func() error
 }
 
-func NewGitHubTestClient(t *testing.T, owner string) *GitHubTestClient {
+func NewGitHubTestClient(t *testing.T, pat string) *GitHubTestClient {
 	t.Helper()
-	token := os.Getenv("GITHUB_TOKEN")
+
 	gh := &GitHubTestClient{
-		Owner:          owner,
-		t:              t,
-		client:         github.NewClient(nil).WithAuthToken(token),
-		WebhooksSecret: os.Getenv("WEBHOOK_SECRET"),
+		Owner:  "devbot-testing",
+		t:      t,
+		client: github.NewClient(nil).WithAuthToken(pat),
 	}
 	t.Cleanup(gh.Close)
 	return gh
@@ -78,7 +76,7 @@ func (c *GitHubTestClient) CreateRepository(ctx context.Context) (*github.Reposi
 	return repo, nil
 }
 
-func (c *GitHubTestClient) CreateRepositoryWebhook(ctx context.Context, repoName string, events ...string) error {
+func (c *GitHubTestClient) CreateRepositoryWebhook(ctx context.Context, repoName, secret string, events ...string) error {
 	c.t.Helper()
 	c.t.Logf("Creating webhook for events '%v' in GitHub repository '%s/%s'...", events, c.Owner, repoName)
 
@@ -119,7 +117,7 @@ func (c *GitHubTestClient) CreateRepositoryWebhook(ctx context.Context, repoName
 		Config: map[string]interface{}{
 			"url":          webhookURL,
 			"content_type": "json",
-			"secret":       c.WebhooksSecret,
+			"secret":       secret,
 			"insecure_ssl": "0",
 		},
 	})

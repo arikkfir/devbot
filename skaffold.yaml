@@ -5,18 +5,18 @@ metadata:
   name: devbot
 build:
   artifacts:
-    - image: ghcr.io/arikkfir/devbot/application-commit-handler
-      context: backend
-      docker:
-        dockerfile: Dockerfile.application-commit-handler
     - image: ghcr.io/arikkfir/devbot/applications-controller
       context: backend
       docker:
         dockerfile: Dockerfile.applications-controller
-    - image: ghcr.io/arikkfir/devbot/deployments-controller
+    - image: ghcr.io/arikkfir/devbot/github-controller
       context: backend
       docker:
-        dockerfile: Dockerfile.deployments-controller
+        dockerfile: Dockerfile.github-controller
+    - image: ghcr.io/arikkfir/devbot/github-webhook
+      context: backend
+      docker:
+        dockerfile: Dockerfile.github-webhook
   local:
     useBuildkit: true
 manifests:
@@ -32,7 +32,7 @@ portForward:
     port: 6379
     localPort: 6379
   - resourceType: service
-    resourceName: devbot-application-commit-handler
+    resourceName: devbot-github-webhook
     namespace: devbot
     port: 80
     localPort: 8080

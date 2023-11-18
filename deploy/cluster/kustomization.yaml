@@ -45,7 +45,7 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-      name: (devbot-application-commit-handler|devbot-applications-controller|devbot-deployments-controller)
+      name: (devbot-github-webhook|devbot-applications-controller|devbot-github-controller)
   - patch: |
       - op: add
         path: /spec/template/spec/containers/0/args/-
@@ -54,4 +54,4 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-      name: (devbot-applications-controller|devbot-deployments-controller)
+      name: (devbot-applications-controller|devbot-github-controller)

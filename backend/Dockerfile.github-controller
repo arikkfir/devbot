@@ -12,15 +12,16 @@ COPY go.sum go.sum
 RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
-COPY cmd/application-commit-handler cmd/application-commit-handler/
+COPY cmd/github-controller cmd/github-controller/
 COPY internal/config internal/config/
+COPY internal/controllers/github*_controller.go internal/controllers/
+COPY internal/controllers/config.go internal/controllers/config.go
 COPY internal/util internal/util/
-COPY internal/webhooks internal/webhooks/
-RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o application-commit-handler cmd/application-commit-handler/main.go
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o github-controller cmd/github-controller/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/application-commit-handler ./
+COPY --from=builder /workspace/github-controller ./
 USER 65532:65532
 ENV GOTRACEBACK=single
-ENTRYPOINT ["/application-commit-handler"]
+ENTRYPOINT ["/github-controller"]
