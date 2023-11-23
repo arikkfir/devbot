@@ -6,10 +6,6 @@ import (
 	"reflect"
 )
 
-const (
-	ConditionTypeCurrent = "Current"
-)
-
 func (o *GitHubRepository) SetStatusConditionCurrentIfDifferent(status v1.ConditionStatus, reason, message string) bool {
 	object := reflect.ValueOf(o).Elem()
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/arikkfir/devbot/backend/internal/controllers"
+	"github.com/arikkfir/devbot/backend/internal/controllers/application"
 	"github.com/arikkfir/devbot/backend/internal/util"
 	"github.com/arikkfir/devbot/backend/internal/util/initialization"
 	"github.com/go-logr/logr"
@@ -49,12 +50,12 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	applicationReconciler := &controllers.ApplicationReconciler{Client: mgrClient, Scheme: mgrScheme}
+	applicationReconciler := &application.ApplicationReconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := applicationReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application controller")
 	}
 
-	applicationEnvReconciler := &controllers.ApplicationEnvironmentReconciler{Client: mgrClient, Scheme: mgrScheme}
+	applicationEnvReconciler := &application.ApplicationEnvironmentReconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := applicationEnvReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application environment controller")
 	}

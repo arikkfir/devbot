@@ -5,6 +5,7 @@ go 1.21
 replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
 
 require (
+	github.com/bradleyfalzon/ghinstallation/v2 v2.8.0
 	github.com/go-git/go-git/v5 v5.10.0
 	github.com/go-logr/logr v1.2.4
 	github.com/go-playground/webhooks/v6 v6.3.0
@@ -38,6 +39,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect

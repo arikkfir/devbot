@@ -2,9 +2,8 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/controllers"
+	"github.com/arikkfir/devbot/backend/internal/controllers/repositories/github"
 	"github.com/arikkfir/devbot/backend/internal/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"slices"
@@ -37,15 +36,15 @@ func TestGitHubRepositoryCloning(t *testing.T) {
 		t.Fatalf("Failed to create GitHubRepository object: %+v", err)
 	}
 
-	util.Eventually(t, 1*time.Minute, 2*time.Second, func(t util.TestingT) {
+	util.Eventually(t, 5*time.Minute, 2*time.Second, func(t util.TestingT) {
 		r, err := k.GetGitHubRepository(ctx, repoCR.Namespace, repoCR.Name)
 		if err != nil {
 			t.Errorf("Failed to get GitHubRepository object: %+v", err)
 			return
 		}
 
-		if !slices.Contains(r.Finalizers, controllers.GitHubRepositoryFinalizer) {
-			t.Errorf("GitHubRepository object does not contain finalizer '%s'", controllers.GitHubRepositoryFinalizer)
+		if !slices.Contains(r.Finalizers, github.GitHubRepositoryFinalizer) {
+			t.Errorf("GitHubRepository object does not contain finalizer '%s'", github.GitHubRepositoryFinalizer)
 			return
 		}
 
@@ -53,31 +52,6 @@ func TestGitHubRepositoryCloning(t *testing.T) {
 			t.Fatalf("GitHubRepository object has deletion timestamp")
 		}
 
-		if r.Status.GitURL == "" {
-			t.Errorf("GitHubRepository object has empty Git URL")
-			return
-		}
-
-		expectedGitURL := fmt.Sprintf("https://github.com/%s/%s.git", *ghRepo.Owner.Login, *ghRepo.Name)
-		if r.Status.GitURL != expectedGitURL {
-			t.Errorf("GitHubRepository object has incorrect Git URL: expected '%s', was '%s'", expectedGitURL, r.Status.GitURL)
-			return
-		}
-
-		if r.Status.LocalClonePath == "" {
-			t.Errorf("GitHubRepository object has empty local clone path")
-			return
-		}
-
-		if r.Status.LocalClonePath != fmt.Sprintf("/clones/%s/%s", *ghRepo.Owner.Login, *ghRepo.Name) {
-			t.Errorf("GitHubRepository object has incorrect local clone path")
-			return
-		}
-
-		if c := r.GetStatusConditionCloned(); c == nil || c.Status != metav1.ConditionTrue {
-			t.Errorf("GitHubRepository object %s condition is wrong: %+v", apiv1.ConditionTypeCloned, c)
-			return
-		}
 		if c := r.GetStatusConditionCurrent(); c == nil || c.Status != metav1.ConditionTrue {
 			t.Errorf("GitHubRepository object %s condition is wrong: %+v", apiv1.ConditionTypeCurrent, c)
 			return

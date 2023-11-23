@@ -83,21 +83,5 @@ spec:
             requests:
               cpu: 50m
               memory: 32Mi
-          volumeMounts:
-            - mountPath: /clones
-              name: clone-data
       enableServiceLinks: false
       serviceAccountName: github-controller
-      volumes:
-        - name: clone-data
-          ephemeral:
-            volumeClaimTemplate:
-              spec:
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: 1Gi
-                  limits:
-                    storage: 5Gi
-                volumeMode: Filesystem

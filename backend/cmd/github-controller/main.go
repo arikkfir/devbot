@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/arikkfir/devbot/backend/internal/controllers"
+	"github.com/arikkfir/devbot/backend/internal/controllers/repositories/github"
 	"github.com/arikkfir/devbot/backend/internal/util"
 	"github.com/arikkfir/devbot/backend/internal/util/initialization"
 	"github.com/go-logr/logr"
@@ -61,12 +62,12 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	githubRepositoryReconciler := &controllers.GitHubRepositoryReconciler{Client: mgrClient, Scheme: mgrScheme}
+	githubRepositoryReconciler := &github.GitHubRepositoryReconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := githubRepositoryReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create GitHub repository controller")
 	}
 
-	githubRepositoryRefReconciler := &controllers.GitHubRepositoryRefReconciler{Client: mgrClient, Scheme: mgrScheme}
+	githubRepositoryRefReconciler := &github.GitHubRepositoryRefReconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := githubRepositoryRefReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create GitHub repository ref controller")
 	}

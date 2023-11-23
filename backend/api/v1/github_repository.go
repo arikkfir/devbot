@@ -5,19 +5,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +StatusCondition:GitHubRepository:Cloned
 // +StatusCondition:GitHubRepository:Current
-
-const (
-	ReasonPending             = "Pending"
-	ReasonConfigError         = "ConfigError"
-	ReasonMkdirFailed         = "MkdirFailed"
-	ReasonCloneFailed         = "CloneFailed"
-	ReasonStatFailed          = "StatFailed"
-	ReasonCloneOpenFailed     = "CloneOpenFailed"
-	ReasonRefInspectionFailed = "RefInspectionFailed"
-	ReasonObjPruneFailed      = "ObjPruneFailed"
-)
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
@@ -46,9 +34,7 @@ type GitHubRepositoryAuthPersonalAccessToken struct {
 }
 
 type GitHubRepositoryStatus struct {
-	Conditions     []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
-	GitURL         string             `json:"gitURL,omitempty"`
-	LocalClonePath string             `json:"clonePath,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 //+kubebuilder:object:root=true

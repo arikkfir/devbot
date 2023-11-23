@@ -11,6 +11,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
+const (
+	ConditionTypeCurrent  = "Current"
+	ReasonAuthError       = "AuthError"
+	ReasonCurrent         = "Current"
+	ReasonGitHubAPIFailed = "GitHubAPIFailed"
+	ReasonInternalError   = "InternalError"
+	ReasonOwnerMissing    = "OwnerMissing"
+	ReasonRefSyncError    = "RefSyncError"
+)
+
 var (
 	// GroupVersion is group version used to register these objects
 	GroupVersion = schema.GroupVersion{Group: "devbot.kfirs.com", Version: "v1"}

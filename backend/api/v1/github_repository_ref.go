@@ -4,12 +4,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +StatusCondition:GitHubRepositoryRef:Current
+
 type GitHubRepositoryRefSpec struct {
 	Ref string `json:"name,omitempty"`
 }
 
 type GitHubRepositoryRefStatus struct {
-	CommitSHA string `json:"commitSHA,omitempty"`
+	CommitSHA  string             `json:"commitSHA,omitempty"`
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 //+kubebuilder:object:root=true

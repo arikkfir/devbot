@@ -6,10 +6,6 @@ import (
 	"reflect"
 )
 
-const (
-    ConditionType{{.ConditionType}} = "{{.ConditionType}}"
-)
-
 func (o *{{.ObjectType}}) SetStatusCondition{{.ConditionType}}IfDifferent(status v1.ConditionStatus, reason, message string) bool {
 	object := reflect.ValueOf(o).Elem()
 

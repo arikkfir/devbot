@@ -6,11 +6,7 @@ import (
 	"reflect"
 )
 
-const (
-	ConditionTypeCloned = "Cloned"
-)
-
-func (o *GitHubRepository) SetStatusConditionClonedIfDifferent(status v1.ConditionStatus, reason, message string) bool {
+func (o *GitHubRepositoryRef) SetStatusConditionCurrentIfDifferent(status v1.ConditionStatus, reason, message string) bool {
 	object := reflect.ValueOf(o).Elem()
 
 	statusValue := object.FieldByName("Status")
@@ -25,7 +21,7 @@ func (o *GitHubRepository) SetStatusConditionClonedIfDifferent(status v1.Conditi
 
 	for i := 0; i < conditions.Len(); i++ {
 		ic := conditions.Index(i).Interface().(v1.Condition)
-		if ic.Type == ConditionTypeCloned {
+		if ic.Type == ConditionTypeCurrent {
 			if ic.Status != status || ic.Reason != reason || ic.Message != message {
 				ic.Status = status
 				ic.Reason = reason
@@ -39,7 +35,7 @@ func (o *GitHubRepository) SetStatusConditionClonedIfDifferent(status v1.Conditi
 		}
 	}
 	conditions.Set(reflect.Append(conditions, reflect.ValueOf(v1.Condition{
-		Type:               ConditionTypeCloned,
+		Type:               ConditionTypeCurrent,
 		Status:             status,
 		Reason:             reason,
 		Message:            message,
@@ -49,7 +45,7 @@ func (o *GitHubRepository) SetStatusConditionClonedIfDifferent(status v1.Conditi
 	return true
 }
 
-func (o *GitHubRepository) SetStatusConditionCloned(status v1.ConditionStatus, reason, message string) {
+func (o *GitHubRepositoryRef) SetStatusConditionCurrent(status v1.ConditionStatus, reason, message string) {
 	object := reflect.ValueOf(o).Elem()
 
 	statusValue := object.FieldByName("Status")
@@ -64,7 +60,7 @@ func (o *GitHubRepository) SetStatusConditionCloned(status v1.ConditionStatus, r
 
 	for i := 0; i < conditions.Len(); i++ {
 		ic := conditions.Index(i).Interface().(v1.Condition)
-		if ic.Type == ConditionTypeCloned {
+		if ic.Type == ConditionTypeCurrent {
 			ic.Status = status
 			ic.Reason = reason
 			ic.Message = message
@@ -75,7 +71,7 @@ func (o *GitHubRepository) SetStatusConditionCloned(status v1.ConditionStatus, r
 		}
 	}
 	conditions.Set(reflect.Append(conditions, reflect.ValueOf(v1.Condition{
-		Type:               ConditionTypeCloned,
+		Type:               ConditionTypeCurrent,
 		Status:             status,
 		Reason:             reason,
 		Message:            message,
@@ -84,7 +80,7 @@ func (o *GitHubRepository) SetStatusConditionCloned(status v1.ConditionStatus, r
 	})))
 }
 
-func (o *GitHubRepository) RemoveStatusConditionCloned() {
+func (o *GitHubRepositoryRef) RemoveStatusConditionCurrent() {
 	object := reflect.ValueOf(o).Elem()
 
 	statusValue := object.FieldByName("Status")
@@ -100,14 +96,14 @@ func (o *GitHubRepository) RemoveStatusConditionCloned() {
 	var newConditions []v1.Condition
 	for i := 0; i < conditions.Len(); i++ {
 		ic := conditions.Index(i).Interface().(v1.Condition)
-		if ic.Type != ConditionTypeCloned {
+		if ic.Type != ConditionTypeCurrent {
 			newConditions = append(newConditions, ic)
 		}
 	}
 	conditions.Set(reflect.ValueOf(newConditions))
 }
 
-func (o *GitHubRepository) GetStatusConditionCloned() *v1.Condition {
+func (o *GitHubRepositoryRef) GetStatusConditionCurrent() *v1.Condition {
 	object := reflect.ValueOf(o).Elem()
 
 	statusValue := object.FieldByName("Status")
@@ -122,7 +118,7 @@ func (o *GitHubRepository) GetStatusConditionCloned() *v1.Condition {
 
 	for i := 0; i < conditions.Len(); i++ {
 		ic := conditions.Index(i).Interface().(v1.Condition)
-		if ic.Type == ConditionTypeCloned {
+		if ic.Type == ConditionTypeCurrent {
 			return &ic
 		}
 	}
