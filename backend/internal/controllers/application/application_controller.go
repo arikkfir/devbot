@@ -10,15 +10,15 @@ import (
 	"time"
 )
 
-// ApplicationReconciler reconciles an Application object
-type ApplicationReconciler struct {
+// Reconciler reconciles an Application object
+type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	app := &apiv1.Application{}
 
 	if result, err := util.PrepareReconciliation(ctx, r.Client, req, app, "applications.finalizers."+apiv1.GroupVersion.Group); result != nil || err != nil {
@@ -31,7 +31,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// TODO: remove comment
 	//deploymentAppIndexer := func(obj client.Object) []string {
 	//	return []string{obj.(*apiv1.Deployment).Spec.Application}
@@ -40,7 +40,6 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	//if err := mgr.GetFieldIndexer().IndexField(ctx, &apiv1.Deployment{}, deploymentAppField, deploymentAppIndexer); err != nil {
 	//	return err
 	//}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Application{}).
 		Complete(r)

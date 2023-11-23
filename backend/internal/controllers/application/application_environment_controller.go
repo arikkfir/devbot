@@ -9,12 +9,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ApplicationEnvironmentReconciler struct {
+type EnvironmentReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-func (r *ApplicationEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	env := &apiv1.ApplicationEnvironment{}
 
 	if result, err := util.PrepareReconciliation(ctx, r.Client, req, env, "envs.applications.finalizers."+apiv1.GroupVersion.Group); result != nil || err != nil {
@@ -91,7 +91,7 @@ func (r *ApplicationEnvironmentReconciler) Reconcile(ctx context.Context, req ct
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *ApplicationEnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.ApplicationEnvironment{}).
 		Complete(r)

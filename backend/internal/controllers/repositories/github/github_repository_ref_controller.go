@@ -14,12 +14,12 @@ import (
 	"strings"
 )
 
-type GitHubRepositoryRefReconciler struct {
+type RepositoryRefReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-func (r *GitHubRepositoryRefReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *RepositoryRefReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ref := &apiv1.GitHubRepositoryRef{}
 
 	if result, err := util.PrepareReconciliation(ctx, r.Client, req, ref, "refs.github.repositories.finalizers."+apiv1.GroupVersion.Group); result != nil || err != nil {
@@ -141,7 +141,7 @@ func (r *GitHubRepositoryRefReconciler) Reconcile(ctx context.Context, req ctrl.
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *GitHubRepositoryRefReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RepositoryRefReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.GitHubRepositoryRef{}).
 		Complete(r)

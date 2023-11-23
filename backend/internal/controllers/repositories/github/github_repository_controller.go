@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	GitHubRepositoryFinalizer = "github.repositories.finalizers." + apiv1.GroupVersion.Group
+	RepositoryFinalizer = "github.repositories.finalizers." + apiv1.GroupVersion.Group
 )
 
-type GitHubRepositoryReconciler struct {
+type RepositoryReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
@@ -29,11 +29,11 @@ type ConditionInstruction struct {
 	Message string
 }
 
-func (r *GitHubRepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	repo := &apiv1.GitHubRepository{}
 
 	// Ensure deletion & finalizers lifecycle processing
-	if result, err := util.PrepareReconciliation(ctx, r.Client, req, repo, GitHubRepositoryFinalizer); result != nil || err != nil {
+	if result, err := util.PrepareReconciliation(ctx, r.Client, req, repo, RepositoryFinalizer); result != nil || err != nil {
 		return *result, err
 	}
 
@@ -105,8 +105,8 @@ func (r *GitHubRepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	return ctrl.Result{}, nil
 }
 
-func (r *GitHubRepositoryReconciler) ensureGitHubRepositoryRef(ctx context.Context, repo *apiv1.GitHubRepository, refName string) error {
-	refLabels := getGitHubRepositoryRefLabels(repo.Spec.Owner, repo.Spec.Name, refName)
+func (r *RepositoryReconciler) ensureGitHubRepositoryRef(ctx context.Context, repo *apiv1.GitHubRepository, refName string) error {
+	refLabels := getRepositoryRefLabels(repo.Spec.Owner, repo.Spec.Name, refName)
 	refObjects := &apiv1.GitHubRepositoryRefList{}
 	if err := r.List(ctx, refObjects, client.InNamespace(repo.Namespace), refLabels); err != nil {
 		return errors.New("failed listing GitHub repository refs", err)
@@ -145,7 +145,7 @@ func (r *GitHubRepositoryReconciler) ensureGitHubRepositoryRef(ctx context.Conte
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *GitHubRepositoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *RepositoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.GitHubRepository{}).
 		Complete(r)

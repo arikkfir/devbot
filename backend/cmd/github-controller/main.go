@@ -62,12 +62,12 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	githubRepositoryReconciler := &github.GitHubRepositoryReconciler{Client: mgrClient, Scheme: mgrScheme}
+	githubRepositoryReconciler := &github.RepositoryReconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := githubRepositoryReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create GitHub repository controller")
 	}
 
-	githubRepositoryRefReconciler := &github.GitHubRepositoryRefReconciler{Client: mgrClient, Scheme: mgrScheme}
+	githubRepositoryRefReconciler := &github.RepositoryRefReconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := githubRepositoryRefReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create GitHub repository ref controller")
 	}

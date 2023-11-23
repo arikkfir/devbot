@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func getGitHubRepositoryRefLabels(owner, name, ref string) client.MatchingLabels {
+func getRepositoryRefLabels(owner, name, ref string) client.MatchingLabels {
 	// TODO: use other means than labels to lookup GitHubRepositoryRef objects for a given repo & ref
 	repoOwnerAsBase64 := strings.Trim(base64.StdEncoding.EncodeToString([]byte(owner)), "-=")
 	repoNameAsBase64 := strings.Trim(base64.StdEncoding.EncodeToString([]byte(name)), "-=")

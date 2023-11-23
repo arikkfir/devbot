@@ -43,8 +43,8 @@ func TestGitHubRepositoryCloning(t *testing.T) {
 			return
 		}
 
-		if !slices.Contains(r.Finalizers, github.GitHubRepositoryFinalizer) {
-			t.Errorf("GitHubRepository object does not contain finalizer '%s'", github.GitHubRepositoryFinalizer)
+		if !slices.Contains(r.Finalizers, github.RepositoryFinalizer) {
+			t.Errorf("GitHubRepository object does not contain finalizer '%s'", github.RepositoryFinalizer)
 			return
 		}
 

@@ -50,12 +50,12 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	applicationReconciler := &application.ApplicationReconciler{Client: mgrClient, Scheme: mgrScheme}
+	applicationReconciler := &application.Reconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := applicationReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application controller")
 	}
 
-	applicationEnvReconciler := &application.ApplicationEnvironmentReconciler{Client: mgrClient, Scheme: mgrScheme}
+	applicationEnvReconciler := &application.EnvironmentReconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := applicationEnvReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application environment controller")
 	}
