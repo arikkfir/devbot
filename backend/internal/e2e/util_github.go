@@ -6,6 +6,7 @@ import (
 	"github.com/arikkfir/devbot/backend/internal/util"
 	"github.com/google/go-github/v56/github"
 	"github.com/secureworks/errors"
+	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
@@ -130,7 +131,26 @@ func (c *GitHubTestClient) CreateRepositoryWebhook(ctx context.Context, repoName
 
 func (c *GitHubTestClient) CreateFile(ctx context.Context, repoName, branch, path, message string) (*github.RepositoryContentResponse, error) {
 	c.t.Helper()
-	c.t.Logf("Creating file '%s/%s' in GitHub repository '%s/%s'...", branch, path, c.Owner, repoName)
+
+	if branch != "main" {
+		if _, resp, err := c.client.Repositories.GetBranch(ctx, c.Owner, repoName, branch, 0); err != nil {
+			if resp.StatusCode == http.StatusNotFound {
+				c.t.Logf("Creating branch '%s' in GitHub repository '%s/%s'...", branch, c.Owner, repoName)
+				if mainRef, _, err := c.client.Git.GetRef(ctx, c.Owner, repoName, "heads/main"); err != nil {
+					return nil, errors.New("failed to get ref 'heads/main': %w", err)
+				} else if _, _, err := c.client.Git.CreateRef(ctx, c.Owner, repoName, &github.Reference{
+					Ref:    &[]string{"refs/heads/" + branch}[0],
+					Object: mainRef.Object,
+				}); err != nil {
+					return nil, errors.New("failed to create branch '%s': %w", branch, err)
+				}
+			} else {
+				return nil, errors.New("failed to get branch '%s': %w", branch, err)
+			}
+		}
+	}
+
+	c.t.Logf("Creating '%s' in branch '%s' of GitHub repository '%s/%s'...", path, branch, c.Owner, repoName)
 	cr, _, err := c.client.Repositories.CreateFile(ctx, c.Owner, repoName, path, &github.RepositoryContentFileOptions{
 		Message: &message,
 		Content: []byte(util.RandomHash(32)),
@@ -139,6 +159,8 @@ func (c *GitHubTestClient) CreateFile(ctx context.Context, repoName, branch, pat
 	if err != nil {
 		return nil, errors.New("failed to create file", errors.Meta("repo", repoName), err)
 	}
+
+	time.Sleep(2 * time.Second) // needed to let GitHub sync changes, so future calls to get-branch won't fail
 	return cr, nil
 }
 

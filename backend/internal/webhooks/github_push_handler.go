@@ -70,6 +70,9 @@ func (ph *PushHandler) HandleWebhookRequest(w http.ResponseWriter, r *http.Reque
 	} else if repo, err := ph.findRepoForPayload(ctx, pushPayload.Repository.Owner.Login, pushPayload.Repository.Name); err != nil {
 		log.Error().Err(err).Msg("Failed looking up GitHubRepository object")
 		w.WriteHeader(http.StatusBadRequest)
+	} else if repo == nil {
+		log.Warn().Str("owner", pushPayload.Repository.Owner.Login).Str("name", pushPayload.Repository.Name).Msg("Received push event for repository that is not managed by DevBot")
+		w.WriteHeader(http.StatusOK)
 	} else if err := ph.annotateRepoForReconciliation(ctx, repo); err != nil {
 		log.Error().Err(err).Msg("Failed annotating GitHubRepository object for reconciliation")
 		w.WriteHeader(http.StatusInternalServerError)

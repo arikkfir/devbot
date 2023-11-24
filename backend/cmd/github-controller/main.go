@@ -36,9 +36,11 @@ func init() {
 }
 
 func main() {
-	ctrl.SetLogger(logr.New(&util.ZeroLogLogrAdapter{}))
+	logrLogger := logr.New(&util.ZeroLogLogrAdapter{}).V(0)
+	ctrl.SetLogger(logrLogger)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Logger: logrLogger,
 		Scheme: scheme,
 		Client: client.Options{
 			Cache: &client.CacheOptions{

@@ -4,7 +4,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (o *GitHubRepositoryRef) SetStatusConditionCurrentIfDifferent(status v1.ConditionStatus, reason, message string) bool {
+func (o *ApplicationEnvironment) SetStatusConditionCurrentIfDifferent(status v1.ConditionStatus, reason, message string) bool {
 	for i, c := range o.Status.Conditions {
 		if c.Type == ConditionTypeCurrent {
 			if c.Status != status || c.Reason != reason || c.Message != message {
@@ -30,7 +30,7 @@ func (o *GitHubRepositoryRef) SetStatusConditionCurrentIfDifferent(status v1.Con
 	return true
 }
 
-func (o *GitHubRepositoryRef) SetStatusConditionCurrent(status v1.ConditionStatus, reason, message string) {
+func (o *ApplicationEnvironment) SetStatusConditionCurrent(status v1.ConditionStatus, reason, message string) {
 	for i, c := range o.Status.Conditions {
 		if c.Type == ConditionTypeCurrent {
 			c.Status = status
@@ -52,7 +52,7 @@ func (o *GitHubRepositoryRef) SetStatusConditionCurrent(status v1.ConditionStatu
 	})
 }
 
-func (o *GitHubRepositoryRef) RemoveStatusConditionCurrent() {
+func (o *ApplicationEnvironment) RemoveStatusConditionCurrent() {
 	var newConditions []v1.Condition
 	for _, c := range o.Status.Conditions {
 		if c.Type != ConditionTypeCurrent {
@@ -62,7 +62,7 @@ func (o *GitHubRepositoryRef) RemoveStatusConditionCurrent() {
 	o.Status.Conditions = newConditions
 }
 
-func (o *GitHubRepositoryRef) GetStatusConditionCurrent() *v1.Condition {
+func (o *ApplicationEnvironment) GetStatusConditionCurrent() *v1.Condition {
 	for _, c := range o.Status.Conditions {
 		if c.Type == ConditionTypeCurrent {
 			return &c

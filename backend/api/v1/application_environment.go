@@ -5,6 +5,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +StatusCondition:ApplicationEnvironment:Current
+
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
@@ -17,12 +19,12 @@ type ApplicationEnvironment struct {
 }
 
 type ApplicationEnvironmentSpec struct {
-	Name string `json:"name,omitempty"`
-	Ref  string `json:"ref,omitempty"`
+	Branch string `json:"branch,omitempty"`
 }
 
 type ApplicationEnvironmentStatus struct {
-	Sources []ApplicationEnvironmentStatusRef `json:"sources,omitempty"`
+	Conditions []metav1.Condition                `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+	Sources    []ApplicationEnvironmentStatusRef `json:"sources,omitempty"`
 }
 
 type ApplicationEnvironmentStatusRef struct {

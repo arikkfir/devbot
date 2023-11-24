@@ -4,9 +4,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (o *GitHubRepositoryRef) SetStatusConditionCurrentIfDifferent(status v1.ConditionStatus, reason, message string) bool {
+func (o *Application) SetStatusConditionValidIfDifferent(status v1.ConditionStatus, reason, message string) bool {
 	for i, c := range o.Status.Conditions {
-		if c.Type == ConditionTypeCurrent {
+		if c.Type == ConditionTypeValid {
 			if c.Status != status || c.Reason != reason || c.Message != message {
 				c.Status = status
 				c.Reason = reason
@@ -20,7 +20,7 @@ func (o *GitHubRepositoryRef) SetStatusConditionCurrentIfDifferent(status v1.Con
 		}
 	}
 	o.Status.Conditions = append(o.Status.Conditions, v1.Condition{
-		Type:               ConditionTypeCurrent,
+		Type:               ConditionTypeValid,
 		Status:             status,
 		Reason:             reason,
 		Message:            message,
@@ -30,9 +30,9 @@ func (o *GitHubRepositoryRef) SetStatusConditionCurrentIfDifferent(status v1.Con
 	return true
 }
 
-func (o *GitHubRepositoryRef) SetStatusConditionCurrent(status v1.ConditionStatus, reason, message string) {
+func (o *Application) SetStatusConditionValid(status v1.ConditionStatus, reason, message string) {
 	for i, c := range o.Status.Conditions {
-		if c.Type == ConditionTypeCurrent {
+		if c.Type == ConditionTypeValid {
 			c.Status = status
 			c.Reason = reason
 			c.Message = message
@@ -43,7 +43,7 @@ func (o *GitHubRepositoryRef) SetStatusConditionCurrent(status v1.ConditionStatu
 		}
 	}
 	o.Status.Conditions = append(o.Status.Conditions, v1.Condition{
-		Type:               ConditionTypeCurrent,
+		Type:               ConditionTypeValid,
 		Status:             status,
 		Reason:             reason,
 		Message:            message,
@@ -52,19 +52,19 @@ func (o *GitHubRepositoryRef) SetStatusConditionCurrent(status v1.ConditionStatu
 	})
 }
 
-func (o *GitHubRepositoryRef) RemoveStatusConditionCurrent() {
+func (o *Application) RemoveStatusConditionValid() {
 	var newConditions []v1.Condition
 	for _, c := range o.Status.Conditions {
-		if c.Type != ConditionTypeCurrent {
+		if c.Type != ConditionTypeValid {
 			newConditions = append(newConditions, c)
 		}
 	}
 	o.Status.Conditions = newConditions
 }
 
-func (o *GitHubRepositoryRef) GetStatusConditionCurrent() *v1.Condition {
+func (o *Application) GetStatusConditionValid() *v1.Condition {
 	for _, c := range o.Status.Conditions {
-		if c.Type == ConditionTypeCurrent {
+		if c.Type == ConditionTypeValid {
 			return &c
 		}
 	}

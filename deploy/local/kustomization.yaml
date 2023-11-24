@@ -20,6 +20,11 @@ patches:
         value:
           name: DEV_MODE
           value: "true"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: LOG_LEVEL
+          value: "trace"
       - op: replace
         path: /spec/template/spec/containers/0/resources
         value:

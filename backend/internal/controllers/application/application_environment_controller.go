@@ -4,6 +4,8 @@ import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util"
+	"github.com/secureworks/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,6 +21,12 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if result, err := util.PrepareReconciliation(ctx, r.Client, req, env, "envs.applications.finalizers."+apiv1.GroupVersion.Group); result != nil || err != nil {
 		return *result, err
+	} else if env.GetStatusConditionCurrent() == nil {
+		env.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonInitializing, "Initializing")
+		if err := r.Status().Update(ctx, env); err != nil {
+			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", env.Namespace, env.Name, err)
+		}
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// TODO: implement application environment controller
@@ -86,6 +94,8 @@ func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	//		}
 	//	}
 	//}
+
+	// TODO: replace periodic requeue with a watch on the Application owner
 
 	return ctrl.Result{}, nil
 }

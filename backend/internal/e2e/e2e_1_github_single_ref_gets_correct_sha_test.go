@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func TestGitHubRepositoryCloning(t *testing.T) {
+func TestGitHubRepoWithSingleRefGetsCorrectSHA(t *testing.T) {
 	ctx := context.Background()
 	k := NewK8sTestClient(t)
 	gh := NewGitHubTestClient(t, k.gitHubAuthSecrets["TOKEN"])
@@ -39,13 +39,11 @@ func TestGitHubRepositoryCloning(t *testing.T) {
 	util.Eventually(t, 5*time.Minute, 2*time.Second, func(t util.TestingT) {
 		r, err := k.GetGitHubRepository(ctx, repoCR.Namespace, repoCR.Name)
 		if err != nil {
-			t.Errorf("Failed to get GitHubRepository object: %+v", err)
-			return
+			t.Fatalf("Failed to get GitHubRepository object: %+v", err)
 		}
 
 		if !slices.Contains(r.Finalizers, github.RepositoryFinalizer) {
-			t.Errorf("GitHubRepository object does not contain finalizer '%s'", github.RepositoryFinalizer)
-			return
+			t.Fatalf("GitHubRepository object does not contain finalizer '%s'", github.RepositoryFinalizer)
 		}
 
 		if r.DeletionTimestamp != nil {
@@ -53,30 +51,27 @@ func TestGitHubRepositoryCloning(t *testing.T) {
 		}
 
 		if c := r.GetStatusConditionCurrent(); c == nil || c.Status != metav1.ConditionTrue {
-			t.Errorf("GitHubRepository object %s condition is wrong: %+v", apiv1.ConditionTypeCurrent, c)
-			return
+			t.Fatalf("GitHubRepository object %s condition is wrong: %+v", apiv1.ConditionTypeCurrent, c)
 		}
+
+		// TODO: search only for refs owned by our repo
 
 		refs := &apiv1.GitHubRepositoryRefList{}
 		if err := k.c.List(ctx, refs); err != nil {
-			t.Errorf("Failed getting list of GitHubRepositoryRef objects: %+v", err)
-			return
+			t.Fatalf("Failed getting list of GitHubRepositoryRef objects: %+v", err)
 		}
 
 		if len(refs.Items) != 1 {
-			t.Errorf("Incorrect number of GitHubRepositoryRef objects: %d", len(refs.Items))
-			return
+			t.Fatalf("Incorrect number of GitHubRepositoryRef objects: %d", len(refs.Items))
 		}
 
 		ref := refs.Items[0]
 		if ref.Spec.Ref != branchRefName {
 			t.Fatalf("Incorrect GitHubRepositoryRef ref: expected '%s', was '%s'", branch, ref.Spec.Ref)
-			return
 		}
 
 		if ref.Status.CommitSHA != *commitResp.SHA {
-			t.Errorf("Incorrect GitHubRepositoryRef commit SHA: expected '%s', was '%s'", *commitResp.SHA, ref.Status.CommitSHA)
-			return
+			t.Fatalf("Incorrect GitHubRepositoryRef commit SHA: expected '%s', was '%s'", *commitResp.SHA, ref.Status.CommitSHA)
 		}
 	})
 }

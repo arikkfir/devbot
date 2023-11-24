@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 var (
@@ -37,33 +38,40 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return *result, err
 	}
 
-	// Build authentication
+	// Initialize "Current" condition
+	if repo.GetStatusConditionCurrent() == nil {
+		repo.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonInitializing, "Initializing")
+		if err := r.Status().Update(ctx, repo); err != nil {
+			return ctrl.Result{}, errors.New("failed to update status", err)
+		}
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// Obtain GitHub authentication
 	personalAccessToken, err := getPersonalAccessToken(ctx, r.Client, repo)
 	if err != nil {
-		repo.SetStatusConditionCurrent(metav1.ConditionFalse, apiv1.ReasonAuthError, "Auth configuration error: "+err.Error())
+		repo.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonConfigError, "Cannot get personal access token: "+err.Error())
 		if err := r.Status().Update(ctx, repo); err != nil {
-			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", repo.Namespace, repo.Name, err)
+			return ctrl.Result{}, errors.New("failed to update status", err)
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, errors.New("failed to get personal access token", err)
 	}
 	ghClient := github.NewClient(nil).WithAuthToken(personalAccessToken)
 
-	// Fetch branches
+	// Fetch branch names
+	branches := map[string]*apiv1.GitHubRepositoryRef{}
 	branchesListOptions := &github.BranchListOptions{}
 	for {
-		branches, response, err := ghClient.Repositories.ListBranches(ctx, repo.Spec.Owner, repo.Spec.Name, branchesListOptions)
+		branchesList, response, err := ghClient.Repositories.ListBranches(ctx, repo.Spec.Owner, repo.Spec.Name, branchesListOptions)
 		if err != nil {
-			return ctrl.Result{}, errors.New("failed to list branches of '%s/%s'", repo.Spec.Owner, repo.Spec.Name, err)
-		}
-		for _, branch := range branches {
-			refName := "refs/heads/" + branch.GetName()
-			if err := r.ensureGitHubRepositoryRef(ctx, repo, refName); err != nil {
-				repo.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonRefSyncError, err.Error())
-				if err := r.Status().Update(ctx, repo); err != nil {
-					return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", repo.Namespace, repo.Name, err)
-				}
-				return ctrl.Result{}, errors.New("failed to create ref object for branch '%s'", refName, err)
+			repo.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonGitHubAPIFailed, "Failed listing branches: "+err.Error())
+			if err := r.Status().Update(ctx, repo); err != nil {
+				return ctrl.Result{}, errors.New("failed to update status", err)
 			}
+			return ctrl.Result{}, errors.New("failed to list branches", err)
+		}
+		for _, branch := range branchesList {
+			branches[branch.GetName()] = nil
 		}
 		if response.NextPage == 0 {
 			break
@@ -71,33 +79,52 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		branchesListOptions.Page = response.NextPage
 	}
 
-	// Fetch tags
-	tagListOptions := &github.ListOptions{}
-	for {
-		tags, response, err := ghClient.Repositories.ListTags(ctx, repo.Spec.Owner, repo.Spec.Name, tagListOptions)
-		if err != nil {
-			return ctrl.Result{}, errors.New("failed to list tags of '%s/%s'", repo.Spec.Owner, repo.Spec.Name, err)
+	// Fetch all GitHubRepositoryRef objects owned by this GitHubRepository
+	gitHubRefObjects := &apiv1.GitHubRepositoryRefList{}
+	if err := r.List(ctx, gitHubRefObjects, client.InNamespace(repo.Namespace), client.MatchingFields{util.OwnerRefField: util.GetOwnerRefKey(repo)}); err != nil {
+		repo.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonInternalError, "Failed listing GitHubRepositoryRef objects: "+err.Error())
+		if err := r.Status().Update(ctx, repo); err != nil {
+			return ctrl.Result{}, errors.New("failed to update status", err)
 		}
-		for _, tag := range tags {
-			refName := "refs/tags/" + tag.GetName()
-			if err := r.ensureGitHubRepositoryRef(ctx, repo, refName); err != nil {
-				repo.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonRefSyncError, err.Error())
+		return ctrl.Result{}, errors.New("failed listing GitHubRepositoryRef objects", err)
+	}
+	for _, ghRepRefObj := range gitHubRefObjects.Items {
+		branches[strings.TrimPrefix(ghRepRefObj.Spec.Ref, "refs/heads/")] = &ghRepRefObj
+	}
+
+	// Ensure a GitHubRepositoryRef object exists for each branch
+	for branchName, refObj := range branches {
+		if refObj == nil {
+			refObject := &apiv1.GitHubRepositoryRef{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      util.RandomHash(7),
+					Namespace: repo.Namespace,
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion:         repo.APIVersion,
+							Kind:               repo.Kind,
+							Name:               repo.Name,
+							UID:                repo.UID,
+							BlockOwnerDeletion: &[]bool{true}[0],
+						},
+					},
+				},
+				Spec: apiv1.GitHubRepositoryRefSpec{Ref: "refs/heads/" + branchName},
+			}
+			if err := r.Create(ctx, refObject); err != nil {
+				repo.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonInternalError, "Failed creating GitHubRepositoryRef: "+err.Error())
 				if err := r.Status().Update(ctx, repo); err != nil {
-					return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", repo.Namespace, repo.Name, err)
+					return ctrl.Result{}, errors.New("failed to update status", err)
 				}
-				return ctrl.Result{}, errors.New("failed to create ref object for tag '%s'", refName, err)
+				return ctrl.Result{}, errors.New("failed creating GitHubRepositoryRef object", err)
 			}
 		}
-		if response.NextPage == 0 {
-			break
-		}
-		tagListOptions.Page = response.NextPage
 	}
 
 	// Ensure "Current" condition is set to "True"
 	if repo.SetStatusConditionCurrentIfDifferent(metav1.ConditionTrue, "Synced", "Synchronized refs") {
 		if err := r.Status().Update(ctx, repo); err != nil {
-			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", repo.Namespace, repo.Name, err)
+			return ctrl.Result{}, errors.New("failed to update status", err)
 		}
 		return ctrl.Result{Requeue: true}, nil
 	}
@@ -105,47 +132,14 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func (r *RepositoryReconciler) ensureGitHubRepositoryRef(ctx context.Context, repo *apiv1.GitHubRepository, refName string) error {
-	refLabels := getRepositoryRefLabels(repo.Spec.Owner, repo.Spec.Name, refName)
-	refObjects := &apiv1.GitHubRepositoryRefList{}
-	if err := r.List(ctx, refObjects, client.InNamespace(repo.Namespace), refLabels); err != nil {
-		return errors.New("failed listing GitHub repository refs", err)
-	}
-	if len(refObjects.Items) == 0 {
-		refObject := &apiv1.GitHubRepositoryRef{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels:    refLabels,
-				Name:      util.RandomHash(7),
-				Namespace: repo.Namespace,
-				OwnerReferences: []metav1.OwnerReference{
-					{
-						APIVersion: repo.APIVersion,
-						Kind:       repo.Kind,
-						Name:       repo.Name,
-						UID:        repo.UID,
-					},
-				},
-			},
-			Spec: apiv1.GitHubRepositoryRefSpec{
-				Ref: refName,
-			},
-		}
-		if err := r.Create(ctx, refObject); err != nil {
-			return errors.New("failed creating ref object '%s/%s' for repo '%s'", refObject.Namespace, refObject.Name, repo.Name, err)
-		}
-
-	} else if len(refObjects.Items) > 1 {
-		var names []string
-		for _, refObj := range refObjects.Items {
-			names = append(names, refObj.Name)
-		}
-		return errors.New("multiple ref objects match repo '%s' and ref '%s': %v", repo.Name, refName, names)
-	}
-	return nil
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *RepositoryReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	ctx := context.Background()
+
+	if err := mgr.GetFieldIndexer().IndexField(ctx, &apiv1.GitHubRepositoryRef{}, "metadata.ownerRef", util.IndexableOwnerReferences); err != nil {
+		return errors.New("failed to index field 'metadata.ownerRef' of 'GitHubRepositoryRef' objects", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.GitHubRepository{}).
 		Complete(r)

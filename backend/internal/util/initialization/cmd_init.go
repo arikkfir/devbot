@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
 	"os"
+	"strings"
 )
 
 type Config interface {
@@ -58,6 +59,7 @@ func InitializeLogging(devMode bool, logLevel string) {
 	if level, err := zerolog.ParseLevel(logLevel); err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	} else {
+		log.Info().Msgf("Configured log level to %s", strings.ToUpper(level.String()))
 		zerolog.SetGlobalLevel(level)
 	}
 

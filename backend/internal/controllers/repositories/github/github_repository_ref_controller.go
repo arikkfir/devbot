@@ -22,119 +22,81 @@ type RepositoryRefReconciler struct {
 func (r *RepositoryRefReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ref := &apiv1.GitHubRepositoryRef{}
 
+	// Ensure deletion & finalizers lifecycle processing
 	if result, err := util.PrepareReconciliation(ctx, r.Client, req, ref, "refs.github.repositories.finalizers."+apiv1.GroupVersion.Group); result != nil || err != nil {
 		return *result, err
 	}
 
-	// Get owning GitHubRepository object
-	if len(ref.OwnerReferences) == 0 {
-		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonOwnerMissing, "Owner references empty")
+	// Initialize "Current" condition
+	if ref.GetStatusConditionCurrent() == nil {
+		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonInitializing, "Initializing")
 		if err := r.Status().Update(ctx, ref); err != nil {
-			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
+			return ctrl.Result{}, errors.New("failed to update status", err)
 		}
-		return ctrl.Result{}, errors.New("owner references empty")
-	}
-	var owner *metav1.OwnerReference
-	for _, or := range ref.OwnerReferences {
-		if or.Kind == "GitHubRepository" {
-			owner = &or
-			break
-		}
-	}
-	if owner == nil {
-		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonOwnerMissing, "Owner reference to GitHubRepository not found")
-		if err := r.Status().Update(ctx, ref); err != nil {
-			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
-		}
-		return ctrl.Result{}, errors.New("owner reference to GitHubRepository not found")
-	}
-	repo := &apiv1.GitHubRepository{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: req.Namespace, Name: owner.Name}, repo); err != nil {
-		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonOwnerMissing, "GitHubRepository missing")
-		if err := r.Status().Update(ctx, ref); err != nil {
-			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
-		}
-		return ctrl.Result{}, errors.New("failed to get owner GitHubRepository '%s/%s'", req.Namespace, owner.Name, err)
+		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Build GitHub client
+	// Find own owning GitHubRepository
+	repo := &apiv1.GitHubRepository{}
+	if err := util.GetOwnerOfObject(ctx, r.Client, ref, apiv1.GroupVersion.String(), "GitHubRepository", repo); err != nil {
+		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonOwnerMissing, "Owner not found: "+err.Error())
+		if err := r.Status().Update(ctx, ref); err != nil {
+			return ctrl.Result{}, errors.New("failed to update status", err)
+		}
+		return ctrl.Result{}, err
+	}
+
+	// Obtain GitHub authentication
 	personalAccessToken, err := getPersonalAccessToken(ctx, r.Client, repo)
 	if err != nil {
-		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonAuthError, "Personal access token missing")
+		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonConfigError, "Cannot get personal access token: "+err.Error())
 		if err := r.Status().Update(ctx, ref); err != nil {
-			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
+			return ctrl.Result{}, errors.New("failed to update status", err)
 		}
-		return ctrl.Result{}, errors.New("failed to get personal access token from '%s/%s': %w", req.Namespace, owner.Name, err)
+		return ctrl.Result{}, errors.New("failed to get personal access token", err)
 	}
 	ghClient := github.NewClient(nil).WithAuthToken(personalAccessToken)
 
-	// Update commit SHA in ref status
-	if strings.HasPrefix(ref.Spec.Ref, "refs/heads/") {
-		branch, response, err := ghClient.Repositories.GetBranch(ctx, repo.Spec.Owner, repo.Spec.Name, strings.TrimPrefix(ref.Spec.Ref, "refs/heads/"), 0)
-		if err != nil {
-			ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonGitHubAPIFailed, "Failed getting branch: "+err.Error())
+	// Ensure our ref still exists in GitHub
+	branch, resp, err := ghClient.Repositories.GetBranch(ctx, repo.Spec.Owner, repo.Spec.Name, strings.TrimPrefix(ref.Spec.Ref, "refs/heads/"), 0)
+	if err != nil {
+
+		if resp.StatusCode == http.StatusNotFound {
+
+			// Our branch no longer exists in GitHub, delete this object from Kubernetes
+			if err := r.Delete(ctx, ref); err != nil {
+				return ctrl.Result{}, errors.New("failed to delete object", err)
+			}
+			return ctrl.Result{}, nil
+
+		} else {
+
+			// GitHub API failed us for some reason
+			ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonGitHubAPIFailed, "Failed querying branch: "+err.Error())
 			if err := r.Status().Update(ctx, ref); err != nil {
-				return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
+				return ctrl.Result{}, errors.New("failed to update status", err)
 			}
-			return ctrl.Result{}, errors.New("failed to get branch '%s': %w", ref.Spec.Ref, err)
-		} else if branch == nil {
-			if response.StatusCode == http.StatusNotFound {
-				if err := r.Delete(ctx, ref); err != nil {
-					return ctrl.Result{}, errors.New("failed to delete branch '%s/%s': %w", ref.Namespace, ref.Name, err)
-				}
-				return ctrl.Result{}, nil
-			}
+			return ctrl.Result{}, errors.New("failed to query branch", err)
+
 		}
-		if branch.Commit.GetSHA() != ref.Status.CommitSHA {
-			ref.Status.CommitSHA = branch.Commit.GetSHA()
-			ref.SetStatusConditionCurrent(metav1.ConditionTrue, apiv1.ReasonCurrent, "Commit SHA up-to-date")
-			if err := r.Status().Update(ctx, ref); err != nil {
-				return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
-			}
-		}
-	} else if strings.HasPrefix(ref.Spec.Ref, "refs/tags/") {
-		listTagsOpts := &github.ListOptions{}
-		for {
-			tags, _, err := ghClient.Repositories.ListTags(ctx, repo.Spec.Owner, repo.Spec.Name, listTagsOpts)
-			if err != nil {
-				ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonGitHubAPIFailed, "Failed getting tag: "+err.Error())
-				if err := r.Status().Update(ctx, ref); err != nil {
-					return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
-				}
-				return ctrl.Result{}, errors.New("failed to get tag '%s': %w", ref.Spec.Ref, err)
-			}
-			found := false
-			for _, tag := range tags {
-				if tag.GetName() == strings.TrimPrefix(ref.Spec.Ref, "refs/tags/") {
-					if tag.Commit.GetSHA() != ref.Status.CommitSHA {
-						ref.Status.CommitSHA = tag.Commit.GetSHA()
-						ref.SetStatusConditionCurrent(metav1.ConditionTrue, apiv1.ReasonCurrent, "Commit SHA up-to-date")
-						if err := r.Status().Update(ctx, ref); err != nil {
-							return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
-						}
-					}
-					found = true
-					break
-				}
-			}
-			if !found {
-				if err := r.Delete(ctx, ref); err != nil {
-					return ctrl.Result{}, errors.New("failed to delete tag '%s/%s': %w", ref.Namespace, ref.Name, err)
-				}
-				return ctrl.Result{}, nil
-			}
-		}
-	} else {
-		ref.SetStatusConditionCurrent(metav1.ConditionUnknown, apiv1.ReasonInternalError, "Invalid ref: "+ref.Spec.Ref)
-		if err := r.Status().Update(ctx, ref); err != nil {
-			return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
-		}
-		return ctrl.Result{}, errors.New("invalid ref '%s'", ref.Spec.Ref)
+
 	}
 
-	ref.SetStatusConditionCurrent(metav1.ConditionTrue, apiv1.ReasonCurrent, "Current")
-	if err := r.Status().Update(ctx, ref); err != nil {
-		return ctrl.Result{}, errors.New("failed to update status of '%s/%s'", ref.Namespace, ref.Name, err)
+	// If our branch's commit SHA is different than the one we have in our status, update it
+	if branch.Commit.GetSHA() != ref.Status.CommitSHA {
+		ref.Status.CommitSHA = branch.Commit.GetSHA()
+		if err := r.Status().Update(ctx, ref); err != nil {
+			return ctrl.Result{}, errors.New("failed to update status", err)
+		}
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// If our branch's commit SHA is the same as the one we have in our status, set condition "Current" to "True"
+	if ref.SetStatusConditionCurrentIfDifferent(metav1.ConditionTrue, apiv1.ReasonCurrent, "Commit SHA up-to-date") {
+		if err := r.Status().Update(ctx, ref); err != nil {
+			return ctrl.Result{}, errors.New("failed to update status", err)
+		}
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	return ctrl.Result{}, nil

@@ -13,12 +13,14 @@ import (
 
 const (
 	ConditionTypeCurrent  = "Current"
-	ReasonAuthError       = "AuthError"
+	ConditionTypeValid    = "Valid"
+	ReasonConfigError     = "ConfigError"
 	ReasonCurrent         = "Current"
 	ReasonGitHubAPIFailed = "GitHubAPIFailed"
+	ReasonInitializing    = "Initializing"
 	ReasonInternalError   = "InternalError"
 	ReasonOwnerMissing    = "OwnerMissing"
-	ReasonRefSyncError    = "RefSyncError"
+	ReasonValid           = "Valid"
 )
 
 var (

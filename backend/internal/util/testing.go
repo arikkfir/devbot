@@ -24,7 +24,7 @@ type tWrapper struct {
 	e []error
 }
 
-type panicSignal func(t *testing.T)
+type fatalSignal func(t *testing.T)
 
 func (w *tWrapper) Error(args ...interface{}) {
 	w.T.Helper()
@@ -44,7 +44,7 @@ func (w *tWrapper) Fail() {
 
 func (w *tWrapper) FailNow() {
 	w.T.Helper()
-	panic(panicSignal(func(t *testing.T) { t.FailNow() }))
+	panic(fatalSignal(func(t *testing.T) { t.FailNow() }))
 }
 
 func (w *tWrapper) Failed() bool {
@@ -54,12 +54,12 @@ func (w *tWrapper) Failed() bool {
 
 func (w *tWrapper) Fatal(args ...interface{}) {
 	w.T.Helper()
-	panic(panicSignal(func(t *testing.T) { t.Fatal(args...) }))
+	panic(fatalSignal(func(t *testing.T) { t.Fatal(args...) }))
 }
 
 func (w *tWrapper) Fatalf(format string, args ...interface{}) {
 	w.T.Helper()
-	panic(panicSignal(func(t *testing.T) { t.Fatalf(format, args...) }))
+	panic(fatalSignal(func(t *testing.T) { t.Fatalf(format, args...) }))
 }
 
 func (w *tWrapper) Log(args ...interface{}) {
@@ -88,8 +88,10 @@ func Eventually(t *testing.T, waitFor time.Duration, interval time.Duration, f f
 
 	w := &tWrapper{T: t}
 
-	ch := make(chan interface{}, 1)
-	panicked := false
+	panicCh := make(chan interface{}, 1)
+	fatalCh := make(chan fatalSignal, 1)
+	doneCh := make(chan interface{}, 1)
+	var fatal fatalSignal
 	for tick := ticker.C; ; {
 		select {
 		case <-timer.C:
@@ -99,9 +101,11 @@ func Eventually(t *testing.T, waitFor time.Duration, interval time.Duration, f f
 			for _, err := range w.e {
 				t.Errorf("%v", err)
 			}
-			if panicked {
-				t.FailNow()
+			if fatal != nil {
+				// evaluation function called t.Fatal* or t.FailNow - apply it now to the upstream "t" which will panic
+				fatal(t)
 			} else {
+				// we're done (whether evaluation function called t.Error* or not)
 				return
 			}
 		case <-tick:
@@ -110,32 +114,28 @@ func Eventually(t *testing.T, waitFor time.Duration, interval time.Duration, f f
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
-						ps, ok := r.(panicSignal)
-						if ok {
-							ch <- ps
-							return
+						if p, ok := r.(fatalSignal); ok {
+							fatalCh <- p
+						} else {
+							panicCh <- r
 						}
-
-						//goland:noinspection GoTypeAssertionOnErrors
-						err, ok := r.(error)
-						if !ok {
-							err = fmt.Errorf("%v", r)
-						}
-						w.e = append(w.e, err)
-
-						panicked = true
-						tick = ticker.C
 					}
 				}()
 				f(w)
-				ch <- true
+				doneCh <- nil
 			}()
-		case r := <-ch:
-			if ps, ok := r.(panicSignal); ok {
-				ps(t)
-				return
-			} else if w.Failed() {
-				panicked = false
+		case r := <-panicCh:
+			// given evaluation function panicked unexpectedly (not a t.Fatal* call)
+			// in such cases, we bubble the panic upstream since this is not an expected failure
+			panic(r)
+		case r := <-fatalCh:
+			// evaluation function called t.Fatal* or t.FailNow - record it but keep trying
+			fatal = r
+			tick = ticker.C
+		case <-doneCh:
+			// evaluation function finished, but may have called t.Error* - if so, we'll continue trying; return otherwise
+			fatal = nil
+			if w.Failed() {
 				tick = ticker.C
 			} else {
 				return
