@@ -103,7 +103,6 @@ spec:
                   missing:
                     enum:
                     - Ignore
-                    - Required
                     - Default
                     type: string
                 type: object

@@ -38,7 +38,7 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-      name: (devbot-github-webhook|devbot-applications-controller|devbot-github-controller)
+      labelSelector: app.kubernetes.io/std-logger=true
   - patch: |
       - op: add
         path: /spec/template/spec/containers/0/env/-

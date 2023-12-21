@@ -53,6 +53,8 @@ kind: Deployment
 metadata:
   labels:
     app.kubernetes.io/component: github-webhook
+    app.kubernetes.io/component-type: webhook
+    app.kubernetes.io/std-logger: "true"
   name: github-webhook
 spec:
   selector:

@@ -12,24 +12,42 @@ import (
 )
 
 const (
-	ConditionTypeCurrent  = "Current"
-	ConditionTypeValid    = "Valid"
-	ReasonConfigError     = "ConfigError"
-	ReasonCurrent         = "Current"
-	ReasonGitHubAPIFailed = "GitHubAPIFailed"
-	ReasonInitializing    = "Initializing"
-	ReasonInternalError   = "InternalError"
-	ReasonOwnerMissing    = "OwnerMissing"
-	ReasonValid           = "Valid"
+	ConditionTypeAuthenticatedToGitHub = "AuthenticatedToGitHub"
+	ConditionTypeCurrent               = "Current"
+	ConditionTypeDeploying             = "Deploying"
+	ConditionTypeValid                 = "Valid"
+	ReasonAuthenticated                = "Authenticated"
+	ReasonConfigError                  = "ConfigError"
+	ReasonAuthConfigError              = "AuthConfigError"
+	ReasonGitHubAuthSecretNameMissing  = "GitHubAuthSecretNameMissing"
+	ReasonGitHubAuthSecretNotFound     = "GitHubAuthSecretNotFound"
+	ReasonGitHubAuthSecretForbidden    = "GitHubAuthSecretForbidden"
+	ReasonGitHubAuthSecretEmptyToken   = "GitHubAuthSecretEmptyToken"
+	ReasonGitHubAPIFailed              = "GitHubAPIFailed"
+	ReasonInitializing                 = "Initializing"
+	ReasonInternalError                = "InternalError"
+	ReasonSynced                       = "Synced"
+	ReasonValid                        = "Valid"
+)
+
+const (
+	Domain  = "devbot.kfirs.com"
+	Version = "v1"
 )
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "devbot.kfirs.com", Version: "v1"}
+	GroupVersion = schema.GroupVersion{Group: Domain, Version: Version}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.
 	AddToScheme = SchemeBuilder.AddToScheme
+)
+
+var (
+	ApplicationGVK         = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Application"}
+	GitHubRepositoryGVK    = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "GitHubRepository"}
+	GitHubRepositoryRefGVK = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "GitHubRepositoryRef"}
 )

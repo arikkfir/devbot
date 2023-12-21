@@ -5,14 +5,22 @@ metadata:
   name: devbot
 build:
   artifacts:
-    - image: ghcr.io/arikkfir/devbot/applications-controller
+    - image: ghcr.io/arikkfir/devbot/application-controller
       context: backend
       docker:
-        dockerfile: Dockerfile.applications-controller
-    - image: ghcr.io/arikkfir/devbot/github-controller
+        dockerfile: Dockerfile.application-controller
+    - image: ghcr.io/arikkfir/devbot/application-environment-controller
       context: backend
       docker:
-        dockerfile: Dockerfile.github-controller
+        dockerfile: Dockerfile.application-environment-controller
+    - image: ghcr.io/arikkfir/devbot/github-repository-controller
+      context: backend
+      docker:
+        dockerfile: Dockerfile.github-repository-controller
+    - image: ghcr.io/arikkfir/devbot/github-repository-ref-controller
+      context: backend
+      docker:
+        dockerfile: Dockerfile.github-repository-ref-controller
     - image: ghcr.io/arikkfir/devbot/github-webhook
       context: backend
       docker:

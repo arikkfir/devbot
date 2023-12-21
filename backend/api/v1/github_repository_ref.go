@@ -4,6 +4,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +StatusCondition:GitHubRepositoryRef:AuthenticatedToGitHub
 // +StatusCondition:GitHubRepositoryRef:Current
 
 type GitHubRepositoryRefSpec struct {

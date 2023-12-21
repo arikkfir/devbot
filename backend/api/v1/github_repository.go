@@ -5,6 +5,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +StatusCondition:GitHubRepository:AuthenticatedToGitHub
 // +StatusCondition:GitHubRepository:Current
 
 //+kubebuilder:object:root=true
@@ -29,7 +30,7 @@ type GitHubRepositoryAuth struct {
 }
 
 type GitHubRepositoryAuthPersonalAccessToken struct {
-	Secret corev1.ObjectReference `json:"secret,omitempty"`
+	Secret corev1.SecretReference `json:"secret,omitempty"`
 	Key    string                 `json:"key,omitempty"`
 }
 

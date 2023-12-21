@@ -25,7 +25,7 @@ type ApplicationSpec struct {
 }
 
 type ApplicationSpecStrategy struct {
-	//+kubebuilder:validation:Enum=Ignore;Required;Default
+	//+kubebuilder:validation:Enum=Ignore;Default
 	Missing       string `json:"missing,omitempty"`
 	DefaultBranch string `json:"defaultBranch,omitempty"`
 }

@@ -11,11 +11,3 @@ type CommandConfig struct {
 	DevMode  bool        `env:"DEV_MODE" long:"dev-mode" description:"Development mode"`
 	Redis    RedisConfig `group:"redis" namespace:"redis" env-namespace:"REDIS"`
 }
-
-func (c *CommandConfig) IsDevMode() bool {
-	return c.DevMode
-}
-
-func (c *CommandConfig) GetLogLevel() string {
-	return c.LogLevel
-}
