@@ -14,9 +14,13 @@ func NewParseRefreshInterval(refreshInterval *time.Duration) reconcile.Action {
 		r := o.(*apiv1.GitHubRepository)
 		if duration, err := time.ParseDuration(r.Spec.RefreshInterval); err != nil {
 			r.Status.SetInvalidDueToInvalidRefreshInterval("Refresh interval is invalid: %+v", err)
+			r.Status.SetMaybeStaleDueToInvalid(r.Status.GetInvalidMessage())
+			r.Status.SetMaybeUnauthenticatedDueToInvalid(r.Status.GetInvalidMessage())
 			return reconcile.DoNotRequeue()
 		} else if duration.Seconds() < 5 {
 			r.Status.SetInvalidDueToInvalidRefreshInterval("Refresh interval '%s' is too low (must not be less than 5 seconds)", r.Spec.RefreshInterval)
+			r.Status.SetMaybeStaleDueToInvalid(r.Status.GetInvalidMessage())
+			r.Status.SetMaybeUnauthenticatedDueToInvalid(r.Status.GetInvalidMessage())
 			return reconcile.DoNotRequeue()
 		} else {
 			*refreshInterval = duration

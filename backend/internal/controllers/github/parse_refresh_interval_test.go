@@ -42,8 +42,8 @@ var _ = Describe("NewParseRefreshInterval", func() {
 				rrr := &GitHubRepository{}
 				Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rrr)).To(Succeed())
 				Expect(rrr.Status.GetInvalidCondition()).To(BeTrueDueTo(InvalidRefreshInterval))
-				Expect(r.Status.GetStaleCondition()).To(BeUnknownDueTo(Invalid))
-				Expect(r.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
+				Expect(rrr.Status.GetStaleCondition()).To(BeUnknownDueTo(Invalid))
+				Expect(rrr.Status.GetUnauthenticatedCondition()).To(BeUnknownDueTo(Invalid))
 			},
 			Entry("when refresh interval is empty", ""),
 			Entry("when refresh interval is just a number", "5"),
@@ -64,14 +64,14 @@ var _ = Describe("NewParseRefreshInterval", func() {
 			var refreshInterval time.Duration
 			result, err := act.NewParseRefreshInterval(&refreshInterval).Execute(ctx, k, rr)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(Equal(&ctrl.Result{}))
+			Expect(result).To(BeNil())
 			Expect(refreshInterval).To(Equal(10 * time.Second))
 
 			rrr := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rrr)).To(Succeed())
 			Expect(rrr.Status.GetInvalidCondition()).To(BeNil())
-			Expect(r.Status.GetStaleCondition()).To(BeNil())
-			Expect(r.Status.GetUnauthenticatedCondition()).To(BeNil())
+			Expect(rrr.Status.GetStaleCondition()).To(BeNil())
+			Expect(rrr.Status.GetUnauthenticatedCondition()).To(BeNil())
 		})
 	})
 })

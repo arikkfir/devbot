@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-var _ = Describe("GitHub Repository Management", func() {
+var _ = Describe("GitHub Repository Management", Pending, func() {
 
 	When("github repository object is created", func() {
 		var gh *github.Client

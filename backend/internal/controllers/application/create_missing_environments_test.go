@@ -6,11 +6,17 @@ import (
 	"github.com/arikkfir/devbot/backend/internal/controllers/application"
 	strings2 "github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing"
+	"github.com/arikkfir/devbot/backend/pkg/k8s"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"io"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"slices"
 	"strings"
 )
@@ -18,87 +24,275 @@ import (
 var _ = Describe("NewCreateMissingEnvironmentsAction", func() {
 	var namespace, appName string
 
-	newGitHubRepository := func(name string) GitHubRepository {
-		return GitHubRepository{
-			ObjectMeta: metav1.ObjectMeta{Name: strings2.RandomHash(7), Namespace: namespace},
-			Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: name},
-		}
-	}
-	newGitHubRepositoryRef := func(controller *GitHubRepository, ref string) GitHubRepositoryRef {
-		return GitHubRepositoryRef{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            strings2.RandomHash(7),
-				Namespace:       namespace,
-				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(controller, GitHubRepositoryGVK)},
-			},
-			Spec: GitHubRepositoryRefSpec{Ref: ref},
-		}
-	}
-	newAppSpecRepository := func(repoName, missingBranchStrategy string) ApplicationSpecRepository {
-		return ApplicationSpecRepository{
-			RepositoryReferenceWithOptionalNamespace: RepositoryReferenceWithOptionalNamespace{
-				APIVersion: GitHubRepositoryGVK.GroupVersion().String(),
-				Kind:       GitHubRepositoryGVK.Kind,
-				Name:       repoName,
-				Namespace:  namespace,
-			},
-			MissingBranchStrategy: missingBranchStrategy,
-		}
-	}
+	BeforeEach(func() { namespace, appName = "default", strings2.RandomHash(7) })
 
-	var k client.WithWatch
-	BeforeEach(func(ctx context.Context) {
-		namespace = "default"
-		appName = strings2.RandomHash(7)
-		ghRepoList := &GitHubRepositoryList{Items: []GitHubRepository{
-			newGitHubRepository("repo1"),
-			newGitHubRepository("repo2"),
-			newGitHubRepository("repo3"),
-		}}
-		ghRepoRefList := &GitHubRepositoryRefList{Items: []GitHubRepositoryRef{
-			newGitHubRepositoryRef(&ghRepoList.Items[0], "b1"),
-			newGitHubRepositoryRef(&ghRepoList.Items[0], "b2"),
-			newGitHubRepositoryRef(&ghRepoList.Items[1], "b1"),
-			newGitHubRepositoryRef(&ghRepoList.Items[2], "b2"),
-		}}
-		envList := &EnvironmentList{}
+	It("should be marked as stale when repositories are not found", func(ctx context.Context) {
 		app := &Application{
 			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
 			Spec: ApplicationSpec{
 				Repositories: []ApplicationSpecRepository{
-					newAppSpecRepository(ghRepoList.Items[0].Name, MissingBranchStrategyUseDefaultBranch),
-					newAppSpecRepository(ghRepoList.Items[1].Name, MissingBranchStrategyUseDefaultBranch),
-					newAppSpecRepository(ghRepoList.Items[2].Name, MissingBranchStrategyIgnore),
+					{
+						RepositoryReferenceWithOptionalNamespace: RepositoryReferenceWithOptionalNamespace{
+							APIVersion: GitHubRepositoryGVK.GroupVersion().String(),
+							Kind:       GitHubRepositoryGVK.Kind,
+							Name:       "repo",
+							Namespace:  namespace,
+						},
+						MissingBranchStrategy: MissingBranchStrategyUseDefaultBranch,
+					},
 				},
 			},
 		}
-		k = fake.NewClientBuilder().
-			WithScheme(scheme).
-			WithObjects(app).
-			WithLists(ghRepoList, ghRepoRefList, envList).
-			Build()
-	})
-	It("should create missing environments properly", func(ctx context.Context) {
-		r := &Application{}
-		Expect(k.Get(ctx, client.ObjectKey{Namespace: namespace, Name: appName}, r)).To(Succeed())
+		k := fake.NewClientBuilder().WithScheme(scheme).WithObjects(app).WithStatusSubresource(app).Build()
 
-		result, err := application.NewCreateMissingEnvironmentsAction().Execute(ctx, k, r)
+		a := &Application{}
+		Expect(k.Get(ctx, client.ObjectKeyFromObject(app), a)).To(Succeed())
+		result, err := application.NewCreateMissingEnvironmentsAction(&EnvironmentList{}).Execute(ctx, k, a)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
+		Expect(a.Status.GetStaleCondition()).To(BeTrueDueTo(RepositoryNotFound))
+	})
+	It("should be marked as stale when repositories are not accessible", func(ctx context.Context) {
+		repo := &GitHubRepository{
+			ObjectMeta: metav1.ObjectMeta{Name: strings2.RandomHash(7), Namespace: namespace},
+			Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: "repo"},
+		}
+		app := &Application{
+			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
+			Spec: ApplicationSpec{
+				Repositories: []ApplicationSpecRepository{
+					{
+						RepositoryReferenceWithOptionalNamespace: RepositoryReferenceWithOptionalNamespace{
+							APIVersion: GitHubRepositoryGVK.GroupVersion().String(),
+							Kind:       GitHubRepositoryGVK.Kind,
+							Name:       repo.Name,
+							Namespace:  repo.Namespace,
+						},
+						MissingBranchStrategy: MissingBranchStrategyUseDefaultBranch,
+					},
+				},
+			},
+		}
+		k := fake.NewClientBuilder().WithScheme(scheme).WithObjects(app, repo).WithStatusSubresource(app, repo).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					if key == client.ObjectKeyFromObject(repo) {
+						return apierrors.NewForbidden(schema.GroupResource{}, repo.Name, io.EOF)
+					}
+					return c.Get(ctx, key, obj, opts...)
+				},
+			}).
+			Build()
+
+		a := &Application{}
+		Expect(k.Get(ctx, client.ObjectKeyFromObject(app), a)).To(Succeed())
+		result, err := application.NewCreateMissingEnvironmentsAction(&EnvironmentList{}).Execute(ctx, k, a)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
+		Expect(a.Status.GetStaleCondition()).To(BeUnknownDueTo(RepositoryNotAccessible))
+	})
+	It("should be marked as possibly-stale when repositories cannot be fetched", func(ctx context.Context) {
+		repo := &GitHubRepository{
+			ObjectMeta: metav1.ObjectMeta{Name: strings2.RandomHash(7), Namespace: namespace},
+			Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: "repo"},
+		}
+		app := &Application{
+			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
+			Spec: ApplicationSpec{
+				Repositories: []ApplicationSpecRepository{
+					{
+						RepositoryReferenceWithOptionalNamespace: RepositoryReferenceWithOptionalNamespace{
+							APIVersion: GitHubRepositoryGVK.GroupVersion().String(),
+							Kind:       GitHubRepositoryGVK.Kind,
+							Name:       repo.Name,
+							Namespace:  repo.Namespace,
+						},
+						MissingBranchStrategy: MissingBranchStrategyUseDefaultBranch,
+					},
+				},
+			},
+		}
+		k := fake.NewClientBuilder().WithScheme(scheme).WithObjects(app, repo).WithStatusSubresource(app, repo).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+					if key == client.ObjectKeyFromObject(repo) {
+						return apierrors.NewInternalError(io.EOF)
+					}
+					return c.Get(ctx, key, obj, opts...)
+				},
+			}).
+			Build()
+
+		a := &Application{}
+		Expect(k.Get(ctx, client.ObjectKeyFromObject(app), a)).To(Succeed())
+		result, err := application.NewCreateMissingEnvironmentsAction(&EnvironmentList{}).Execute(ctx, k, a)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
+		Expect(a.Status.GetStaleCondition()).To(BeUnknownDueTo(InternalError))
+	})
+	It("should be marked as possibly-stale when refs cannot be fetched", func(ctx context.Context) {
+		repo := &GitHubRepository{
+			ObjectMeta: metav1.ObjectMeta{Name: strings2.RandomHash(7), Namespace: namespace},
+			Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: "repo"},
+		}
+		mainRef := &GitHubRepositoryRef{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "main",
+				Namespace:       repo.Namespace,
+				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(repo, GitHubRepositoryGVK)},
+			},
+			Spec: GitHubRepositoryRefSpec{Ref: "main"},
+		}
+		app := &Application{
+			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
+			Spec: ApplicationSpec{
+				Repositories: []ApplicationSpecRepository{
+					{
+						RepositoryReferenceWithOptionalNamespace: RepositoryReferenceWithOptionalNamespace{
+							APIVersion: GitHubRepositoryGVK.GroupVersion().String(),
+							Kind:       GitHubRepositoryGVK.Kind,
+							Name:       repo.Name,
+							Namespace:  repo.Namespace,
+						},
+						MissingBranchStrategy: MissingBranchStrategyUseDefaultBranch,
+					},
+				},
+			},
+		}
+		k := fake.NewClientBuilder().WithScheme(scheme).WithObjects(app, repo, mainRef).WithStatusSubresource(app, repo, mainRef).
+			WithInterceptorFuncs(interceptor.Funcs{
+				List: func(ctx context.Context, client client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+					switch list.(type) {
+					case *GitHubRepositoryRefList:
+						return apierrors.NewInternalError(io.EOF)
+					default:
+						return client.List(ctx, list, opts...)
+					}
+				},
+			}).
+			Build()
+
+		a := &Application{}
+		Expect(k.Get(ctx, client.ObjectKeyFromObject(app), a)).To(Succeed())
+		result, err := application.NewCreateMissingEnvironmentsAction(&EnvironmentList{}).Execute(ctx, k, a)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
+		Expect(a.Status.GetStaleCondition()).To(BeUnknownDueTo(InternalError))
+	})
+	It("should be marked as possibly-stale when envs cannot be created", func(ctx context.Context) {
+		repo := &GitHubRepository{
+			ObjectMeta: metav1.ObjectMeta{Name: strings2.RandomHash(7), Namespace: namespace},
+			Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: "repo"},
+		}
+		mainRef := &GitHubRepositoryRef{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "main",
+				Namespace:       repo.Namespace,
+				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(repo, GitHubRepositoryGVK)},
+			},
+			Spec: GitHubRepositoryRefSpec{Ref: "main"},
+		}
+		app := &Application{
+			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
+			Spec: ApplicationSpec{
+				Repositories: []ApplicationSpecRepository{
+					{
+						RepositoryReferenceWithOptionalNamespace: RepositoryReferenceWithOptionalNamespace{
+							APIVersion: GitHubRepositoryGVK.GroupVersion().String(),
+							Kind:       GitHubRepositoryGVK.Kind,
+							Name:       repo.Name,
+							Namespace:  repo.Namespace,
+						},
+						MissingBranchStrategy: MissingBranchStrategyUseDefaultBranch,
+					},
+				},
+			},
+		}
+		k := fake.NewClientBuilder().WithScheme(scheme).WithObjects(app, repo, mainRef).WithStatusSubresource(app, repo, mainRef).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Create: func(ctx context.Context, c client.WithWatch, o client.Object, opts ...client.CreateOption) error {
+					if _, ok := o.(*Environment); ok {
+						return apierrors.NewInternalError(io.EOF)
+					}
+					return c.Create(ctx, o, opts...)
+				},
+			}).
+			Build()
+
+		a := &Application{}
+		Expect(k.Get(ctx, client.ObjectKeyFromObject(app), a)).To(Succeed())
+		result, err := application.NewCreateMissingEnvironmentsAction(&EnvironmentList{}).Execute(ctx, k, a)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
+		Expect(a.Status.GetStaleCondition()).To(BeUnknownDueTo(InternalError))
+	})
+	It("should create distinct environments from refs of participating repositories", func(ctx context.Context) {
+		repo := &GitHubRepository{
+			ObjectMeta: metav1.ObjectMeta{Name: strings2.RandomHash(7), Namespace: namespace},
+			Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: "repo"},
+		}
+		mainRef := &GitHubRepositoryRef{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "main",
+				Namespace:       repo.Namespace,
+				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(repo, GitHubRepositoryGVK)},
+			},
+			Spec: GitHubRepositoryRefSpec{Ref: "main"},
+		}
+		feature1Ref := &GitHubRepositoryRef{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "feature1",
+				Namespace:       repo.Namespace,
+				OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(repo, GitHubRepositoryGVK)},
+			},
+			Spec: GitHubRepositoryRefSpec{Ref: "feature1"},
+		}
+		app := &Application{
+			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
+			Spec: ApplicationSpec{
+				Repositories: []ApplicationSpecRepository{
+					{
+						RepositoryReferenceWithOptionalNamespace: RepositoryReferenceWithOptionalNamespace{
+							APIVersion: GitHubRepositoryGVK.GroupVersion().String(),
+							Kind:       GitHubRepositoryGVK.Kind,
+							Name:       repo.Name,
+							Namespace:  repo.Namespace,
+						},
+						MissingBranchStrategy: MissingBranchStrategyUseDefaultBranch,
+					},
+				},
+			},
+		}
+		k := fake.NewClientBuilder().WithScheme(scheme).
+			WithIndex(&GitHubRepositoryRef{}, k8s.OwnershipIndexField, k8s.IndexGetOwnerReferencesOf).
+			WithObjects(app, repo, mainRef, feature1Ref).
+			WithStatusSubresource(app, repo, mainRef, feature1Ref).
+			Build()
+
+		a := &Application{}
+		Expect(k.Get(ctx, client.ObjectKeyFromObject(app), a)).To(Succeed())
+		result, err := application.NewCreateMissingEnvironmentsAction(&EnvironmentList{}).Execute(ctx, k, a)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(BeNil())
+		Expect(a.Status.GetStaleCondition()).To(BeNil())
 
 		envList := &EnvironmentList{}
 		Expect(k.List(ctx, envList)).To(Succeed())
 		slices.SortFunc(envList.Items, func(i, j Environment) int { return strings.Compare(i.Spec.PreferredBranch, j.Spec.PreferredBranch) })
 		Expect(envList.Items).To(HaveLen(2))
-
-		Expect(metav1.GetControllerOf(&envList.Items[0])).To(Equal(metav1.NewControllerRef(r, ApplicationGVK)))
-		Expect(envList.Items[0].Namespace).To(Equal(r.Namespace))
-		Expect(envList.Items[0].Spec.PreferredBranch).To(Equal("b1"))
-
-		Expect(metav1.GetControllerOf(&envList.Items[1])).To(Equal(metav1.NewControllerRef(r, ApplicationGVK)))
-		Expect(envList.Items[1].Spec.PreferredBranch).To(Equal("b2"))
-		Expect(envList.Items[1].Namespace).To(Equal(r.Namespace))
+		Expect(envList.Items[0].Spec.PreferredBranch).To(Equal("feature1"))
+		Expect(envList.Items[0].OwnerReferences).To(HaveLen(1))
+		Expect(envList.Items[0].OwnerReferences[0].APIVersion).To(Equal(ApplicationGVK.GroupVersion().String()))
+		Expect(envList.Items[0].OwnerReferences[0].Kind).To(Equal(ApplicationGVK.Kind))
+		Expect(envList.Items[0].OwnerReferences[0].Name).To(Equal(a.Name))
+		Expect(envList.Items[0].OwnerReferences[0].UID).To(Equal(a.UID))
+		Expect(envList.Items[0].OwnerReferences[0].Controller).To(Equal(&[]bool{true}[0]))
+		Expect(envList.Items[1].Spec.PreferredBranch).To(Equal("main"))
+		Expect(envList.Items[1].OwnerReferences).To(HaveLen(1))
+		Expect(envList.Items[1].OwnerReferences[0].APIVersion).To(Equal(ApplicationGVK.GroupVersion().String()))
+		Expect(envList.Items[1].OwnerReferences[0].Kind).To(Equal(ApplicationGVK.Kind))
+		Expect(envList.Items[1].OwnerReferences[0].Name).To(Equal(a.Name))
+		Expect(envList.Items[1].OwnerReferences[0].UID).To(Equal(a.UID))
+		Expect(envList.Items[1].OwnerReferences[0].Controller).To(Equal(&[]bool{true}[0]))
 	})
-
-	// TODO: test conditions are set in case of API errors
 })

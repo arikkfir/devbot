@@ -17,14 +17,16 @@ func NewFetchGitHubRepositoryAction(refreshInterval time.Duration, gh *github.Cl
 		if r.Spec.Owner == "" {
 			r.Status.SetInvalidDueToRepositoryOwnerMissing("Repository owner is empty")
 			r.Status.SetMaybeStaleDueToInvalid(r.Status.GetInvalidMessage())
+			r.Status.SetUnauthenticatedDueToInvalid(r.Status.GetInvalidMessage())
 			return reconcile.DoNotRequeue()
 		} else if r.Spec.Name == "" {
 			r.Status.SetInvalidDueToRepositoryNameMissing("Repository name is empty")
 			r.Status.SetMaybeStaleDueToInvalid(r.Status.GetInvalidMessage())
+			r.Status.SetUnauthenticatedDueToInvalid(r.Status.GetInvalidMessage())
 			return reconcile.DoNotRequeue()
 		} else if ghr, resp, err := gh.Repositories.Get(ctx, r.Spec.Owner, r.Spec.Name); err != nil {
 			if resp.StatusCode == http.StatusNotFound {
-				r.Status.SetMaybeStaleDueToRepositoryNotFound("Repository not found: %s", resp.Status)
+				r.Status.SetStaleDueToRepositoryNotFound("Repository not found: %s", resp.Status)
 				return reconcile.RequeueAfter(refreshInterval)
 			} else {
 				r.Status.SetMaybeStaleDueToGitHubAPIFailed("Failed fetching repository '%s/%s': %+v", r.Spec.Owner, r.Spec.Name, err)

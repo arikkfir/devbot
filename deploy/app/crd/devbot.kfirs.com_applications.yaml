@@ -43,30 +43,6 @@ spec:
                       minLength: 1
                       pattern: ^[a-z0-9]+(\.[a-z0-9]+)*$
                       type: string
-                    deployment:
-                      description: Deployment specifies how to deploy this repository.
-                      properties:
-                        kustomize:
-                          description: Instructions to deploy this repository using
-                            kustomize.
-                          properties:
-                            path:
-                              description: "Path is the path to the kustomization
-                                file relative to the repository root. The resulting
-                                YAML file will be post processed by bash for environment
-                                variables expansion. The following environment variables
-                                will be expanded: \n - $APPLICATION: The name of the
-                                application. - $BRANCH: The actual branch being deployed
-                                (might differ from the environment's preferred branch,
-                                as it might not exist in all participating repositories).
-                                - $COMMIT_SHA: The commit SHA being deployed. - $ENVIRONMENT:
-                                The logical name of the environment (its preferred
-                                branch name; not the name of the environment Kubernetes
-                                object)"
-                              minLength: 1
-                              type: string
-                          type: object
-                      type: object
                     kind:
                       maxLength: 63
                       minLength: 1

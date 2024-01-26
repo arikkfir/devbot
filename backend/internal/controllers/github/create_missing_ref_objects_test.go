@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-github/v56/github"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -72,16 +73,12 @@ var _ = Describe("NewCreateMissingGitHubRepositoryRefObjectsAction", func() {
 	When("one branch is given", func() {
 		var branches []*github.Branch
 		BeforeEach(func(ctx context.Context) {
-			branches = []*github.Branch{
-				{Name: github.String("main")},
-			}
+			branches = []*github.Branch{{Name: github.String("main")}}
 		})
 		When("no refs are given", func() {
-			BeforeEach(func(ctx context.Context) { k = fake.NewClientBuilder().WithScheme(scheme).Build() })
 			It("should create one ref object and requeue", func(ctx context.Context) {
-				r := &GitHubRepository{
-					ObjectMeta: metav1.ObjectMeta{Name: "r", Namespace: "default", UID: "abc"},
-				}
+				r := &GitHubRepository{ObjectMeta: metav1.ObjectMeta{Name: "r", Namespace: "default", UID: "abc"}}
+				k = fake.NewClientBuilder().WithScheme(scheme).WithObjects(r).WithStatusSubresource(r).Build()
 				action := act.NewCreateMissingGitHubRepositoryRefObjectsAction(branches, &GitHubRepositoryRefList{})
 				result, err := action.Execute(ctx, k, r)
 				Expect(err).To(BeNil())
@@ -91,9 +88,11 @@ var _ = Describe("NewCreateMissingGitHubRepositoryRefObjectsAction", func() {
 				Expect(k.List(ctx, refs)).To(Succeed())
 				Expect(refs.Items).To(HaveLen(1))
 				Expect(refs.Items[0].Namespace).To(Equal("default"))
-				Expect(refs.Items[0].OwnerReferences).To(ConsistOf(metav1.OwnerReference{
-					Name: r.Name, UID: r.UID, Controller: &[]bool{true}[0],
-				}))
+				Expect(refs.Items[0].OwnerReferences).To(ConsistOf(MatchFields(IgnoreExtras, Fields{
+					"Name":       Equal(r.Name),
+					"UID":        Equal(r.UID),
+					"Controller": Equal(&[]bool{true}[0]),
+				})))
 				Expect(refs.Items[0].Spec.Ref).To(Equal("main"))
 			})
 		})
@@ -122,19 +121,20 @@ var _ = Describe("NewCreateMissingGitHubRepositoryRefObjectsAction", func() {
 				})
 			})
 			When("the ref is different than the branch", func() {
-				BeforeEach(func(ctx context.Context) { k = fake.NewClientBuilder().WithScheme(scheme).Build() })
 				It("should create a ref object and requeue", func(ctx context.Context) {
-					r := &GitHubRepository{
-						ObjectMeta: metav1.ObjectMeta{Name: "r", Namespace: "default", UID: "abc"},
+					r := &GitHubRepository{ObjectMeta: metav1.ObjectMeta{Name: "r", Namespace: "default", UID: "abc"}}
+					ref := &GitHubRepositoryRef{
+						ObjectMeta: metav1.ObjectMeta{Name: "b1", Namespace: "default"},
+						Spec:       GitHubRepositoryRefSpec{Ref: "b1"},
 					}
+					k = fake.NewClientBuilder().WithScheme(scheme).WithObjects(r, ref).WithStatusSubresource(r, ref).Build()
 					action := act.NewCreateMissingGitHubRepositoryRefObjectsAction(
 						branches,
-						&GitHubRepositoryRefList{
-							Items: []GitHubRepositoryRef{{Spec: GitHubRepositoryRefSpec{Ref: "b1"}}},
-						})
+						&GitHubRepositoryRefList{Items: []GitHubRepositoryRef{*ref}},
+					)
 					result, err := action.Execute(ctx, k, r)
 					Expect(err).To(BeNil())
-					Expect(result).To(BeNil())
+					Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
 
 					refs := &GitHubRepositoryRefList{}
 					Expect(k.List(ctx, refs)).To(Succeed())
@@ -144,9 +144,11 @@ var _ = Describe("NewCreateMissingGitHubRepositoryRefObjectsAction", func() {
 					Expect(refs.Items[1].Name).ToNot(BeEmpty())
 					Expect(refs.Items[1].Namespace).To(Equal(r.Namespace))
 					Expect(refs.Items[1].Spec.Ref).To(Equal("main"))
-					Expect(refs.Items[1].OwnerReferences).To(ConsistOf(metav1.OwnerReference{
-						Name: r.Name, UID: r.UID, Controller: &[]bool{true}[0],
-					}))
+					Expect(refs.Items[1].OwnerReferences).To(ConsistOf(MatchFields(IgnoreExtras, Fields{
+						"Name":       Equal(r.Name),
+						"UID":        Equal(r.UID),
+						"Controller": Equal(&[]bool{true}[0]),
+					})))
 				})
 			})
 		})

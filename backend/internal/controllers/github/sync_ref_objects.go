@@ -5,7 +5,7 @@ import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/pkg/k8s/reconcile"
 	"github.com/google/go-github/v56/github"
-	"github.com/secureworks/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -27,12 +27,18 @@ func NewSyncGitHubRepositoryRefObjectsAction(branches []*github.Branch, refsList
 			}
 
 			if branch == nil {
-				r.Status.SetStaleDueToBranchesOutOfSync("Branches out of sync")
 				if err := c.Delete(ctx, &ref); err != nil {
-					return reconcile.RequeueDueToError(errors.New("failed deleting GitHubRepositoryRef object '%s/%s': %w", ref.Namespace, ref.Name, err))
-				} else {
-					return reconcile.Requeue()
+					if apierrors.IsNotFound(err) {
+						continue
+					} else if apierrors.IsConflict(err) || apierrors.IsGone(err) {
+						r.Status.SetStaleDueToBranchesOutOfSync("Stale ref '%s' detected", ref.Spec.Ref)
+						return reconcile.Requeue()
+					} else {
+						r.Status.SetStaleDueToBranchesOutOfSync("Failed deleting ref '%s': %+v", ref.Spec.Ref, err)
+						return reconcile.Requeue()
+					}
 				}
+				continue
 			}
 
 			refChanged := false
@@ -54,9 +60,15 @@ func NewSyncGitHubRepositoryRefObjectsAction(branches []*github.Branch, refsList
 
 			if refChanged {
 				if err := c.Status().Update(ctx, &ref); err != nil {
-					return reconcile.RequeueDueToError(errors.New("failed updating GitHubRepositoryRef object '%s/%s': %w", ref.Namespace, ref.Name, err))
-				} else {
-					return reconcile.Requeue()
+					if apierrors.IsNotFound(err) {
+						continue
+					} else if apierrors.IsConflict(err) || apierrors.IsGone(err) {
+						r.Status.SetStaleDueToBranchesOutOfSync("Stale ref '%s' detected", ref.Spec.Ref)
+						return reconcile.Requeue()
+					} else {
+						r.Status.SetStaleDueToBranchesOutOfSync("Failed syncing ref '%s' (%s): %+v", ref.Spec.Ref, ref.Name, err)
+						return reconcile.Requeue()
+					}
 				}
 			}
 		}

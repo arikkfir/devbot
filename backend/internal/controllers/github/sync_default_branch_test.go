@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -39,7 +40,7 @@ var _ = Describe("SyncDefaultBranch", func() {
 			Expect(k.Get(ctx, client.ObjectKey{Name: repoObjName, Namespace: namespace}, r)).To(Succeed())
 			result, err := act.NewSyncDefaultBranchAction(ghRepo).Execute(ctx, k, r)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(BeNil())
+			Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
 
 			rr := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rr)).To(Succeed())
@@ -50,7 +51,7 @@ var _ = Describe("SyncDefaultBranch", func() {
 	When("repository object has different default branch", func() {
 		BeforeEach(func(ctx context.Context) {
 			r := &GitHubRepository{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: repoObjName, Namespace: "default"},
 				Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: repoName},
 				Status:     GitHubRepositoryStatus{DefaultBranch: strings.RandomHash(7)},
 			}
@@ -62,7 +63,7 @@ var _ = Describe("SyncDefaultBranch", func() {
 			Expect(k.Get(ctx, client.ObjectKey{Name: repoObjName, Namespace: namespace}, r)).To(Succeed())
 			result, err := act.NewSyncDefaultBranchAction(ghRepo).Execute(ctx, k, r)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(result).To(BeNil())
+			Expect(result).To(Equal(&ctrl.Result{Requeue: true}))
 
 			rr := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rr)).To(Succeed())
@@ -73,9 +74,9 @@ var _ = Describe("SyncDefaultBranch", func() {
 	When("repository object has correct default branch", func() {
 		var ghRepo *github.Repository
 		BeforeEach(func(ctx context.Context) {
-			ghRepo := &github.Repository{DefaultBranch: github.String("staging")}
+			ghRepo = &github.Repository{DefaultBranch: github.String("staging")}
 			r := &GitHubRepository{
-				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: repoObjName, Namespace: namespace},
 				Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: repoName},
 				Status:     GitHubRepositoryStatus{DefaultBranch: ghRepo.GetDefaultBranch()},
 			}

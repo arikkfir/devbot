@@ -41,9 +41,9 @@ var _ = Describe("NewFetchGitHubRepositoryAction", func() {
 
 			rr := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rr)).To(Succeed())
-			Expect(r.Status.GetInvalidCondition()).To(BeTrueDueTo(RepositoryOwnerMissing))
-			Expect(r.Status.GetStaleCondition()).To(BeUnknownDueTo(Invalid))
-			Expect(r.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
+			Expect(rr.Status.GetInvalidCondition()).To(BeTrueDueTo(RepositoryOwnerMissing))
+			Expect(rr.Status.GetStaleCondition()).To(BeUnknownDueTo(Invalid))
+			Expect(rr.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
 		})
 	})
 
@@ -100,7 +100,7 @@ var _ = Describe("NewFetchGitHubRepositoryAction", func() {
 				rr := &GitHubRepository{}
 				Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rr)).To(Succeed())
 				Expect(r.Status.GetInvalidCondition()).To(BeNil())
-				Expect(r.Status.GetStaleCondition()).To(BeUnknownDueTo(RepositoryNotFound))
+				Expect(r.Status.GetStaleCondition()).To(BeTrueDueTo(RepositoryNotFound))
 				Expect(r.Status.GetUnauthenticatedCondition()).To(BeNil())
 			})
 		})
@@ -109,7 +109,7 @@ var _ = Describe("NewFetchGitHubRepositoryAction", func() {
 			var gh *github.Client
 			BeforeEach(func(ctx context.Context) {
 				r := &GitHubRepository{
-					ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+					ObjectMeta: metav1.ObjectMeta{Name: repoObjName, Namespace: "default"},
 					Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: strings.RandomHash(7)},
 				}
 				k = fake.NewClientBuilder().WithScheme(scheme).WithObjects(r).WithStatusSubresource(r).Build()
@@ -130,9 +130,9 @@ var _ = Describe("NewFetchGitHubRepositoryAction", func() {
 				Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rr)).To(Succeed())
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result).To(Equal(&ctrl.Result{RequeueAfter: refreshInterval}))
-				Expect(r.Status.GetInvalidCondition()).To(BeNil())
-				Expect(r.Status.GetStaleCondition()).To(BeUnknownDueTo(GitHubAPIFailed))
-				Expect(r.Status.GetUnauthenticatedCondition()).To(BeNil())
+				Expect(rr.Status.GetInvalidCondition()).To(BeNil())
+				Expect(rr.Status.GetStaleCondition()).To(BeUnknownDueTo(GitHubAPIFailed))
+				Expect(rr.Status.GetUnauthenticatedCondition()).To(BeNil())
 			})
 		})
 
@@ -161,7 +161,7 @@ var _ = Describe("NewFetchGitHubRepositoryAction", func() {
 				Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rr)).To(Succeed())
 				Expect(err).To(BeNil())
 				Expect(result).To(BeNil())
-				Expect(fetchedGhRepo).To(Equal(ghRepo))
+				Expect(*fetchedGhRepo).To(Equal(ghRepo))
 				Expect(r.Status.GetInvalidCondition()).To(BeNil())
 				Expect(r.Status.GetStaleCondition()).To(BeNil())
 				Expect(r.Status.GetUnauthenticatedCondition()).To(BeNil())

@@ -39,37 +39,12 @@ type ApplicationSpec struct {
 type ApplicationSpecRepository struct {
 	RepositoryReferenceWithOptionalNamespace `json:",inline"`
 
-	// Deployment specifies how to deploy this repository.
-	// +kubebuilder:validation:Required
-	Deployment ApplicationSpecRepositoryDeployment `json:"deployment,omitempty"`
-
 	// MissingBranchStrategy defines what to do when the desired branch of an environment is missing in this repository.
 	// If "UseDefaultBranch" is set, then instead of the desired branch the default branch of the repository is used.
 	// If "Ignore" is set, then the repository is ignored and not deployed to the application environment.
 	// +kubebuilder:default=UseDefaultBranch
 	// +kubebuilder:validation:Enum=Ignore;UseDefaultBranch
 	MissingBranchStrategy string `json:"missingBranchStrategy,omitempty"`
-}
-
-type ApplicationSpecRepositoryDeployment struct {
-	// Instructions to deploy this repository using kustomize.
-	//
-	// +kubebuilder:validation:Required
-	Kustomize ApplicationSpecRepositoryDeploymentKustomize `json:"kustomize,omitempty"`
-}
-
-type ApplicationSpecRepositoryDeploymentKustomize struct {
-	// Path is the path to the kustomization file relative to the repository root. The resulting YAML file will be post
-	// processed by bash for environment variables expansion. The following environment variables will be expanded:
-	//
-	//     - $APPLICATION: The name of the application.
-	//     - $BRANCH: The actual branch being deployed (might differ from the environment's preferred branch, as it might not exist in all participating repositories).
-	//     - $COMMIT_SHA: The commit SHA being deployed.
-	//     - $ENVIRONMENT: The logical name of the environment (its preferred branch name; not the name of the environment Kubernetes object)
-	//
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Optional
-	Path string `json:"path,omitempty"`
 }
 
 type ApplicationStatus struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	. "github.com/arikkfir/devbot/backend/api/v1"
 	t "github.com/arikkfir/devbot/backend/internal/controllers/github"
+	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing"
 	"github.com/google/go-github/v56/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -20,7 +21,8 @@ import (
 var _ = Describe("NewFetchGitHubBranchesAction", func() {
 	const refreshInterval = 30 * time.Second
 	var gh *github.Client
-	var namespace, repoObjName, repoName string
+	var namespace, repoName string
+	BeforeEach(func() { namespace, repoName = "test-ns", strings.RandomHash(7) })
 	When("github client fails to list branches", func() {
 		var k client.WithWatch
 		var r *GitHubRepository
@@ -34,7 +36,7 @@ var _ = Describe("NewFetchGitHubBranchesAction", func() {
 				),
 			))
 			r = &GitHubRepository{
-				ObjectMeta: metav1.ObjectMeta{Name: repoObjName, Namespace: namespace},
+				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: namespace},
 				Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: repoName},
 			}
 			k = fake.NewClientBuilder().WithScheme(scheme).WithObjects(r).WithStatusSubresource(r).Build()
@@ -46,9 +48,9 @@ var _ = Describe("NewFetchGitHubBranchesAction", func() {
 			Expect(err).To(BeNil())
 			Expect(result).To(Equal(&ctrl.Result{RequeueAfter: refreshInterval}))
 
-			rr = &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rr)).To(Succeed())
-			Expect(rr.Status.GetStaleCondition()).To(BeUnknownDueTo(GitHubAPIFailed))
+			rrr := &GitHubRepository{}
+			Expect(k.Get(ctx, client.ObjectKeyFromObject(r), rrr)).To(Succeed())
+			Expect(rrr.Status.GetStaleCondition()).To(BeUnknownDueTo(GitHubAPIFailed))
 		})
 	})
 	When("repository has no branches", func() {
@@ -58,8 +60,13 @@ var _ = Describe("NewFetchGitHubBranchesAction", func() {
 			))
 		})
 		It("should set target branches array to nil and continue", func(ctx context.Context) {
+			r := &GitHubRepository{
+				ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: namespace},
+				Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: repoName},
+			}
+			k := fake.NewClientBuilder().WithScheme(scheme).WithObjects(r).WithStatusSubresource(r).Build()
 			var targetBranches []*github.Branch
-			result, err := t.NewFetchGitHubBranchesAction(refreshInterval, gh, &targetBranches).Execute(ctx, nil, &GitHubRepository{})
+			result, err := t.NewFetchGitHubBranchesAction(refreshInterval, gh, &targetBranches).Execute(ctx, k, r)
 			Expect(err).To(BeNil())
 			Expect(result).To(BeNil())
 			Expect(targetBranches).To(BeNil())
@@ -80,8 +87,13 @@ var _ = Describe("NewFetchGitHubBranchesAction", func() {
 				))
 			})
 			It("should return correct branches and continue", func(ctx context.Context) {
+				r := &GitHubRepository{
+					ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: namespace},
+					Spec:       GitHubRepositorySpec{Owner: GitHubOwner, Name: repoName},
+				}
+				k := fake.NewClientBuilder().WithScheme(scheme).WithObjects(r).WithStatusSubresource(r).Build()
 				var branches []*github.Branch
-				result, err := t.NewFetchGitHubBranchesAction(refreshInterval, gh, &branches).Execute(ctx, nil, &GitHubRepository{})
+				result, err := t.NewFetchGitHubBranchesAction(refreshInterval, gh, &branches).Execute(ctx, k, r)
 				Expect(err).To(BeNil())
 				Expect(result).To(BeNil())
 				Expect(branches).To(HaveLen(3))

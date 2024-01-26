@@ -23,6 +23,8 @@ import (
 )
 
 var _ = Describe("NewConnectToGitHubAction", func() {
+	const refreshInterval = 5 * time.Minute
+
 	var namespace, repoName string
 	BeforeEach(func(ctx context.Context) {
 		namespace = "default"
@@ -37,16 +39,16 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(0, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeTrueDueTo(AuthConfigMissing))
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
-			Expect(o.Status.GetStaleCondition()).To(BeTrueDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeTrueDueTo(AuthConfigMissing))
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
@@ -63,21 +65,20 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(0, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeTrueDueTo(AuthSecretNameMissing))
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeTrueDueTo(AuthSecretNameMissing))
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
 	When("pat secret is not found", func() {
-		const refreshInterval = 5 * time.Minute
 		var k client.WithWatch
 		BeforeEach(func(ctx context.Context) {
 			o := &GitHubRepository{
@@ -92,21 +93,20 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(refreshInterval, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{RequeueAfter: refreshInterval}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeNil())
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretNotFound))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeNil())
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretNotFound))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
 	When("pat secret is inaccessible", func() {
-		const refreshInterval = 5 * time.Minute
 		var k client.WithWatch
 		BeforeEach(func(ctx context.Context) {
 			o := &GitHubRepository{
@@ -133,21 +133,20 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(refreshInterval, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{RequeueAfter: refreshInterval}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeNil())
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretForbidden))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeNil())
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretForbidden))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
 	When("pat secret fails to be fetched due to an internal error", func() {
-		const refreshInterval = 5 * time.Minute
 		var k client.WithWatch
 		BeforeEach(func(ctx context.Context) {
 			o := &GitHubRepository{
@@ -174,16 +173,16 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(refreshInterval, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(BeNil())
 			Expect(result).To(Equal(&ctrl.Result{}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeNil())
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretGetFailed))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeNil())
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretGetFailed))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
@@ -203,21 +202,20 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(0, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeTrueDueTo(AuthSecretKeyMissing))
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeTrueDueTo(AuthSecretKeyMissing))
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(Invalid))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
 	When("pat key is not found in secret", func() {
-		const refreshInterval = 5 * time.Minute
 		var k client.WithWatch
 		BeforeEach(func(ctx context.Context) {
 			s := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: strings.RandomHash(7), Namespace: namespace}}
@@ -234,21 +232,20 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(refreshInterval, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{RequeueAfter: refreshInterval}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeNil())
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretKeyNotFound))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeNil())
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthSecretKeyNotFound))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
 	When("pat from secret is empty", func() {
-		const refreshInterval = 5 * time.Minute
 		var k client.WithWatch
 		BeforeEach(func(ctx context.Context) {
 			s := &corev1.Secret{
@@ -268,21 +265,20 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(refreshInterval, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{RequeueAfter: refreshInterval}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeNil())
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthTokenEmpty))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeNil())
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(AuthTokenEmpty))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
 	When("pat from secret is invalid", func() {
-		const refreshInterval = 5 * time.Minute
 		var k client.WithWatch
 		BeforeEach(func(ctx context.Context) {
 			s := &corev1.Secret{
@@ -302,16 +298,16 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(refreshInterval, nil).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(Equal(&ctrl.Result{RequeueAfter: refreshInterval}))
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeNil())
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(TokenValidationFailed))
-			Expect(o.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
+			Expect(oo.Status.GetInvalidCondition()).To(BeNil())
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeTrueDueTo(TokenValidationFailed))
+			Expect(oo.Status.GetStaleCondition()).To(BeUnknownDueTo(Unauthenticated))
 		})
 	})
 
@@ -336,7 +332,7 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 		})
 		It("should set conditions and abort", func(ctx context.Context) {
 			o := &GitHubRepository{}
-			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), o)).To(Succeed())
+			Expect(k.Get(ctx, client.ObjectKey{Name: repoName, Namespace: namespace}, o)).To(Succeed())
 			result, err := act.NewConnectToGitHubAction(0, &gh).Execute(ctx, k, o)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result).To(BeNil())
@@ -344,9 +340,9 @@ var _ = Describe("NewConnectToGitHubAction", func() {
 
 			oo := &GitHubRepository{}
 			Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
-			Expect(o.Status.GetInvalidCondition()).To(BeNil())
-			Expect(o.Status.GetUnauthenticatedCondition()).To(BeNil())
-			Expect(o.Status.GetStaleCondition()).To(BeNil())
+			Expect(oo.Status.GetInvalidCondition()).To(BeNil())
+			Expect(oo.Status.GetUnauthenticatedCondition()).To(BeNil())
+			Expect(oo.Status.GetStaleCondition()).To(BeNil())
 		})
 	})
 })
