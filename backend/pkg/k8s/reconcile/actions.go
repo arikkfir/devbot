@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/arikkfir/devbot/backend/pkg/k8s"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/secureworks/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,8 +29,10 @@ func (rec *Reconciliation) Execute(ctx context.Context, c client.Client, req ctr
 
 	for _, action := range rec.Actions {
 		result, err := action.Execute(ctx, c, o)
-		if err != nil {
+		if result != nil && err != nil {
 			return *result, err
+		} else if err != nil {
+			return ctrl.Result{}, err
 		} else if result != nil {
 			return *result, nil
 		}
@@ -46,8 +49,8 @@ func (a Action) Execute(ctx context.Context, c client.Client, o client.Object) (
 		// No access to conditions; just execute the action and return its result
 		return a(ctx, c, o)
 	}
-	oldStatus := statusProvider.GetStatus()
-	oldStatus.SetConditions(nil)
+	oldObject := statusProvider.DeepCopyObject().(k8s.CommonStatusProvider)
+	statusProvider.GetStatus().SetConditions(nil)
 
 	// Execute the action
 	result, err := a(ctx, c, o)
@@ -56,19 +59,27 @@ func (a Action) Execute(ctx context.Context, c client.Client, o client.Object) (
 	newStatus := statusProvider.GetStatus()
 	var newConditions []metav1.Condition
 	for _, c := range newStatus.GetConditions() {
-		lc := c
-		if lc.ObservedGeneration == 0 {
-			lc.ObservedGeneration = o.GetGeneration()
+		nc := c
+		if nc.ObservedGeneration == 0 {
+			nc.ObservedGeneration = o.GetGeneration()
 		}
-		if lc.LastTransitionTime.IsZero() {
-			lc.LastTransitionTime = metav1.Now()
+		if nc.LastTransitionTime.IsZero() {
+			for _, oc := range oldObject.GetStatus().GetConditions() {
+				if oc.Type == nc.Type {
+					nc.LastTransitionTime = oc.LastTransitionTime
+					break
+				}
+			}
 		}
-		newConditions = append(newConditions, lc)
+		if nc.LastTransitionTime.IsZero() {
+			nc.LastTransitionTime = metav1.Now()
+		}
+		newConditions = append(newConditions, nc)
 	}
 	newStatus.SetConditions(newConditions)
 
 	// Compare old & new status; update status if it has changed
-	if !cmp.Equal(oldStatus, newStatus) {
+	if !cmp.Equal(oldObject.GetStatus(), newStatus, cmpopts.IgnoreFields(metav1.Condition{}, "LastTransitionTime", "ObservedGeneration")) {
 		if statusErr := c.Status().Update(ctx, o); statusErr != nil {
 			if apierrors.IsNotFound(statusErr) {
 				return DoNotRequeue()

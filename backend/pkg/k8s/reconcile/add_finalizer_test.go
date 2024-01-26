@@ -2,14 +2,13 @@ package reconcile_test
 
 import (
 	"context"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing"
+	v1 "github.com/arikkfir/devbot/backend/internal/util/testing/api/v1"
 	"github.com/arikkfir/devbot/backend/pkg/k8s/reconcile"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"io"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,18 +31,18 @@ var _ = Describe("NewAddFinalizerAction", func() {
 			BeforeEach(func() {
 				k = fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}).
+					WithObjects(&v1.ObjectWithCommonConditions{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}).
 					Build()
 			})
 			It("should add the finalizer", func(ctx context.Context) {
-				o := &corev1.ConfigMap{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewAddFinalizerAction(finalizer).Execute(ctx, k, o)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result.Requeue).To(BeTrue())
 				Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-				o2 := &corev1.ConfigMap{}
+				o2 := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o2)).To(Succeed())
 				Expect(o2.Finalizers).To(ConsistOf(finalizer))
 			})
@@ -52,7 +51,7 @@ var _ = Describe("NewAddFinalizerAction", func() {
 			BeforeEach(func() {
 				k = fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}).
+					WithObjects(&v1.ObjectWithCommonConditions{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}).
 					WithInterceptorFuncs(interceptor.Funcs{
 						Update: func(ctx context.Context, c client.WithWatch, o client.Object, opts ...client.UpdateOption) error {
 							return apierrors.NewNotFound(schema.GroupResource{
@@ -64,14 +63,14 @@ var _ = Describe("NewAddFinalizerAction", func() {
 					Build()
 			})
 			It("should abort processing", func(ctx context.Context) {
-				o := &corev1.ConfigMap{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewAddFinalizerAction(finalizer).Execute(ctx, k, o)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result.Requeue).To(BeFalse())
 				Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-				o2 := &corev1.ConfigMap{}
+				o2 := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o2)).To(Succeed())
 				Expect(o2.Finalizers).To(BeEmpty())
 			})
@@ -80,7 +79,7 @@ var _ = Describe("NewAddFinalizerAction", func() {
 			BeforeEach(func() {
 				k = fake.NewClientBuilder().
 					WithScheme(scheme).
-					WithObjects(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}).
+					WithObjects(&v1.ObjectWithCommonConditions{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}).
 					WithInterceptorFuncs(interceptor.Funcs{
 						Update: func(ctx context.Context, c client.WithWatch, o client.Object, opts ...client.UpdateOption) error {
 							return apierrors.NewConflict(schema.GroupResource{
@@ -92,21 +91,21 @@ var _ = Describe("NewAddFinalizerAction", func() {
 					Build()
 			})
 			It("should requeue immediately", func(ctx context.Context) {
-				o := &corev1.ConfigMap{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewAddFinalizerAction(finalizer).Execute(ctx, k, o)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result.Requeue).To(BeTrue())
 				Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-				o2 := &corev1.ConfigMap{}
+				o2 := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o2)).To(Succeed())
 				Expect(o2.Finalizers).To(BeEmpty())
 			})
 		})
 		When("update fails because of an unknown error", func() {
 			BeforeEach(func() {
-				o := &apiv1.GitHubRepository{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+				o := &v1.ObjectWithCommonConditions{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
 				k = fake.NewClientBuilder().
 					WithScheme(scheme).
 					WithObjects(o).
@@ -119,17 +118,17 @@ var _ = Describe("NewAddFinalizerAction", func() {
 					Build()
 			})
 			It("should set invalid condition and requeue immediately", func(ctx context.Context) {
-				o := &apiv1.GitHubRepository{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewAddFinalizerAction(finalizer).Execute(ctx, k, o)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(result.Requeue).To(BeTrue())
 				Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-				o2 := &apiv1.GitHubRepository{}
-				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o2)).To(Succeed())
-				Expect(o2.Finalizers).To(BeEmpty())
-				Expect(o2.Status.GetInvalidCondition()).To(BeTrueDueTo(apiv1.InternalError))
+				oo := &v1.ObjectWithCommonConditions{}
+				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, oo)).To(Succeed())
+				Expect(oo.Finalizers).To(BeEmpty())
+				Expect(oo.Status.GetInvalidCondition()).To(BeTrueDueTo(v1.AddFinalizerFailed))
 			})
 		})
 	})
@@ -137,7 +136,7 @@ var _ = Describe("NewAddFinalizerAction", func() {
 		BeforeEach(func() {
 			k = fake.NewClientBuilder().
 				WithScheme(scheme).
-				WithObjects(&corev1.ConfigMap{
+				WithObjects(&v1.ObjectWithCommonConditions{
 					ObjectMeta: metav1.ObjectMeta{
 						Finalizers: []string{finalizer},
 						Name:       name,
@@ -147,15 +146,15 @@ var _ = Describe("NewAddFinalizerAction", func() {
 				Build()
 		})
 		It("should keep finalizer", func(ctx context.Context) {
-			o := &corev1.ConfigMap{}
+			o := &v1.ObjectWithCommonConditions{}
 			Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 			result, err := reconcile.NewAddFinalizerAction(finalizer).Execute(ctx, k, o)
 			Expect(err).To(BeNil())
 			Expect(result).To(BeNil())
 
-			o2 := &corev1.ConfigMap{}
-			Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o2)).To(Succeed())
-			Expect(o2.Finalizers).To(ConsistOf(finalizer))
+			oo := &v1.ObjectWithCommonConditions{}
+			Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, oo)).To(Succeed())
+			Expect(oo.Finalizers).To(ConsistOf(finalizer))
 		})
 	})
 })

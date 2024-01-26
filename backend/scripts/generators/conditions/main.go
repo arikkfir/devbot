@@ -123,10 +123,22 @@ func generateConditionsFile(tmpl *template.Template, src string, packageName str
 	}
 	defer genFile.Close()
 
+	hasCommonConditions := slices.ContainsFunc(
+		conditions,
+		func(c Condition) bool {
+			return c.Name == "Invalid" &&
+				slices.Contains(c.Reasons, "AddFinalizerFailed") &&
+				slices.Contains(c.Reasons, "ControllerMissing") &&
+				slices.Contains(c.Reasons, "FailedGettingOwnedObjects") &&
+				slices.Contains(c.Reasons, "FinalizationFailed") &&
+				slices.Contains(c.Reasons, "InternalError")
+		},
+	)
 	err = tmpl.ExecuteTemplate(genFile, "zz_generated.OBJECT.go.tmpl", map[string]interface{}{
-		"PackageName": packageName,
-		"ObjectType":  object.Name,
-		"Conditions":  conditions,
+		"PackageName":         packageName,
+		"ObjectType":          object.Name,
+		"Conditions":          conditions,
+		"HasCommonConditions": hasCommonConditions,
 	})
 	if err != nil {
 		return errors.New("failed to generate '%s': %w", genFilename, err)

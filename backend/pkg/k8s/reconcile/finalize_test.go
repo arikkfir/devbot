@@ -2,9 +2,9 @@ package reconcile_test
 
 import (
 	"context"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing"
+	v1 "github.com/arikkfir/devbot/backend/internal/util/testing/api/v1"
 	"github.com/arikkfir/devbot/backend/pkg/k8s/reconcile"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -35,17 +35,17 @@ var _ = Describe("NewFinalizeAction", func() {
 	validateObjectUpdate := func() {
 		When("update succeeds", func() {
 			It("should remove finalizer and stop", func(ctx context.Context) {
-				o := &apiv1.GitHubRepository{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewFinalizeAction(finalizer, finalizeFunc).Execute(ctx, k, o)
 				Expect(err).To(BeNil())
 				Expect(result.Requeue).To(BeFalse())
 				Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-				o = &apiv1.GitHubRepository{}
-				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
-				Expect(o.Finalizers).To(ConsistOf(deletionPreventionFinalizer))
-				Expect(o.Status.GetInvalidCondition()).To(BeNil())
+				oo := &v1.ObjectWithCommonConditions{}
+				Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
+				Expect(oo.Finalizers).To(ConsistOf(deletionPreventionFinalizer))
+				Expect(oo.Status.GetInvalidCondition()).To(BeNil())
 			})
 		})
 		When("update fails due to object not found", func() {
@@ -60,7 +60,7 @@ var _ = Describe("NewFinalizeAction", func() {
 				})
 			})
 			It("should stop", func(ctx context.Context) {
-				o := &apiv1.GitHubRepository{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewFinalizeAction(finalizer, finalizeFunc).Execute(ctx, k, o)
 				Expect(err).To(BeNil())
@@ -80,7 +80,7 @@ var _ = Describe("NewFinalizeAction", func() {
 				})
 			})
 			It("should requeue", func(ctx context.Context) {
-				o := &apiv1.GitHubRepository{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewFinalizeAction(finalizer, finalizeFunc).Execute(ctx, k, o)
 				Expect(err).To(BeNil())
@@ -97,17 +97,17 @@ var _ = Describe("NewFinalizeAction", func() {
 				})
 			})
 			It("should set invalid condition and requeue", func(ctx context.Context) {
-				o := &apiv1.GitHubRepository{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewFinalizeAction(finalizer, finalizeFunc).Execute(ctx, k, o)
 				Expect(err).To(BeNil())
 				Expect(result.Requeue).To(BeTrue())
 				Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-				o = &apiv1.GitHubRepository{}
-				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
-				Expect(o.Finalizers).To(ConsistOf(finalizer, deletionPreventionFinalizer))
-				Expect(o.Status.GetInvalidCondition()).To(BeTrueDueTo(apiv1.InternalError))
+				oo := &v1.ObjectWithCommonConditions{}
+				Expect(k.Get(ctx, client.ObjectKeyFromObject(o), oo)).To(Succeed())
+				Expect(oo.Finalizers).To(ConsistOf(finalizer, deletionPreventionFinalizer))
+				Expect(oo.Status.GetInvalidCondition()).To(BeTrueDueTo(v1.FinalizationFailed))
 			})
 		})
 	}
@@ -115,7 +115,7 @@ var _ = Describe("NewFinalizeAction", func() {
 	When("object is deleted", func() {
 		When("finalizer is present", func() {
 			BeforeEach(func() {
-				src := &apiv1.GitHubRepository{
+				src := &v1.ObjectWithCommonConditions{
 					ObjectMeta: metav1.ObjectMeta{
 						DeletionTimestamp: &[]metav1.Time{metav1.Now()}[0],
 						Finalizers:        []string{finalizer, deletionPreventionFinalizer},
@@ -132,16 +132,16 @@ var _ = Describe("NewFinalizeAction", func() {
 				When("finalize function fails", func() {
 					BeforeEach(func() { finalizeFunc = func() error { return errors.New("finalization function failure") } })
 					It("should set invalid condition and requeue", func(ctx context.Context) {
-						o := &apiv1.GitHubRepository{}
+						o := &v1.ObjectWithCommonConditions{}
 						Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 						result, err := reconcile.NewFinalizeAction(finalizer, finalizeFunc).Execute(ctx, k, o)
 						Expect(err).To(BeNil())
 						Expect(result.Requeue).To(BeTrue())
 						Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
-						o = &apiv1.GitHubRepository{}
+						o = &v1.ObjectWithCommonConditions{}
 						Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
-						Expect(o.Status.GetInvalidCondition()).To(BeTrueDueTo(apiv1.FinalizationFailed))
+						Expect(o.Status.GetInvalidCondition()).To(BeTrueDueTo(v1.FinalizationFailed))
 					})
 				})
 				When("finalize function succeeds", func() {
@@ -156,7 +156,7 @@ var _ = Describe("NewFinalizeAction", func() {
 		})
 		When("finalizer is not present", func() {
 			BeforeEach(func() {
-				src := &apiv1.GitHubRepository{
+				src := &v1.ObjectWithCommonConditions{
 					ObjectMeta: metav1.ObjectMeta{
 						DeletionTimestamp: &[]metav1.Time{metav1.Now()}[0],
 						Finalizers:        []string{deletionPreventionFinalizer},
@@ -171,7 +171,7 @@ var _ = Describe("NewFinalizeAction", func() {
 				finalizeFunc = nil
 			})
 			It("should just stop", func(ctx context.Context) {
-				o := &apiv1.GitHubRepository{}
+				o := &v1.ObjectWithCommonConditions{}
 				Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 				result, err := reconcile.NewFinalizeAction(finalizer, finalizeFunc).Execute(ctx, k, o)
 				Expect(err).To(BeNil())
@@ -181,7 +181,7 @@ var _ = Describe("NewFinalizeAction", func() {
 	})
 	When("object is not deleted", func() {
 		BeforeEach(func() {
-			src := &apiv1.GitHubRepository{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
+			src := &v1.ObjectWithCommonConditions{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}}
 			k = fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(src).
@@ -190,7 +190,7 @@ var _ = Describe("NewFinalizeAction", func() {
 			finalizeFunc = nil
 		})
 		It("should continue", func(ctx context.Context) {
-			o := &apiv1.GitHubRepository{}
+			o := &v1.ObjectWithCommonConditions{}
 			Expect(k.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, o)).To(Succeed())
 			result, err := reconcile.NewFinalizeAction(finalizer, finalizeFunc).Execute(ctx, k, o)
 			Expect(err).To(BeNil())
