@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.21 as builder
+ARG TARGETOS
+# no default value, to default to the environment's architecture (e.g. linux/amd64)
+ARG TARGETARCH
+ARG SKAFFOLD_GO_GCFLAGS="all=-N -l"
+
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN --mount=type=cache,target=/go/pkg go mod download
+
+COPY api api/
+COPY cmd/github-controller cmd/github-controller/
+COPY internal/config internal/config/
+COPY internal/controllers/*.go internal/controllers/
+COPY internal/controllers/github/*.go internal/controllers/github/
+COPY internal/util internal/util/
+COPY pkg pkg/
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o github-controller cmd/github-controller/main.go
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/github-controller ./
+USER 65532:65532
+ENV GOTRACEBACK=single
+ENTRYPOINT ["/github-controller"]

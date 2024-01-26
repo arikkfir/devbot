@@ -8,11 +8,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	. "github.com/onsi/gomega/gbytes"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/onsi/gomega/types"
 	"os"
 	"os/exec"
 	"regexp"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 )
@@ -28,21 +27,53 @@ var (
 	smeeTunnelRE = regexp.MustCompile("\nConnected (https://smee.io/[a-zA-Z0-9]+)\n")
 )
 
-func CreateGitHubClient(ctx context.Context, k8s client.Client, Client **github.Client) {
-	gitHubSecretKey := client.ObjectKey{Namespace: GitHubSecretNamespace, Name: GitHubSecretName}
-	secret := &corev1.Secret{}
-	Expect(k8s.Get(ctx, gitHubSecretKey, secret)).To(Succeed())
-	*Client = github.NewClient(nil).WithAuthToken(ObtainGitHubPAT(ctx, k8s))
+func CreateGitHubClient(ctx context.Context, gh **github.Client) {
+	token := os.Getenv("GITHUB_TOKEN")
+	Expect(token).ToNot(BeEmpty())
 
-	DeferCleanup(func() { *Client = nil })
+	ghc := github.NewClient(nil).WithAuthToken(token)
+	req, err := ghc.NewRequest("GET", "user", nil)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(req).ToNot(BeNil())
+	_, err = ghc.Do(ctx, req, nil)
+	Expect(err).ToNot(HaveOccurred())
+
+	*gh = ghc
+	DeferCleanup(func() { *gh = nil })
 }
 
-func CreateGitHubRepository(ctx context.Context, k8s client.Client, gh *github.Client, repoName *string) {
+func CreateGitHubRepository(ctx context.Context, gh *github.Client, repoName *string) {
 	*repoName = stringsutil.Name()
 	Expect(gh.Repositories.Create(ctx, GitHubOwner, &github.Repository{
 		Name:       &[]string{*repoName}[0],
 		Visibility: &[]string{"public"}[0],
 	})).Error().ShouldNot(HaveOccurred())
+
+	DeferCleanup(func() {
+		_, err := gh.Repositories.Delete(context.Background(), GitHubOwner, *repoName)
+		Expect(err).NotTo(HaveOccurred())
+	})
+
+	_, _, err := gh.Repositories.CreateFile(ctx, GitHubOwner, *repoName, "README.md", &github.RepositoryContentFileOptions{
+		Message: &[]string{"Initial commit"}[0],
+		Content: []byte(stringsutil.RandomHash(32)),
+		Branch:  &[]string{"main"}[0],
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	// Wait until GitHub acknowledges the commit
+	Eventually(func(o Gomega) string {
+		branchRef, _, err := gh.Git.GetRef(ctx, GitHubOwner, *repoName, "heads/main")
+		o.Expect(err).ToNot(HaveOccurred())
+		o.Expect(branchRef).ToNot(BeNil())
+		return branchRef.GetObject().GetSHA()
+	}, 30*time.Second).Should(Not(BeEmpty()))
+}
+
+func CreateGitHubRepositoryWithWebhook(ctx context.Context, gh *github.Client, repoName *string, webhookSecret *string) {
+	CreateGitHubRepository(ctx, gh, repoName)
+
+	*webhookSecret = stringsutil.RandomHash(16)
 
 	var smeeCommand *exec.Cmd
 	smeeOutput := gbytes.NewBuffer()
@@ -61,31 +92,11 @@ func CreateGitHubRepository(ctx context.Context, k8s client.Client, gh *github.C
 		Config: map[string]interface{}{
 			"url":          webHookURL,
 			"content_type": "json",
-			"secret":       ObtainGitHubWebhookSecret(ctx, k8s),
+			"secret":       *webhookSecret,
 			"insecure_ssl": "0",
 		},
 	})
 	Expect(err).NotTo(HaveOccurred())
-
-	_, _, err = gh.Repositories.CreateFile(ctx, GitHubOwner, *repoName, "README.md", &github.RepositoryContentFileOptions{
-		Message: &[]string{"Initial commit"}[0],
-		Content: []byte(stringsutil.RandomHash(32)),
-		Branch:  &[]string{"main"}[0],
-	})
-	Expect(err).NotTo(HaveOccurred())
-
-	// Wait until GitHub acknowledges the commit
-	Eventually(func(o Gomega) string {
-		branchRef, _, err := gh.Git.GetRef(ctx, GitHubOwner, *repoName, "heads/main")
-		o.Expect(err).ToNot(HaveOccurred())
-		o.Expect(branchRef).ToNot(BeNil())
-		return branchRef.GetObject().GetSHA()
-	}, 30*time.Second).Should(Not(BeEmpty()))
-
-	DeferCleanup(func() {
-		_, err := gh.Repositories.Delete(context.Background(), GitHubOwner, *repoName)
-		Expect(err).NotTo(HaveOccurred())
-	})
 }
 
 func CreateGitHubBranch(ctx context.Context, gh *github.Client, repoName, branch string, deleteOnCleanup bool) {
@@ -106,6 +117,27 @@ func CreateGitHubBranch(ctx context.Context, gh *github.Client, repoName, branch
 			Expect(err).NotTo(HaveOccurred())
 		})
 	}
+}
+
+func BranchHasName(name string) types.GomegaMatcher {
+	return WithTransform(func(b *github.Branch) string { return b.GetName() }, Equal(name))
+}
+
+func ListGitHubBranches(ctx context.Context, gh *github.Client, repoName string, targetBranches *[]*github.Branch) {
+	var branches []*github.Branch
+	branchesListOptions := &github.BranchListOptions{}
+	for {
+		branchesList, response, err := gh.Repositories.ListBranches(ctx, GitHubOwner, repoName, branchesListOptions)
+		Expect(err).ToNot(HaveOccurred())
+		for _, branch := range branchesList {
+			branches = append(branches, branch)
+		}
+		if response.NextPage == 0 {
+			break
+		}
+		branchesListOptions.Page = response.NextPage
+	}
+	*targetBranches = branches
 }
 
 func DeleteGitHubBranch(ctx context.Context, gh *github.Client, repoName, branch string) {

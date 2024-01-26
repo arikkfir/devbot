@@ -17,6 +17,8 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
+        description: GitHubRepositoryRef is the Schema for the githubrepositoryrefs
+          API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -31,15 +33,29 @@ spec:
           metadata:
             type: object
           spec:
+            description: Spec is the desired state of the GitHubRepositoryRef.
             properties:
-              name:
+              ref:
+                description: Ref is the Git reference that this object represents.
+                  In Git, refs are represented usually as "refs/heads/branch" or "refs/tags/tag".
+                  This field is used to identify the object in the Git repository.
+                maxLength: 1000
+                minLength: 1
+                pattern: ^[a-zA-Z0-9][a-zA-Z0-9._-]*(/[a-zA-Z0-9][a-zA-Z0-9._-]*)*$
                 type: string
             type: object
           status:
+            description: Status is the observed state of the GitHubRepositoryRef.
             properties:
               commitSHA:
+                description: CommitSHA is the latest commit SHA of this Git reference.
+                maxLength: 40
+                minLength: 40
+                pattern: ^[a-f0-9]+$
                 type: string
               conditions:
+                description: Conditions represent the latest available observations
+                  of the GitHubRepositoryRef's state.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
@@ -107,6 +123,20 @@ spec:
                   - type
                   type: object
                 type: array
+              repositoryName:
+                description: Owner is the owner of the GitHub repository that owns
+                  this ref.
+                maxLength: 100
+                minLength: 1
+                pattern: ^[a-zA-Z0-9_][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
+                type: string
+              repositoryOwner:
+                description: Owner is the owner of the GitHub repository that owns
+                  this ref.
+                maxLength: 39
+                minLength: 1
+                pattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]*[a-zA-Z0-9_]$
+                type: string
             type: object
         type: object
     served: true

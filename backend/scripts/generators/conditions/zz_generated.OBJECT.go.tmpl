@@ -1,0 +1,147 @@
+package {{$.PackageName}}
+
+import (
+    "fmt"
+    "github.com/arikkfir/devbot/backend/pkg/k8s"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+{{- range $ci, $c := .Conditions}}
+
+{{- range $ri, $r := $c.Reasons}}
+
+func (s *{{$.ObjectType}}Status) Set{{$c.Name}}DueTo{{$r}}(message string, args ...interface{}) {
+	for i, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+            c.Status = v1.ConditionTrue
+            c.Reason = {{$r}}
+            c.Message = fmt.Sprintf(message, args...)
+            s.Conditions[i] = c
+            return
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:               {{$c.Name}},
+        Status:             v1.ConditionTrue,
+        Reason:             {{$r}},
+        Message:            fmt.Sprintf(message, args...),
+	})
+}
+
+func (s *{{$.ObjectType}}Status) SetMaybe{{$c.Name}}DueTo{{$r}}(message string, args ...interface{}) {
+	for i, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+            c.Status = v1.ConditionUnknown
+            c.Reason = {{$r}}
+            c.Message = fmt.Sprintf(message, args...)
+            s.Conditions[i] = c
+            return
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:               {{$c.Name}},
+        Status:             v1.ConditionUnknown,
+        Reason:             {{$r}},
+        Message:            fmt.Sprintf(message, args...),
+	})
+}
+
+func (s *{{$.ObjectType}}Status) Set{{$c.RemovalVerb}}If{{$c.Name}}DueTo{{$r}}() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != {{$c.Name}} || c.Reason != {{$r}} {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+{{end}}
+
+func (s *{{$.ObjectType}}Status) Set{{$c.RemovalVerb}}() {
+    var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != {{$c.Name}} {
+            newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (s *{{$.ObjectType}}Status) Is{{$c.RemovalVerb}}() bool {
+	for _, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+			return c.Status == v1.ConditionTrue
+		}
+	}
+    return true
+}
+
+func (s *{{$.ObjectType}}Status) Is{{$c.Name}}() bool {
+	for _, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+    return false
+}
+
+func (s *{{$.ObjectType}}Status) Get{{$c.Name}}Condition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+		    lc := c
+		    return &lc
+		}
+	}
+	return nil
+}
+
+func (s *{{$.ObjectType}}Status) Get{{$c.Name}}Reason() string {
+	for _, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+		    return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *{{$.ObjectType}}Status) Get{{$c.Name}}Status() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+		    status := c.Status
+		    return &status
+		}
+	}
+	return nil
+}
+
+func (s *{{$.ObjectType}}Status) Get{{$c.Name}}Message() string {
+	for _, c := range s.Conditions {
+		if c.Type == {{$c.Name}} {
+		    return c.Message
+		}
+	}
+	return ""
+}
+{{- end}}
+
+func (s *{{$.ObjectType}}Status) GetConditions() []v1.Condition {
+    return s.Conditions
+}
+
+func (s *{{$.ObjectType}}Status) SetConditions(conditions []v1.Condition) {
+    s.Conditions = conditions
+}
+
+func (s *{{$.ObjectType}}Status) ClearStaleConditions(currentGeneration int64) {
+    var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.ObservedGeneration >= currentGeneration {
+            newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (o *{{$.ObjectType}}) GetStatus() k8s.CommonStatus {
+    return &o.Status
+}

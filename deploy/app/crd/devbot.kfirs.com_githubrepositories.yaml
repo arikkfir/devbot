@@ -17,6 +17,7 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
+        description: GitHubRepository is the Schema for the githubrepositories API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -31,37 +32,69 @@ spec:
           metadata:
             type: object
           spec:
+            description: Spec is the desired state of the GitHubRepository.
             properties:
               auth:
+                description: Auth is the authentication method to use when accessing
+                  the repository.
                 properties:
                   personalAccessToken:
+                    description: PersonalAccessToken signals that we should use a
+                      GitHub personal access token (PAT) when accessing the repository
+                      as well as how to obtain it.
                     properties:
                       key:
+                        description: Key is the key in the secret containing the GitHub
+                          personal access token.
+                        maxLength: 253
+                        minLength: 1
+                        pattern: ^[a-zA-Z0-9][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
                         type: string
                       secret:
-                        description: SecretReference represents a Secret Reference.
-                          It has enough information to retrieve secret in any namespace
+                        description: Secret is the reference to the secret containing
+                          the GitHub personal access token.
                         properties:
                           name:
-                            description: name is unique within a namespace to reference
-                              a secret resource.
+                            maxLength: 63
+                            minLength: 1
+                            pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                             type: string
                           namespace:
-                            description: namespace defines the space within which
-                              the secret name must be unique.
+                            maxLength: 63
+                            minLength: 1
+                            pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                             type: string
                         type: object
-                        x-kubernetes-map-type: atomic
                     type: object
                 type: object
               name:
+                description: Name is the name of the repository.
+                maxLength: 100
+                minLength: 1
+                pattern: ^[a-zA-Z0-9_][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
                 type: string
               owner:
+                description: Owner is the GitHub user or organization that owns the
+                  repository.
+                maxLength: 39
+                minLength: 1
+                pattern: ^[a-zA-Z0-9][a-zA-Z0-9-_]*[a-zA-Z0-9_]$
+                type: string
+              refreshInterval:
+                default: 5m
+                description: RefreshInterval is the interval at which to refresh the
+                  list of branches in the repository. The value should be specified
+                  as a duration string, e.g. "5m" for 5 minutes. The default value
+                  is "5m".
+                minLength: 1
                 type: string
             type: object
           status:
+            description: Status is the observed state of the GitHubRepository.
             properties:
               conditions:
+                description: Conditions represent the latest available observations
+                  of the GitHubRepository's state.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct
@@ -129,6 +162,12 @@ spec:
                   - type
                   type: object
                 type: array
+              defaultBranch:
+                description: DefaultBranch is the default branch of the repository.
+                maxLength: 250
+                minLength: 1
+                pattern: ^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$
+                type: string
             type: object
         type: object
     served: true

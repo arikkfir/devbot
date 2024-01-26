@@ -13,15 +13,11 @@ RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
 COPY cmd/application-controller cmd/application-controller/
-COPY internal/config/base.go internal/config/
-COPY internal/controllers/config.go internal/controllers/
-COPY internal/controllers/application/application_controller.go internal/controllers/application/
-COPY internal/util/configuration/parse.go internal/util/configuration/
-COPY internal/util/logging/initialization.go internal/util/logging/
-COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
-COPY internal/util/k8s/debug.go internal/util/k8s/
-COPY internal/util/k8s/ownership.go internal/util/k8s/
-COPY internal/util/strings/hash.go internal/util/strings/
+COPY internal/config internal/config/
+COPY internal/controllers/*.go internal/controllers/
+COPY internal/controllers/application/* internal/controllers/application/
+COPY internal/util internal/util/
+COPY pkg pkg/
 RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o application-controller cmd/application-controller/main.go
 
 FROM gcr.io/distroless/static:nonroot

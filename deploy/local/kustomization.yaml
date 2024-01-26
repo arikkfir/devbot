@@ -46,7 +46,7 @@ patches:
           name: SECRET
           valueFrom:
             secretKeyRef:
-              key: WEBHOOK_SECRET
+              key: GITHUB_WEBHOOK_SECRET
               name: devbot-github-auth
               optional: false
     target:

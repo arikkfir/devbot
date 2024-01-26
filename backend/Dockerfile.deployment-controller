@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.21 as builder
+ARG TARGETOS
+# no default value, to default to the environment's architecture (e.g. linux/amd64)
+ARG TARGETARCH
+ARG SKAFFOLD_GO_GCFLAGS="all=-N -l"
+
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN --mount=type=cache,target=/go/pkg go mod download
+
+COPY api api/
+COPY cmd/deployment-controller cmd/deployment-controller/
+COPY internal/config internal/config/
+COPY internal/controllers/*.go internal/controllers/
+COPY internal/controllers/deployment/*.go internal/controllers/deployment/
+COPY internal/util internal/util/
+COPY pkg pkg/
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o deployment-controller cmd/deployment-controller/main.go
+
+FROM gcr.io/distroless/static:nonroot
+# TODO: download and install kustomize
+# TODO: download and install yq
+# TODO: download and install kubectl
+WORKDIR /
+COPY --from=builder /workspace/deployment-controller ./
+USER 65532:65532
+ENV GOTRACEBACK=single
+ENTRYPOINT ["/deployment-controller"]

@@ -1,30 +1,36 @@
 # nonk8s
-apiVersion: skaffold/v4beta6
+apiVersion: skaffold/v4beta8
 kind: Config
 metadata:
   name: devbot
 build:
   artifacts:
+
     - image: ghcr.io/arikkfir/devbot/application-controller
       context: backend
       docker:
         dockerfile: Dockerfile.application-controller
-    - image: ghcr.io/arikkfir/devbot/application-environment-controller
+
+    - image: ghcr.io/arikkfir/devbot/deployment-controller
       context: backend
       docker:
-        dockerfile: Dockerfile.application-environment-controller
-    - image: ghcr.io/arikkfir/devbot/github-repository-controller
+        dockerfile: Dockerfile.deployment-controller
+
+    - image: ghcr.io/arikkfir/devbot/environment-controller
       context: backend
       docker:
-        dockerfile: Dockerfile.github-repository-controller
-    - image: ghcr.io/arikkfir/devbot/github-repository-ref-controller
+        dockerfile: Dockerfile.environment-controller
+
+    - image: ghcr.io/arikkfir/devbot/github-controller
       context: backend
       docker:
-        dockerfile: Dockerfile.github-repository-ref-controller
+        dockerfile: Dockerfile.github-controller
+
     - image: ghcr.io/arikkfir/devbot/github-webhook
       context: backend
       docker:
         dockerfile: Dockerfile.github-webhook
+
   local:
     useBuildkit: true
 manifests:

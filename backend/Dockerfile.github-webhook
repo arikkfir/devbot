@@ -13,15 +13,11 @@ RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
 COPY cmd/github-webhook cmd/github-webhook/
-COPY internal/config/base.go internal/config/
-COPY internal/util/configuration/parse.go internal/util/configuration/
-COPY internal/util/logging/initialization.go internal/util/logging/
-COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
-COPY internal/webhooks/github/config.go internal/webhooks/github/
-COPY internal/webhooks/github/github_push_handler.go internal/webhooks/github/
-COPY internal/webhooks/util/custom_read_closer.go internal/webhooks/util/
-COPY internal/webhooks/util/health_check_server.go internal/webhooks/util/
-COPY internal/webhooks/util/middleware_access_log.go internal/webhooks/util/
+COPY internal/config internal/config/
+COPY internal/util internal/util/
+COPY internal/webhooks/github internal/webhooks/github/
+COPY internal/webhooks/util internal/webhooks/util/
+COPY pkg pkg/
 RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o github-webhook cmd/github-webhook/main.go
 
 FROM gcr.io/distroless/static:nonroot

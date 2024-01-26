@@ -16,3 +16,5 @@ Please see the [contributing guide](.github/CONTRIBUTING.md) for details.
 ## Status
 
 Alpha. Do not use.
+
+- [ ] Automate a way to detect API condition reasons not used (unused methods in status objects?)

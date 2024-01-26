@@ -17,6 +17,7 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
+        description: Application is the Schema for the applications API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -31,85 +32,78 @@ spec:
           metadata:
             type: object
           spec:
+            description: Spec is the desired state of the Application.
             properties:
               repositories:
-                description: Repositories point to the set of
+                description: Repositories is a list of repositories to be deployed
+                  as part of this application.
                 items:
-                  description: "ObjectReference contains enough information to let
-                    you inspect or modify the referred object. --- New uses of this
-                    type are discouraged because of difficulty describing its usage
-                    when embedded in APIs. 1. Ignored fields.  It includes many fields
-                    which are not generally honored.  For instance, ResourceVersion
-                    and FieldPath are both very rarely valid in actual usage. 2. Invalid
-                    usage help.  It is impossible to add specific help for individual
-                    usage.  In most embedded usages, there are particular restrictions
-                    like, \"must refer only to types A and B\" or \"UID not honored\"
-                    or \"name must be restricted\". Those cannot be well described
-                    when embedded. 3. Inconsistent validation.  Because the usages
-                    are different, the validation rules are different by usage, which
-                    makes it hard for users to predict what will happen. 4. The fields
-                    are both imprecise and overly precise.  Kind is not a precise
-                    mapping to a URL. This can produce ambiguity during interpretation
-                    and require a REST mapping.  In most cases, the dependency is
-                    on the group,resource tuple and the version of the actual struct
-                    is irrelevant. 5. We cannot easily change it.  Because this type
-                    is embedded in many locations, updates to this type will affect
-                    numerous schemas.  Don't make new APIs embed an underspecified
-                    API type they do not control. \n Instead of using this type, create
-                    a locally provided and used type that is well-focused on your
-                    reference. For example, ServiceReferences for admission registration:
-                    https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533
-                    ."
                   properties:
                     apiVersion:
-                      description: API version of the referent.
+                      minLength: 1
+                      pattern: ^[a-z0-9]+(\.[a-z0-9]+)*$
                       type: string
-                    fieldPath:
-                      description: 'If referring to a piece of an object instead of
-                        an entire object, this string should contain a valid JSON/Go
-                        field access statement, such as desiredState.manifest.containers[2].
-                        For example, if the object reference is to a container within
-                        a pod, this would take on a value like: "spec.containers{name}"
-                        (where "name" refers to the name of the container that triggered
-                        the event) or if no container name is specified "spec.containers[2]"
-                        (container with index 2 in this pod). This syntax is chosen
-                        only to have some well-defined way of referencing a part of
-                        an object. TODO: this design is not final and this field is
-                        subject to change in the future.'
-                      type: string
+                    deployment:
+                      description: Deployment specifies how to deploy this repository.
+                      properties:
+                        kustomize:
+                          description: Instructions to deploy this repository using
+                            kustomize.
+                          properties:
+                            path:
+                              description: "Path is the path to the kustomization
+                                file relative to the repository root. The resulting
+                                YAML file will be post processed by bash for environment
+                                variables expansion. The following environment variables
+                                will be expanded: \n - $APPLICATION: The name of the
+                                application. - $BRANCH: The actual branch being deployed
+                                (might differ from the environment's preferred branch,
+                                as it might not exist in all participating repositories).
+                                - $COMMIT_SHA: The commit SHA being deployed. - $ENVIRONMENT:
+                                The logical name of the environment (its preferred
+                                branch name; not the name of the environment Kubernetes
+                                object)"
+                              minLength: 1
+                              type: string
+                          type: object
+                      type: object
                     kind:
-                      description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
+                      type: string
+                    missingBranchStrategy:
+                      default: UseDefaultBranch
+                      description: MissingBranchStrategy defines what to do when the
+                        desired branch of an environment is missing in this repository.
+                        If "UseDefaultBranch" is set, then instead of the desired
+                        branch the default branch of the repository is used. If "Ignore"
+                        is set, then the repository is ignored and not deployed to
+                        the application environment.
+                      enum:
+                      - Ignore
+                      - UseDefaultBranch
                       type: string
                     name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                       type: string
                     namespace:
-                      description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                      type: string
-                    resourceVersion:
-                      description: 'Specific resourceVersion to which this reference
-                        is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                      type: string
-                    uid:
-                      description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                       type: string
                   type: object
-                  x-kubernetes-map-type: atomic
+                minItems: 1
                 type: array
-              strategy:
-                properties:
-                  defaultBranch:
-                    type: string
-                  missing:
-                    enum:
-                    - Ignore
-                    - Default
-                    type: string
-                type: object
             type: object
           status:
+            description: Status is the observed state of the Application.
             properties:
               conditions:
+                description: Conditions represent the latest available observations
+                  of the application's state.
                 items:
                   description: "Condition contains details for one aspect of the current
                     state of this API Resource. --- This struct is intended for direct

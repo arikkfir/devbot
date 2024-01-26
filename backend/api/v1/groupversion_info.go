@@ -3,31 +3,12 @@
 // +groupName=devbot.kfirs.com
 //
 //go:generate controller-gen object crd paths="." output:crd:artifacts:config=../../../deploy/app/crd
-//go:generate go run ../../scripts/generators/api-status-conditions/main.go
+//go:generate go run ../../scripts/generators/conditions .
 package v1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
-)
-
-const (
-	ConditionTypeAuthenticatedToGitHub = "AuthenticatedToGitHub"
-	ConditionTypeCurrent               = "Current"
-	ConditionTypeDeploying             = "Deploying"
-	ConditionTypeValid                 = "Valid"
-	ReasonAuthenticated                = "Authenticated"
-	ReasonConfigError                  = "ConfigError"
-	ReasonAuthConfigError              = "AuthConfigError"
-	ReasonGitHubAuthSecretNameMissing  = "GitHubAuthSecretNameMissing"
-	ReasonGitHubAuthSecretNotFound     = "GitHubAuthSecretNotFound"
-	ReasonGitHubAuthSecretForbidden    = "GitHubAuthSecretForbidden"
-	ReasonGitHubAuthSecretEmptyToken   = "GitHubAuthSecretEmptyToken"
-	ReasonGitHubAPIFailed              = "GitHubAPIFailed"
-	ReasonInitializing                 = "Initializing"
-	ReasonInternalError                = "InternalError"
-	ReasonSynced                       = "Synced"
-	ReasonValid                        = "Valid"
 )
 
 const (
@@ -48,6 +29,7 @@ var (
 
 var (
 	ApplicationGVK         = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Application"}
+	EnvironmentGVK         = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Environment"}
 	GitHubRepositoryGVK    = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "GitHubRepository"}
 	GitHubRepositoryRefGVK = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "GitHubRepositoryRef"}
 )

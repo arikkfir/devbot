@@ -18,7 +18,6 @@ func init() {
 	}
 }
 
-//goland:noinspection GoUnusedExportedFunction
 func Name() string {
 	return codename.Generate(rng, 0)
 }
