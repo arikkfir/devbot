@@ -12,7 +12,6 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 $ brew install yq jq                                                  # used occasionally by various scripts
 $ brew install kubebuilder                                            # might be useful, not strictly required currently
 $ brew install kubernetes-cli kustomize skaffold                      # Kubernetes tooling
-$ brew install redis                                                  # for local inspection of redis data
 $ brew install go                                                     # for backend development
 $ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0  # used to generate CRDs from controller code
 $ brew install node                                                   # for smee-client

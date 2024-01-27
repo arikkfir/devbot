@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"github.com/arikkfir/devbot/backend/internal/controllers"
 	"github.com/arikkfir/devbot/backend/internal/controllers/github"
 	"github.com/arikkfir/devbot/backend/internal/util/configuration"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
+	"github.com/arikkfir/devbot/backend/pkg/k8s"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -61,9 +63,9 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	//if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
+	if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to create index")
+	}
 
 	reconciler := &github.Reconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := reconciler.SetupWithManager(mgr); err != nil {

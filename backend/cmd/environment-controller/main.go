@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/arikkfir/devbot/backend/internal/controllers"
 	"github.com/arikkfir/devbot/backend/internal/controllers/environment"
 	"github.com/arikkfir/devbot/backend/internal/util/configuration"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
+	"github.com/arikkfir/devbot/backend/pkg/k8s"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -62,18 +64,18 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	//if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Environment{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Deployment{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &apiv1.GitHubRepositoryRef{}, "spec.ref", indexGitHubRepositoryRefSpecRef); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to index 'spec.ref' of 'GitHubRepositoryRef' objects")
-	//}
+	if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Environment{}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to create index")
+	}
+	if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Deployment{}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to create index")
+	}
+	if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to create index")
+	}
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &apiv1.GitHubRepositoryRef{}, "spec.ref", indexGitHubRepositoryRefSpecRef); err != nil {
+		log.Fatal().Err(err).Msg("Failed to index 'spec.ref' of 'GitHubRepositoryRef' objects")
+	}
 
 	applicationEnvReconciler := &environment.Reconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := applicationEnvReconciler.SetupWithManager(mgr); err != nil {

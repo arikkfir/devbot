@@ -69,9 +69,6 @@ spec:
     spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/github-webhook
-          env:
-            - name: REDIS_HOST
-              value: devbot-redis
           name: github-webhook
           ports:
             - containerPort: 8000

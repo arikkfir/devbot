@@ -1,17 +1,20 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: application-environment-controller
+  name: deployment-controller
 rules:
   - apiGroups: [devbot.kfirs.com]
     resources: [applications, applications/status]
     verbs: [get, list, watch]
   - apiGroups: [devbot.kfirs.com]
-    resources: [applicationenvironments, applicationenvironments/status]
-    verbs: [create, get, list, watch, patch, update, delete]
+    resources: [environments, environments/status]
+    verbs: [get, list, watch]
   - apiGroups: [devbot.kfirs.com]
-    resources: [deployments, deployments/status]
-    verbs: [create, get, list, watch, patch, update, delete]
+    resources: [deployments]
+    verbs: [get, list, watch, update, patch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [deployments/status]
+    verbs: [get, watch, patch, update]
   - apiGroups: [devbot.kfirs.com]
     resources: [githubrepositories, githubrepositoryrefs/status, githubrepositoryrefs, githubrepositoryrefs/status]
     verbs: [get, list, watch]
@@ -20,65 +23,62 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    iam.gke.io/gcp-service-account: application-environment-controller@arikkfir.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: deployment-controller@arikkfir.iam.gserviceaccount.com
   labels:
-    app.kubernetes.io/component: application-environment-controller
-  name: application-environment-controller
+    app.kubernetes.io/component: deployment-controller
+  name: deployment-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: application-environment-controller
-  name: application-environment-controller
+    app.kubernetes.io/component: deployment-controller
+  name: deployment-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: application-environment-controller
+  name: deployment-controller
 subjects:
   - kind: ServiceAccount
-    name: application-environment-controller
+    name: deployment-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: application-environment-controller
-  name: application-environment-controller-leader-election
+    app.kubernetes.io/component: deployment-controller
+  name: deployment-controller-leader-election
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: leader-election
 subjects:
   - kind: ServiceAccount
-    name: application-environment-controller
+    name: deployment-controller
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: application-environment-controller
+    app.kubernetes.io/component: deployment-controller
     app.kubernetes.io/component-type: controller
     app.kubernetes.io/std-logger: "true"
-  name: application-environment-controller
+  name: deployment-controller
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/component: application-environment-controller
+      app.kubernetes.io/component: deployment-controller
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: application-environment-controller
+        app.kubernetes.io/component: deployment-controller
     spec:
       containers:
-        - image: ghcr.io/arikkfir/devbot/application-environment-controller
+        - image: ghcr.io/arikkfir/devbot/deployment-controller
           args: []
-          env:
-            - name: REDIS_HOST
-              value: devbot-redis
-          name: application-environment-controller
+          name: deployment-controller
           ports:
             - containerPort: 8000
               name: metrics
@@ -92,4 +92,4 @@ spec:
               cpu: 50m
               memory: 32Mi
       enableServiceLinks: false
-      serviceAccountName: application-environment-controller
+      serviceAccountName: deployment-controller

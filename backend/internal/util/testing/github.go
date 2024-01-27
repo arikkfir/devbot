@@ -42,7 +42,8 @@ func CreateGitHubClient(ctx context.Context, gh **github.Client) {
 	DeferCleanup(func() { *gh = nil })
 }
 
-func CreateGitHubRepository(ctx context.Context, gh *github.Client, repoName *string) {
+func CreateGitHubRepository(ctx context.Context, gh *github.Client, owner *string, repoName *string) {
+	*owner = GitHubOwner
 	*repoName = stringsutil.Name()
 	Expect(gh.Repositories.Create(ctx, GitHubOwner, &github.Repository{
 		Name:       &[]string{*repoName}[0],
@@ -70,8 +71,8 @@ func CreateGitHubRepository(ctx context.Context, gh *github.Client, repoName *st
 	}, 30*time.Second).Should(Not(BeEmpty()))
 }
 
-func CreateGitHubRepositoryWithWebhook(ctx context.Context, gh *github.Client, repoName *string, webhookSecret *string) {
-	CreateGitHubRepository(ctx, gh, repoName)
+func CreateGitHubRepositoryWithWebhook(ctx context.Context, gh *github.Client, owner *string, repoName *string, webhookSecret *string) {
+	CreateGitHubRepository(ctx, gh, owner, repoName)
 
 	*webhookSecret = stringsutil.RandomHash(16)
 

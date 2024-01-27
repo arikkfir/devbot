@@ -4,11 +4,17 @@ metadata:
   name: application-controller
 rules:
   - apiGroups: [devbot.kfirs.com]
-    resources: [applications, applications/status]
-    verbs: [get, list, watch, patch, update]
+    resources: [applications]
+    verbs: [get, list, watch, update, patch]
   - apiGroups: [devbot.kfirs.com]
-    resources: [applicationenvironments, applicationenvironments/status]
-    verbs: [create, get, list, watch, patch, update, delete]
+    resources: [applications/status]
+    verbs: [get, watch, patch, update]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [environments]
+    verbs: [create, get, list, watch, patch, update]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [environments/status]
+    verbs: [create, get, watch, patch, update]
   - apiGroups: [devbot.kfirs.com]
     resources: [githubrepositories, githubrepositoryrefs/status, githubrepositoryrefs, githubrepositoryrefs/status]
     verbs: [get, list, watch]
@@ -72,9 +78,6 @@ spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/application-controller
           args: []
-          env:
-            - name: REDIS_HOST
-              value: devbot-redis
           name: application-controller
           ports:
             - containerPort: 8000
