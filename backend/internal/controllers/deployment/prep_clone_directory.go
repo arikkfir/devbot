@@ -2,16 +2,19 @@ package deployment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/arikkfir/devbot/backend/pkg/k8s/reconcile"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewPrepareCloneDirectoryAction(targetDir *string, gitURL *string) reconcile.Action {
+func NewPrepareCloneDirectoryAction(gitURL *string) reconcile.Action {
 	return func(ctx context.Context, c client.Client, o client.Object) (*ctrl.Result, error) {
 		d := o.(*apiv1.Deployment)
 
@@ -51,22 +54,17 @@ func NewPrepareCloneDirectoryAction(targetDir *string, gitURL *string) reconcile
 
 		// Decide on a clone path and save it in the object
 		if d.Status.ClonePath == "" {
-			if dir, err := os.MkdirTemp(os.TempDir(), "clone-*"); err != nil {
-				d.Status.SetStaleDueToCloneFailed("Failed creating temporary directory: %+v", err)
-				return reconcile.Requeue()
-			} else if err := os.RemoveAll(dir); err != nil {
-				d.Status.SetStaleDueToCloneFailed("Failed removing temporary directory: %+v", err)
-				return reconcile.Requeue()
-			} else {
+			d.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s", d.Spec.Repository.Namespace, d.Spec.Repository.Name, strings.RandomHash(7))
+			return reconcile.Requeue()
+		} else if _, err := os.Stat(d.Status.ClonePath); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
 				d.Status.SetStaleDueToCloneMissing("Repository not cloned yet")
-				d.Status.ClonePath = dir
-				return reconcile.Requeue()
+			} else {
+				d.Status.SetMaybeStaleDueToInternalError("Failed to stat local clone dir at '%s': %+v", d.Status.ClonePath, err)
 			}
 		}
 
-		*targetDir = d.Status.ClonePath
 		*gitURL = url
-		d.Status.SetMaybeStaleDueToCloning("Opening/cloning repository from '%s' into '%s'", gitURL, d.Status.ClonePath)
 		return reconcile.Continue()
 	}
 }

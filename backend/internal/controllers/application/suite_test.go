@@ -26,5 +26,5 @@ var _ = AfterSuite(func() {
 
 func TestApplication(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Application Suite")
+	RunSpecs(t, "Application")
 }

@@ -30,7 +30,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	var deployment *apiv1.Deployment
 	var env *apiv1.Environment
 	var app *apiv1.Application
-	var cloneDir, gitURL string
+	var gitURL string
 	var ghRepo *git.Repository
 	var resourcesFile string
 	reconciliation := reconcile.Reconciliation{
@@ -40,7 +40,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			reconcile.NewAddFinalizerAction(Finalizer),
 			reconcile.NewGetControllerAction(false, deployment, env),
 			reconcile.NewGetControllerAction(false, env, app),
-			NewPrepareCloneDirectoryAction(&cloneDir, &gitURL),
+			NewPrepareCloneDirectoryAction(&gitURL),
 			NewCloneRepositoryAction(gitURL, &ghRepo),
 			NewBakeAction(app, env, ghRepo, &resourcesFile),
 			NewApplyAction(resourcesFile),

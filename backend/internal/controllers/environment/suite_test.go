@@ -24,7 +24,7 @@ var _ = AfterSuite(func() {
 	scheme = nil
 })
 
-func TestApplication(t *testing.T) {
+func TestEnvironment(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Environment Suite")
+	RunSpecs(t, "Environment")
 }

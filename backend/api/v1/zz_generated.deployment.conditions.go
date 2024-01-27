@@ -332,6 +332,52 @@ func (s *DeploymentStatus) SetCurrentIfStaleDueToInvalid() {
 	s.Conditions = newConditions
 }
 
+func (s *DeploymentStatus) SetStaleDueToPulling(message string, args ...interface{}) {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			c.Status = v1.ConditionTrue
+			c.Reason = Pulling
+			c.Message = fmt.Sprintf(message, args...)
+			s.Conditions[i] = c
+			return
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  Pulling,
+		Message: fmt.Sprintf(message, args...),
+	})
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToPulling(message string, args ...interface{}) {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			c.Status = v1.ConditionUnknown
+			c.Reason = Pulling
+			c.Message = fmt.Sprintf(message, args...)
+			s.Conditions[i] = c
+			return
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  Pulling,
+		Message: fmt.Sprintf(message, args...),
+	})
+}
+
+func (s *DeploymentStatus) SetCurrentIfStaleDueToPulling() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Stale || c.Reason != Pulling {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
 func (s *DeploymentStatus) SetCurrent() {
 	var newConditions []v1.Condition
 	for _, c := range s.Conditions {

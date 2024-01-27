@@ -1,4 +1,4 @@
-package github_test
+package deployment_test
 
 import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
@@ -24,7 +24,7 @@ var _ = AfterSuite(func() {
 	scheme = nil
 })
 
-func TestGitHubRepository(t *testing.T) {
+func TestDeployment(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "GitHubRepository")
+	RunSpecs(t, "Deployment")
 }

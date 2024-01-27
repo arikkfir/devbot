@@ -26,6 +26,7 @@ const (
 	InternalError                  = "InternalError"
 	Invalid                        = "Invalid"
 	InvalidRefreshInterval         = "InvalidRefreshInterval"
+	Pulling                        = "Pulling"
 	RepositoryAdded                = "RepositoryAdded"
 	RepositoryMissingDefaultBranch = "RepositoryMissingDefaultBranch"
 	RepositoryNameMissing          = "RepositoryNameMissing"

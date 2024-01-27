@@ -7,7 +7,7 @@ import (
 // Deployment represents a deployment of a repository into an environment.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Current,Stale:ApplyFailed,BakingFailed,CloneFailed,CloneMissing,Cloning
+// +condition:Current,Stale:ApplyFailed,BakingFailed,CloneFailed,CloneMissing,Cloning,Pulling
 // +condition:Current,Stale:InternalError,Invalid
 // +condition:Valid,Invalid:AddFinalizerFailed,ControllerMissing,FailedGettingOwnedObjects,FinalizationFailed,InternalError
 // +condition:Valid,Invalid:RepositoryNotAccessible,RepositoryNotFound,RepositoryNotSupported
