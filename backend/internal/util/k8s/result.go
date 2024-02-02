@@ -11,7 +11,7 @@ type Result struct {
 	RequeueAfter *time.Duration
 }
 
-func (r *Result) Return() (ctrl.Result, error) {
+func (r *Result) ToResultAndError() (ctrl.Result, error) {
 	if r.Error != nil {
 		return ctrl.Result{}, r.Error
 	} else if r.RequeueAfter != nil {

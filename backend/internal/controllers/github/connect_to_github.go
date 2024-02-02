@@ -42,7 +42,10 @@ func ConnectToGitHub[O client.Object](r *k8s.Reconciliation[O], repoOwner, repoN
 		status.SetInvalidDueToAuthConfigMissing("Auth config is missing")
 		status.SetUnauthenticatedDueToInvalid(status.GetInvalidMessage())
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
+		if result := r.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.DoNotRequeue()
 	}
 
 	authSecretName := patCfg.Secret.Name
@@ -50,7 +53,10 @@ func ConnectToGitHub[O client.Object](r *k8s.Reconciliation[O], repoOwner, repoN
 		status.SetInvalidDueToAuthSecretNameMissing("Auth secret name is empty")
 		status.SetUnauthenticatedDueToInvalid(status.GetInvalidMessage())
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
+		if result := r.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.DoNotRequeue()
 	}
 
 	secretKey := patCfg.Key
@@ -58,25 +64,33 @@ func ConnectToGitHub[O client.Object](r *k8s.Reconciliation[O], repoOwner, repoN
 		status.SetInvalidDueToAuthSecretKeyMissing("Auth secret key is missing")
 		status.SetUnauthenticatedDueToInvalid(status.GetInvalidMessage())
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
+		if result := r.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.DoNotRequeue()
 	}
 
 	if repoOwner == "" {
 		status.SetInvalidDueToRepositoryOwnerMissing("Repository owner is empty")
 		status.SetUnauthenticatedDueToInvalid(status.GetInvalidMessage())
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
+		if result := r.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.DoNotRequeue()
 	} else if repoName == "" {
 		status.SetInvalidDueToRepositoryNameMissing("Repository name is empty")
 		status.SetUnauthenticatedDueToInvalid(status.GetInvalidMessage())
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
-	}
-
-	if status.SetValidIfInvalidDueToAnyOf(apiv1.AuthConfigMissing, apiv1.AuthSecretNameMissing, apiv1.AuthSecretKeyMissing, apiv1.RepositoryOwnerMissing, apiv1.RepositoryNameMissing) {
-		if result := r.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
+		if result := r.UpdateStatus(); result != nil {
 			return result
 		}
+		return k8s.DoNotRequeue()
+	}
+
+	status.SetValidIfInvalidDueToAnyOf(apiv1.AuthConfigMissing, apiv1.AuthSecretNameMissing, apiv1.AuthSecretKeyMissing, apiv1.RepositoryOwnerMissing, apiv1.RepositoryNameMissing)
+	if result := r.UpdateStatus(); result != nil {
+		return result
 	}
 
 	authSecret := &corev1.Secret{}
@@ -85,15 +99,24 @@ func ConnectToGitHub[O client.Object](r *k8s.Reconciliation[O], repoOwner, repoN
 		if apierrors.IsNotFound(err) {
 			status.SetUnauthenticatedDueToAuthSecretNotFound("Secret '%s' not found", secretObjKey)
 			status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-			return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
+			if result := r.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.RequeueAfter(refreshInterval)
 		} else if apierrors.IsForbidden(err) {
 			status.SetUnauthenticatedDueToAuthSecretForbidden("Secret '%s' is not accessible: %+v", secretObjKey, err)
 			status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-			return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
+			if result := r.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.RequeueAfter(refreshInterval)
 		} else {
 			status.SetUnauthenticatedDueToAuthSecretGetFailed("Failed reading secret '%s': %+v", secretObjKey, err)
 			status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-			return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueDueToErrorStrategy(err)))
+			if result := r.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.RequeueAfter(refreshInterval)
 		}
 	}
 
@@ -101,45 +124,61 @@ func ConnectToGitHub[O client.Object](r *k8s.Reconciliation[O], repoOwner, repoN
 	if !ok {
 		status.SetUnauthenticatedDueToAuthSecretKeyNotFound("Key '%s' not found in secret '%s'", secretKey, secretObjKey)
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
+		if result := r.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.RequeueAfter(refreshInterval)
 	} else if string(pat) == "" {
 		status.SetUnauthenticatedDueToAuthTokenEmpty("Token in key '%s' in secret '%s' is empty", secretKey, secretObjKey)
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
+		if result := r.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.RequeueAfter(refreshInterval)
 	}
 
 	ghc := github.NewClient(nil).WithAuthToken(string(pat))
 	if req, err := ghc.NewRequest("GET", "user", nil); err != nil {
 		status.SetUnauthenticatedDueToTokenValidationFailed("Token validation request creation failed: %+v", err)
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
+		if result := r.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.RequeueAfter(refreshInterval)
 	} else if _, err := ghc.Do(r.Ctx, req, nil); err != nil {
 		status.SetUnauthenticatedDueToTokenValidationFailed("Token validation request failed: %+v", err)
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
-		return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
-	}
-
-	if status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.Invalid, apiv1.AuthSecretNotFound, apiv1.AuthSecretForbidden, apiv1.AuthSecretGetFailed, apiv1.AuthSecretKeyNotFound, apiv1.AuthTokenEmpty, apiv1.TokenValidationFailed) {
-		if result := r.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
+		if result := r.UpdateStatus(); result != nil {
 			return result
 		}
+		return k8s.RequeueAfter(refreshInterval)
+	}
+
+	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.Invalid, apiv1.AuthSecretNotFound, apiv1.AuthSecretForbidden, apiv1.AuthSecretGetFailed, apiv1.AuthSecretKeyNotFound, apiv1.AuthTokenEmpty, apiv1.TokenValidationFailed)
+	if result := r.UpdateStatus(); result != nil {
+		return result
 	}
 
 	ghr, resp, err := ghc.Repositories.Get(r.Ctx, repoOwner, repoName)
 	if err != nil {
 		if resp.StatusCode == http.StatusNotFound {
 			status.SetStaleDueToRepositoryNotFound("Repository not found: %s", resp.Status)
-			return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
+			if result := r.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.RequeueAfter(refreshInterval)
 		} else {
 			status.SetMaybeStaleDueToInternalError("Failed fetching repository '%s/%s': %+v", repoOwner, repoName, err)
-			return r.UpdateStatus(k8s.WithStrategy(k8s.RequeueAfterStrategy(refreshInterval)))
+			if result := r.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.RequeueAfter(refreshInterval)
 		}
 	}
 
-	if status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated, apiv1.RepositoryNotFound, apiv1.InternalError) {
-		if result := r.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
-			return result
-		}
+	status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated, apiv1.RepositoryNotFound, apiv1.InternalError)
+	if result := r.UpdateStatus(); result != nil {
+		return result
 	}
 
 	*gh = ghc

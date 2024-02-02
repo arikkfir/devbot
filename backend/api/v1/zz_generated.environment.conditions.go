@@ -11,6 +11,54 @@ import (
 	"slices"
 )
 
+func (s *EnvironmentStatus) SetStaleDueToDeploymentBranchOutOfSync(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != DeploymentBranchOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = DeploymentBranchOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  DeploymentBranchOutOfSync,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeStaleDueToDeploymentBranchOutOfSync(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != DeploymentBranchOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = DeploymentBranchOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  DeploymentBranchOutOfSync,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
 func (s *EnvironmentStatus) SetStaleDueToInternalError(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {

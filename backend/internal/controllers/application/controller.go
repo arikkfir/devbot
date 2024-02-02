@@ -27,12 +27,29 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *Reconciler) SyncEnvironments(rec *k8s.Reconciliation[*apiv1.Application]) *k8s.Result {
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Application{}, Finalizer, nil)
+	if result != nil {
+		return result.ToResultAndError()
+	}
 
+	// Finalize object if deleted
+	if result := rec.FinalizeObjectIfDeleted(); result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Initialize object if not initialized
+	if result := rec.InitializeObject(); result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Create missing environments objects based on current branches in participating repositories
 	// Fetch existing ref objects
 	envsList := &apiv1.EnvironmentList{}
 	if err := r.List(rec.Ctx, envsList, k8s.OwnedBy(r.Scheme, rec.Object)); err != nil {
-		return k8s.RequeueDueToError(errors.New("failed listing owned objects: %w", err))
+		return k8s.RequeueDueToError(errors.New("failed listing owned objects: %w", err)).ToResultAndError()
 	}
 
 	// Create a map of all environments by their preferred branch
@@ -52,13 +69,22 @@ func (r *Reconciler) SyncEnvironments(rec *k8s.Reconciliation[*apiv1.Application
 			if err := r.Get(rec.Ctx, repoClientKey, repo); err != nil {
 				if apierrors.IsNotFound(err) {
 					rec.Object.Status.SetStaleDueToRepositoryNotFound("GitHub repository '%s' not found", repoClientKey)
-					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
+					if result := rec.UpdateStatus(); result != nil {
+						return result.ToResultAndError()
+					}
+					return k8s.Requeue().ToResultAndError()
 				} else if apierrors.IsForbidden(err) {
 					rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("GitHub repository '%s' is not accessible: %+v", repoClientKey, err)
-					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
+					if result := rec.UpdateStatus(); result != nil {
+						return result.ToResultAndError()
+					}
+					return k8s.Requeue().ToResultAndError()
 				} else {
 					rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up GitHub repository '%s': %+v", repoClientKey, err)
-					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
+					if result := rec.UpdateStatus(); result != nil {
+						return result.ToResultAndError()
+					}
+					return k8s.Requeue().ToResultAndError()
 				}
 			}
 
@@ -66,7 +92,10 @@ func (r *Reconciler) SyncEnvironments(rec *k8s.Reconciliation[*apiv1.Application
 			refs := &apiv1.GitHubRepositoryRefList{}
 			if err := r.List(rec.Ctx, refs, k8s.OwnedBy(r.Scheme, repo)); err != nil {
 				rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up refs for GitHub repository '%s': %+v", repoClientKey, err)
-				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
+				if result := rec.UpdateStatus(); result != nil {
+					return result.ToResultAndError()
+				}
+				return k8s.Requeue().ToResultAndError()
 			}
 
 			// For every repository branch found, ensure there's an environment for it
@@ -83,7 +112,10 @@ func (r *Reconciler) SyncEnvironments(rec *k8s.Reconciliation[*apiv1.Application
 					}
 					if err := r.Create(rec.Ctx, env); err != nil {
 						rec.Object.Status.SetMaybeStaleDueToInternalError("Failed creating environment for branch '%s': %+v", ref.Spec.Ref, err)
-						return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
+						if result := rec.UpdateStatus(); result != nil {
+							return result.ToResultAndError()
+						}
+						return k8s.Requeue().ToResultAndError()
 					}
 				}
 			}
@@ -91,7 +123,10 @@ func (r *Reconciler) SyncEnvironments(rec *k8s.Reconciliation[*apiv1.Application
 		} else {
 			rec.Object.Status.SetInvalidDueToRepositoryNotSupported("Unsupported repository type '%s.%s' specified", repoRef.Kind, repoRef.APIVersion)
 			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
-			return rec.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
+			if result := rec.UpdateStatus(); result != nil {
+				return result.ToResultAndError()
+			}
+			return k8s.DoNotRequeue().ToResultAndError()
 		}
 	}
 
@@ -103,46 +138,24 @@ func (r *Reconciler) SyncEnvironments(rec *k8s.Reconciliation[*apiv1.Application
 					continue
 				} else {
 					rec.Object.Status.SetStaleDueToInternalError("Failed deleting environment '%s': %+v", env.Name, err)
-					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
+					if result := rec.UpdateStatus(); result != nil {
+						return result.ToResultAndError()
+					}
+					return k8s.Requeue().ToResultAndError()
 				}
 			}
 		}
 	}
 
-	if rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNotSupported) ||
-		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.Invalid) {
-
-		return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-
-	}
-	return k8s.Continue()
-}
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Application{}, Finalizer, nil)
-	if result != nil {
-		return result.Return()
+	// Reset conditions to valid state since all has passed successfully
+	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.Invalid)
+	rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNotSupported)
+	if result := rec.UpdateStatus(); result != nil {
+		return result.ToResultAndError()
 	}
 
-	// Finalize object if deleted
-	if result := rec.FinalizeObjectIfDeleted(); result != nil {
-		return result.Return()
-	}
-
-	// Initialize object if not initialized
-	if result := rec.InitializeObject(); result != nil {
-		return result.Return()
-	}
-
-	// Create missing environments objects based on current branches in participating repositories
-	if result := r.SyncEnvironments(rec); result != nil {
-		return result.Return()
-	}
-
-	// Done
-	return k8s.DoNotRequeue().Return()
+	// Done (we're watching repositories & refs, so no need to requeue)
+	return k8s.DoNotRequeue().ToResultAndError()
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -151,11 +164,6 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&apiv1.Application{}).
 		Watches(&apiv1.GitHubRepository{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
 			ghRepo := obj.(*apiv1.GitHubRepository)
-			if ghRepo.APIVersion == "" {
-				panic("APIVersion is empty")
-			} else if ghRepo.Kind == "" {
-				panic("Kind is empty")
-			}
 			ghRepoKey := client.ObjectKeyFromObject(ghRepo)
 
 			appsList := &apiv1.ApplicationList{}
@@ -166,12 +174,11 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 			var requests []ctrl.Request
 			for _, app := range appsList.Items {
-				appKey := client.ObjectKeyFromObject(&app)
-				for _, appRepo := range app.Spec.Repositories {
-					appRepoKey := appRepo.GetObjectKey(app.Namespace)
-					if appRepo.APIVersion == ghRepo.APIVersion && appRepo.Kind == ghRepo.Kind && ghRepoKey == appRepoKey {
-						requests = append(requests, reconcile.Request{NamespacedName: appKey})
-					}
+				hasWatchedRepository := func(r apiv1.ApplicationSpecRepository) bool {
+					return r.APIVersion == ghRepo.APIVersion && r.Kind == ghRepo.Kind && ghRepoKey == r.GetObjectKey(app.Namespace)
+				}
+				if slices.ContainsFunc(app.Spec.Repositories, hasWatchedRepository) {
+					requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&app)})
 				}
 			}
 			return requests
@@ -192,14 +199,11 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 			var requests []reconcile.Request
 			for _, app := range appsList.Items {
-				appKey := client.ObjectKeyFromObject(&app)
-				for _, appRepo := range app.Spec.Repositories {
-					appRepoKey := appRepo.GetObjectKey(app.Namespace)
-					if appRepo.APIVersion == ctrlRef.APIVersion && appRepo.Kind == ctrlRef.Kind && ghRepoKey == appRepoKey {
-						if appRepo.Name == ctrlRef.Name && appRepo.Namespace == ghRepoRef.Namespace {
-							requests = append(requests, reconcile.Request{NamespacedName: appKey})
-						}
-					}
+				hasRepositoryOfWatchedRef := func(r apiv1.ApplicationSpecRepository) bool {
+					return r.APIVersion == ctrlRef.APIVersion && r.Kind == ctrlRef.Kind && ghRepoKey == r.GetObjectKey(app.Namespace)
+				}
+				if slices.ContainsFunc(app.Spec.Repositories, hasRepositoryOfWatchedRef) {
+					requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&app)})
 				}
 			}
 			return requests

@@ -13,24 +13,48 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"time"
+	"slices"
 )
 
 var (
 	Finalizer = "environments.finalizers." + apiv1.GroupVersion.Group
 )
 
-type Reconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
-}
-
-func (r *Reconciler) syncSources(rec *k8s.Reconciliation[*apiv1.Environment], app *apiv1.Application) *k8s.Result {
-	type RepoDeploymentStatus struct {
+type (
+	RepoDeploymentStatus struct {
 		Deployment *apiv1.Deployment
 		Branch     string
 	}
 
+	Reconciler struct {
+		client.Client
+		Scheme *runtime.Scheme
+	}
+)
+
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Environment{}, Finalizer, nil)
+	if result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Finalize object if deleted
+	if result := rec.FinalizeObjectIfDeleted(); result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Initialize object if not initialized
+	if result := rec.InitializeObject(); result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Get controlling application
+	app := &apiv1.Application{}
+	if result := rec.GetRequiredController(app); result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Sync environment sources
 	// Build a map of repository->branch
 	// This map provides us with:
 	// - the list of repositories that are participating in this environment
@@ -44,108 +68,104 @@ func (r *Reconciler) syncSources(rec *k8s.Reconciliation[*apiv1.Environment], ap
 			repo := &apiv1.GitHubRepository{}
 			if err := r.Get(rec.Ctx, repoKey, repo); err != nil {
 				if apierrors.IsNotFound(err) {
-					if rec.Object.Status.SetStaleDueToRepositoryNotFound("Repository '%s' not found", repoKey) {
-						return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-					} else {
-						return k8s.Requeue()
-					}
+					rec.Object.Status.SetStaleDueToRepositoryNotFound("Repository '%s' not found", repoKey)
 				} else if apierrors.IsForbidden(err) {
-					if rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("Repository '%s' is not accessible: %+v", repoKey, err) {
-						return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-					} else {
-						return k8s.Requeue()
-					}
+					rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("Repository '%s' is not accessible: %+v", repoKey, err)
 				} else {
-					if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up repository '%s': %+v", repoKey, err) {
-						return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-					} else {
-						return k8s.Requeue()
-					}
+					rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up repository '%s': %+v", repoKey, err)
 				}
+				if result := rec.UpdateStatus(); result != nil {
+					return result.ToResultAndError()
+				}
+				return k8s.Requeue().ToResultAndError()
 			} else if repo.Status.DefaultBranch == "" {
-				if rec.Object.Status.SetMaybeStaleDueToRepositoryNotReady("Repository '%s' is not ready: no default branch set", repoKey) {
-					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-				} else {
-					return k8s.Requeue()
+				rec.Object.Status.SetMaybeStaleDueToRepositoryNotReady("Repository '%s' is not ready: no default branch set", repoKey)
+				if result := rec.UpdateStatus(); result != nil {
+					return result.ToResultAndError()
 				}
+				return k8s.Requeue().ToResultAndError()
 			}
 
 			preferredBranchRefs := &apiv1.GitHubRepositoryRefList{}
 			if err := r.List(rec.Ctx, preferredBranchRefs, k8s.OwnedBy(r.Scheme, repo), client.MatchingFields{"spec.ref": rec.Object.Spec.PreferredBranch}); err != nil {
-				if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up preferred ref for repository '%s': %+v", repoKey, err) {
-					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-				} else {
-					return k8s.Requeue()
+				rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up preferred ref for repository '%s': %+v", repoKey, err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result.ToResultAndError()
 				}
+				return k8s.Requeue().ToResultAndError()
 			} else if len(preferredBranchRefs.Items) == 0 {
 				if repoRef.MissingBranchStrategy == apiv1.MissingBranchStrategyUseDefaultBranch {
 					repoBranches[nsRepoRef] = RepoDeploymentStatus{Branch: repo.Status.DefaultBranch}
 				} else if repoRef.MissingBranchStrategy == apiv1.MissingBranchStrategyIgnore {
 					repoBranches[nsRepoRef] = RepoDeploymentStatus{Branch: ""}
 				} else {
-					if rec.Object.Status.SetMaybeStaleDueToUnsupportedBranchStrategy("Repository '%s' has an unsupported missing branch strategy '%s'", repoKey, repoRef.MissingBranchStrategy) {
-						return rec.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
-					} else {
-						return k8s.DoNotRequeue()
+					rec.Object.Status.SetMaybeStaleDueToUnsupportedBranchStrategy("Repository '%s' has an unsupported missing branch strategy '%s'", repoKey, repoRef.MissingBranchStrategy)
+					if result := rec.UpdateStatus(); result != nil {
+						return result.ToResultAndError()
 					}
+					return k8s.Requeue().ToResultAndError()
 				}
 			} else {
 				repoBranches[nsRepoRef] = RepoDeploymentStatus{Branch: rec.Object.Spec.PreferredBranch}
 			}
 
 		} else {
-			if rec.Object.Status.SetStaleDueToRepositoryNotSupported("Unsupported repository type '%s.%s' specified", repoRef.Kind, repoRef.APIVersion) {
-				return rec.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
-			} else {
-				return k8s.DoNotRequeue()
+			rec.Object.Status.SetStaleDueToRepositoryNotSupported("Unsupported repository type '%s.%s' specified", repoRef.Kind, repoRef.APIVersion)
+			if result := rec.UpdateStatus(); result != nil {
+				return result.ToResultAndError()
 			}
+			return k8s.DoNotRequeue().ToResultAndError()
 		}
 	}
 
-	// Iterate all our deployments and:
-	// - remove deployments that are no longer participating in the application
-	// - update deployments that are using the wrong branch
+	// Fetch all our owned deployments
 	depList := &apiv1.DeploymentList{}
 	if err := r.List(rec.Ctx, depList, k8s.OwnedBy(r.Scheme, rec.Object)); err != nil {
-		if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to list deployments: %+v", err) {
-			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-		} else {
-			return k8s.Requeue()
+		rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to list deployments: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result.ToResultAndError()
 		}
+		return k8s.Requeue().ToResultAndError()
 	}
+
+	// Iterate the deployments and:
+	// - remove deployments that are no longer participating in the application
+	// - update deployments that are using the wrong branch
 	for _, d := range depList.Items {
+
 		if info, ok := repoBranches[d.Spec.Repository]; ok {
+
 			if d.Spec.Branch != info.Branch {
+				rec.Object.Status.SetMaybeStaleDueToDeploymentBranchOutOfSync("Deployment '%s' is out of sync: it should deploy branch '%s', but is set to deploy branch '%s'", d.Name, info.Branch, d.Spec.Branch)
+				if result := rec.UpdateStatus(); result != nil {
+					return result.ToResultAndError()
+				}
+
 				d.Spec.Branch = info.Branch
 				if err := r.Update(rec.Ctx, &d); err != nil {
 					if apierrors.IsNotFound(err) {
-						return k8s.Requeue()
+						return k8s.Requeue().ToResultAndError()
 					} else if apierrors.IsConflict(err) {
-						return k8s.Requeue()
+						return k8s.Requeue().ToResultAndError()
 					} else {
-						if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to update deployment '%s': %+v", d.Name, err) {
-							return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-						} else {
-							return k8s.Requeue()
-						}
+						return k8s.RequeueDueToError(err).ToResultAndError()
 					}
 				}
 			}
 			repoBranches[d.Spec.Repository] = RepoDeploymentStatus{Deployment: &d, Branch: info.Branch}
+
 		} else {
+
 			if err := r.Delete(rec.Ctx, &d); err != nil {
 				if apierrors.IsNotFound(err) {
 					// Ignore
 				} else if apierrors.IsConflict(err) {
-					return k8s.Requeue()
+					return k8s.Requeue().ToResultAndError()
 				} else {
-					if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to delete deployment '%s': %+v", d.Name, err) {
-						return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-					} else {
-						return k8s.Requeue()
-					}
+					return k8s.RequeueDueToError(err).ToResultAndError()
 				}
 			}
+
 		}
 	}
 
@@ -164,52 +184,23 @@ func (r *Reconciler) syncSources(rec *k8s.Reconciliation[*apiv1.Environment], ap
 				},
 			}
 			if err := r.Create(rec.Ctx, deployment); err != nil {
-				if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to create deployment '%s': %+v", deployment.Name, err) {
-					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
-				} else {
-					return k8s.Requeue()
+				rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to create deployment '%s': %+v", deployment.Name, err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result.ToResultAndError()
 				}
+				return k8s.Requeue().ToResultAndError()
 			}
 		}
 	}
 
-	if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.RepositoryNotReady, apiv1.UnsupportedBranchStrategy, apiv1.RepositoryNotSupported) {
-		return rec.UpdateStatus(k8s.WithStrategy(k8s.Continue))
-	} else {
-		return k8s.Continue()
-	}
-}
-
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Environment{}, Finalizer, nil)
-	if result != nil {
-		return result.Return()
-	}
-
-	// Finalize object if deleted
-	if result := rec.FinalizeObjectIfDeleted(); result != nil {
-		return result.Return()
-	}
-
-	// Initialize object if not initialized
-	if result := rec.InitializeObject(); result != nil {
-		return result.Return()
-	}
-
-	// Get controlling application
-	app := &apiv1.Application{}
-	if result := rec.GetRequiredController(app); result != nil {
-		return result.Return()
-	}
-
-	// Sync environment sources
-	if result := r.syncSources(rec, app); result != nil {
-		return result.Return()
+	// Remove stale condition if we got here
+	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.RepositoryNotReady, apiv1.UnsupportedBranchStrategy, apiv1.RepositoryNotSupported, apiv1.DeploymentBranchOutOfSync)
+	if result := rec.UpdateStatus(); result != nil {
+		return result.ToResultAndError()
 	}
 
 	// Done
-	// TODO: replace RequeueAfter with watching over our repositories & branches
-	return k8s.RequeueAfter(1 * time.Minute).Return()
+	return k8s.DoNotRequeue().ToResultAndError()
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -228,6 +219,67 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 			var requests []reconcile.Request
 			for _, env := range envsList.Items {
 				requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&env)})
+			}
+			return requests
+		})).
+		Watches(&apiv1.GitHubRepository{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
+			ghRepo := obj.(*apiv1.GitHubRepository)
+			ghRepoKey := client.ObjectKeyFromObject(ghRepo)
+
+			appsList := &apiv1.ApplicationList{}
+			if err := r.List(ctx, appsList); err != nil {
+				log.FromContext(ctx).Error(err, "Failed to list applications")
+				return nil
+			}
+
+			var requests []ctrl.Request
+			for _, app := range appsList.Items {
+				hasRepo := func(r apiv1.ApplicationSpecRepository) bool {
+					return r.APIVersion == ghRepo.APIVersion && r.Kind == ghRepo.Kind && ghRepoKey == r.GetObjectKey(app.Namespace)
+				}
+
+				if slices.ContainsFunc(app.Spec.Repositories, hasRepo) {
+					envsList := &apiv1.EnvironmentList{}
+					if err := r.List(ctx, envsList, client.InNamespace(app.Namespace), k8s.OwnedBy(r.Scheme, &app)); err != nil {
+						log.FromContext(ctx).Error(err, "Failed to list environments")
+						return nil
+					}
+					for _, item := range envsList.Items {
+						requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&item)})
+					}
+				}
+			}
+			return requests
+		})).
+		Watches(&apiv1.GitHubRepositoryRef{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
+			ghRepoRef := obj.(*apiv1.GitHubRepositoryRef)
+			ctrlRef := metav1.GetControllerOf(ghRepoRef)
+			if ctrlRef == nil {
+				return nil
+			}
+			ghRepoKey := client.ObjectKey{Namespace: ghRepoRef.Namespace, Name: ctrlRef.Name}
+
+			appsList := &apiv1.ApplicationList{}
+			if err := r.List(ctx, appsList); err != nil {
+				log.FromContext(ctx).Error(err, "Failed to list applications")
+				return nil
+			}
+
+			var requests []reconcile.Request
+			for _, app := range appsList.Items {
+				hasRepo := func(r apiv1.ApplicationSpecRepository) bool {
+					return r.APIVersion == ctrlRef.APIVersion && r.Kind == ctrlRef.Kind && ghRepoKey == r.GetObjectKey(app.Namespace)
+				}
+				if slices.ContainsFunc(app.Spec.Repositories, hasRepo) {
+					envsList := &apiv1.EnvironmentList{}
+					if err := r.List(ctx, envsList, client.InNamespace(app.Namespace), k8s.OwnedBy(r.Scheme, &app)); err != nil {
+						log.FromContext(ctx).Error(err, "Failed to list environments")
+						return nil
+					}
+					for _, item := range envsList.Items {
+						requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&item)})
+					}
+				}
 			}
 			return requests
 		})).

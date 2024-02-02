@@ -59,6 +59,54 @@ func (s *DeploymentStatus) SetMaybeStaleDueToApplyFailed(message string, args ..
 	return true
 }
 
+func (s *DeploymentStatus) SetStaleDueToApplying(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != Applying || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = Applying
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  Applying,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToApplying(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != Applying || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = Applying
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  Applying,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
 func (s *DeploymentStatus) SetStaleDueToBakingFailed(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {

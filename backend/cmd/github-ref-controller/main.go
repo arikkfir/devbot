@@ -63,7 +63,7 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
+	if err := k8s.AddOwnershipIndex(context.TODO(), mgr.GetFieldIndexer(), &apiv1.GitHubRepositoryRef{}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to create index")
 	}
 

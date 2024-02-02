@@ -2,10 +2,8 @@ package k8s
 
 import (
 	"github.com/secureworks/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 const statusFieldName = "Status"
@@ -47,52 +45,4 @@ func MustGetStatusOfType[T any](o client.Object) T {
 		typeOfDesiredInterface := reflect.TypeOf(zero).Elem()
 		panic(errors.New("type '%T' does not implement '%s'", o, typeOfDesiredInterface.Name()))
 	}
-}
-
-type ResponseFunc func() *Result
-
-type ErrorStrategy struct {
-	OnSuccess         ResponseFunc
-	OnNotFound        ResponseFunc
-	OnConflict        ResponseFunc
-	OnUnexpectedError func(err error) *Result
-}
-
-func WithStrategy(onSuccess ResponseFunc) *ErrorStrategy {
-	return &ErrorStrategy{
-		OnSuccess:  onSuccess,
-		OnNotFound: DoNotRequeue,
-		OnConflict: Requeue,
-		OnUnexpectedError: func(err error) *Result {
-			return RequeueDueToError(err)
-		},
-	}
-}
-
-func (s *ErrorStrategy) WithNotFound(onNotFound ResponseFunc) *ErrorStrategy {
-	s.OnNotFound = onNotFound
-	return s
-}
-
-func (s *ErrorStrategy) WithConflict(onConflict ResponseFunc) *ErrorStrategy {
-	s.OnConflict = onConflict
-	return s
-}
-
-func (s *ErrorStrategy) WithUnexpectedError(onUnexpectedError func(err error) *Result) *ErrorStrategy {
-	s.OnUnexpectedError = onUnexpectedError
-	return s
-}
-
-func RequeueAfterStrategy(interval time.Duration) ResponseFunc {
-	return func() *Result { return RequeueAfter(interval) }
-}
-
-func RequeueDueToErrorStrategy(err error) ResponseFunc {
-	return func() *Result { return RequeueDueToError(err) }
-}
-
-type ConditionsProvider interface {
-	GetConditions() []metav1.Condition
-	SetConditions(conditions []metav1.Condition)
 }

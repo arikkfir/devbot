@@ -2,6 +2,7 @@ package v1
 
 const (
 	ApplyFailed                = "ApplyFailed"
+	Applying                   = "Applying"
 	AuthConfigMissing          = "AuthConfigMissing"
 	AuthSecretForbidden        = "AuthSecretForbidden"
 	AuthSecretGetFailed        = "AuthSecretGetFailed"
@@ -21,6 +22,7 @@ const (
 	ControllerNotFound         = "ControllerNotFound"
 	ControllerReferenceMissing = "ControllerReferenceMissing"
 	DefaultBranchOutOfSync     = "DefaultBranchOutOfSync"
+	DeploymentBranchOutOfSync  = "DeploymentBranchOutOfSync"
 	FailedToInitialize         = "FailedToInitialize"
 	FinalizationFailed         = "FinalizationFailed"
 	FinalizerRemovalFailed     = "FinalizerRemovalFailed"

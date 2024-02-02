@@ -7,7 +7,7 @@ import (
 // Deployment represents a deployment of a repository into an environment.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Current,Stale:ApplyFailed,BakingFailed,CheckoutFailed,CloneFailed,CloneMissing,Cloning,InternalError,Invalid,PullFailed,Pulling,RepositoryNotAccessible,RepositoryNotFound
+// +condition:Current,Stale:Applying,ApplyFailed,BakingFailed,CheckoutFailed,CloneFailed,CloneMissing,Cloning,InternalError,Invalid,PullFailed,Pulling,RepositoryNotAccessible,RepositoryNotFound
 // +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
 // +condition:Initialized,FailedToInitialize:InternalError
 // +condition:Valid,Invalid:ControllerNotAccessible,ControllerNotFound,ControllerReferenceMissing,InternalError,RepositoryNotSupported

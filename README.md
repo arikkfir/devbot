@@ -17,6 +17,7 @@ Please see the [contributing guide](.github/CONTRIBUTING.md) for details.
 
 Alpha. Do not use.
 
-- [ ] Simplify status updates to avoid all those "if" statements
-- [ ] Recreate the e2e tests to test drive the system
+- [x] Simplify status updates to avoid all those "if" statements
+- [ ] Review all calls to `Requeue` - many of those are failures that cannot be recovered from; something like "lastAttemptedCommitSHA" is needed in their place
+- [x] Recreate the e2e tests to test drive the system
 - [ ] Recreate the unit tests
