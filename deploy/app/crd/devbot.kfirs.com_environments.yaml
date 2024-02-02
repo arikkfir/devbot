@@ -45,51 +45,6 @@ spec:
           status:
             description: Status is the observed state of the Environment.
             properties:
-              branches:
-                description: Sources is the concrete set of branches to deploy to
-                  this environment from each participating repository. The set of
-                  repositories participating is the repositories mentioned in the
-                  [ApplicationSpec.Repositories] that either have a branch matching
-                  [EnvironmentSpec.PreferredBranch] or that their [ApplicationSpecRepository.MissingBranchStrategy]
-                  is set to "UseDefaultBranch", in which case their default branch
-                  will be listed here.
-                items:
-                  properties:
-                    deployment:
-                      description: Deployment refers to the deployment responsible
-                        for deploying this branch & repository to this environment.
-                      properties:
-                        name:
-                          maxLength: 63
-                          minLength: 1
-                          pattern: ^[a-z0-9][a-z0-9-]*[a-z0-9]$
-                          type: string
-                      type: object
-                    repository:
-                      description: Repository to be deployed to this environment.
-                      properties:
-                        apiVersion:
-                          minLength: 1
-                          pattern: ^[a-z0-9]+(\.[a-z0-9]+)*$
-                          type: string
-                        kind:
-                          maxLength: 63
-                          minLength: 1
-                          pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
-                          type: string
-                        name:
-                          maxLength: 63
-                          minLength: 1
-                          pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
-                          type: string
-                        namespace:
-                          maxLength: 63
-                          minLength: 1
-                          pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
-                          type: string
-                      type: object
-                  type: object
-                type: array
               conditions:
                 description: Conditions represent the latest available observations
                   of the application environment's state.

@@ -12,20 +12,17 @@ COPY go.sum go.sum
 RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
-COPY cmd/deployment-controller cmd/deployment-controller/
+COPY cmd/github-ref-controller cmd/github-ref-controller/
 COPY internal/config internal/config/
 COPY internal/controllers/config.go internal/controllers/
-COPY internal/controllers/deployment/*.go internal/controllers/deployment/
+COPY internal/controllers/github/*.go internal/controllers/github/
 COPY internal/controllers/reconciler internal/controllers/reconciler/
 COPY internal/util internal/util/
-RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o deployment-controller cmd/deployment-controller/main.go
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o github-ref-controller cmd/github-ref-controller/main.go
 
 FROM gcr.io/distroless/static:nonroot
-# TODO: download and install kustomize
-# TODO: download and install yq
-# TODO: download and install kubectl
 WORKDIR /
-COPY --from=builder /workspace/deployment-controller ./
+COPY --from=builder /workspace/github-ref-controller ./
 USER 65532:65532
 ENV GOTRACEBACK=single
-ENTRYPOINT ["/deployment-controller"]
+ENTRYPOINT ["/github-ref-controller"]

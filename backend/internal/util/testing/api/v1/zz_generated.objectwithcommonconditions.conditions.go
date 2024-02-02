@@ -6,271 +6,250 @@ package v1
 
 import (
 	"fmt"
-	"github.com/arikkfir/devbot/backend/pkg/k8s"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
 )
 
-func (s *ObjectWithCommonConditionsStatus) SetInvalidDueToAddFinalizerFailed(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetUncontrolledDueToControllerCannotBeFetched(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = AddFinalizerFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerCannotBeFetched || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerCannotBeFetched
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionTrue,
-		Reason:  AddFinalizerFailed,
+		Reason:  ControllerCannotBeFetched,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetMaybeInvalidDueToAddFinalizerFailed(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetMaybeUncontrolledDueToControllerCannotBeFetched(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = AddFinalizerFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerCannotBeFetched || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerCannotBeFetched
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionUnknown,
-		Reason:  AddFinalizerFailed,
+		Reason:  ControllerCannotBeFetched,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetValidIfInvalidDueToAddFinalizerFailed() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != AddFinalizerFailed {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *ObjectWithCommonConditionsStatus) SetInvalidDueToControllerMissing(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetUncontrolledDueToControllerNotAccessible(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = ControllerMissing
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionTrue,
-		Reason:  ControllerMissing,
+		Reason:  ControllerNotAccessible,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetMaybeInvalidDueToControllerMissing(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetMaybeUncontrolledDueToControllerNotAccessible(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = ControllerMissing
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionUnknown,
-		Reason:  ControllerMissing,
+		Reason:  ControllerNotAccessible,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetValidIfInvalidDueToControllerMissing() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != ControllerMissing {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *ObjectWithCommonConditionsStatus) SetInvalidDueToFailedGettingOwnedObjects(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetUncontrolledDueToControllerNotFound(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = FailedGettingOwnedObjects
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionTrue,
-		Reason:  FailedGettingOwnedObjects,
+		Reason:  ControllerNotFound,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetMaybeInvalidDueToFailedGettingOwnedObjects(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetMaybeUncontrolledDueToControllerNotFound(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = FailedGettingOwnedObjects
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionUnknown,
-		Reason:  FailedGettingOwnedObjects,
+		Reason:  ControllerNotFound,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetValidIfInvalidDueToFailedGettingOwnedObjects() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != FailedGettingOwnedObjects {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *ObjectWithCommonConditionsStatus) SetInvalidDueToFinalizationFailed(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetUncontrolledDueToOwnerReferenceMissing(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = FinalizationFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != OwnerReferenceMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = OwnerReferenceMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionTrue,
-		Reason:  FinalizationFailed,
+		Reason:  OwnerReferenceMissing,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetMaybeInvalidDueToFinalizationFailed(message string, args ...interface{}) {
+func (s *ObjectWithCommonConditionsStatus) SetMaybeUncontrolledDueToOwnerReferenceMissing(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = FinalizationFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Uncontrolled {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != OwnerReferenceMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = OwnerReferenceMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Uncontrolled,
 		Status:  v1.ConditionUnknown,
-		Reason:  FinalizationFailed,
+		Reason:  OwnerReferenceMissing,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetValidIfInvalidDueToFinalizationFailed() {
+func (s *ObjectWithCommonConditionsStatus) SetControlledIfUncontrolledDueToAnyOf(reasons ...string) bool {
+	changed := false
 	var newConditions []v1.Condition
 	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != FinalizationFailed {
+		if c.Type != Uncontrolled || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetControlled() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Uncontrolled {
 			newConditions = append(newConditions, c)
 		}
 	}
 	s.Conditions = newConditions
 }
 
-func (s *ObjectWithCommonConditionsStatus) SetInvalidDueToInternalError(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *ObjectWithCommonConditionsStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *ObjectWithCommonConditionsStatus) SetValidIfInvalidDueToInternalError() {
-	var newConditions []v1.Condition
+func (s *ObjectWithCommonConditionsStatus) IsControlled() bool {
 	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != InternalError {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *ObjectWithCommonConditionsStatus) SetValid() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *ObjectWithCommonConditionsStatus) IsValid() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Status == v1.ConditionTrue
+		if c.Type == Uncontrolled {
+			return c.Status != v1.ConditionTrue
 		}
 	}
 	return true
 }
 
-func (s *ObjectWithCommonConditionsStatus) IsInvalid() bool {
+func (s *ObjectWithCommonConditionsStatus) IsUncontrolled() bool {
 	for _, c := range s.Conditions {
-		if c.Type == Invalid {
+		if c.Type == Uncontrolled {
 			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
 		}
 	}
 	return false
 }
 
-func (s *ObjectWithCommonConditionsStatus) GetInvalidCondition() *v1.Condition {
+func (s *ObjectWithCommonConditionsStatus) GetUncontrolledCondition() *v1.Condition {
 	for _, c := range s.Conditions {
-		if c.Type == Invalid {
+		if c.Type == Uncontrolled {
 			lc := c
 			return &lc
 		}
@@ -278,18 +257,18 @@ func (s *ObjectWithCommonConditionsStatus) GetInvalidCondition() *v1.Condition {
 	return nil
 }
 
-func (s *ObjectWithCommonConditionsStatus) GetInvalidReason() string {
+func (s *ObjectWithCommonConditionsStatus) GetUncontrolledReason() string {
 	for _, c := range s.Conditions {
-		if c.Type == Invalid {
+		if c.Type == Uncontrolled {
 			return c.Reason
 		}
 	}
 	return ""
 }
 
-func (s *ObjectWithCommonConditionsStatus) GetInvalidStatus() *v1.ConditionStatus {
+func (s *ObjectWithCommonConditionsStatus) GetUncontrolledStatus() *v1.ConditionStatus {
 	for _, c := range s.Conditions {
-		if c.Type == Invalid {
+		if c.Type == Uncontrolled {
 			status := c.Status
 			return &status
 		}
@@ -297,9 +276,365 @@ func (s *ObjectWithCommonConditionsStatus) GetInvalidStatus() *v1.ConditionStatu
 	return nil
 }
 
-func (s *ObjectWithCommonConditionsStatus) GetInvalidMessage() string {
+func (s *ObjectWithCommonConditionsStatus) GetUncontrolledMessage() string {
 	for _, c := range s.Conditions {
-		if c.Type == Invalid {
+		if c.Type == Uncontrolled {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != FinalizationFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = FinalizationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionTrue,
+		Reason:  FinalizationFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetMaybeFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != FinalizationFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = FinalizationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionUnknown,
+		Reason:  FinalizationFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != FinalizerRemovalFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = FinalizerRemovalFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionTrue,
+		Reason:  FinalizerRemovalFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetMaybeFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != FinalizerRemovalFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = FinalizerRemovalFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionUnknown,
+		Reason:  FinalizerRemovalFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InProgress || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InProgress
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionTrue,
+		Reason:  InProgress,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetMaybeFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InProgress || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InProgress
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionUnknown,
+		Reason:  InProgress,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetFinalizedIfFinalizingDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Finalizing || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetFinalized() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Finalizing {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (s *ObjectWithCommonConditionsStatus) IsFinalized() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Status != v1.ConditionTrue
+		}
+	}
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) IsFinalizing() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFinalizingCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFinalizingReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFinalizingStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFinalizingMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    FailedToInitialize,
+		Status:  v1.ConditionTrue,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetMaybeFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    FailedToInitialize,
+		Status:  v1.ConditionUnknown,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetInitializedIfFailedToInitializeDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != FailedToInitialize || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *ObjectWithCommonConditionsStatus) SetInitialized() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != FailedToInitialize {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (s *ObjectWithCommonConditionsStatus) IsInitialized() bool {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Status != v1.ConditionTrue
+		}
+	}
+	return true
+}
+
+func (s *ObjectWithCommonConditionsStatus) IsFailedToInitialize() bool {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFailedToInitializeCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFailedToInitializeReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *ObjectWithCommonConditionsStatus) GetFailedToInitializeMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
 			return c.Message
 		}
 	}
@@ -322,7 +657,4 @@ func (s *ObjectWithCommonConditionsStatus) ClearStaleConditions(currentGeneratio
 		}
 	}
 	s.Conditions = newConditions
-}
-func (o *ObjectWithCommonConditions) GetStatus() k8s.CommonStatus {
-	return &o.Status
 }

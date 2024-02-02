@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"github.com/arikkfir/devbot/backend/internal/controllers"
-	"github.com/arikkfir/devbot/backend/internal/controllers/deployment"
+	"github.com/arikkfir/devbot/backend/internal/controllers/github"
+	"github.com/arikkfir/devbot/backend/internal/controllers/reconciler"
 	"github.com/arikkfir/devbot/backend/internal/util/configuration"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	"github.com/rs/zerolog/log"
@@ -11,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -52,7 +52,7 @@ func main() {
 		Metrics:                       metricsserver.Options{BindAddress: cfg.MetricsAddr},
 		HealthProbeBindAddress:        cfg.HealthProbeAddr,
 		LeaderElection:                cfg.EnableLeaderElection,
-		LeaderElectionID:              "f54ce4c4.devbot.kfirs.com",
+		LeaderElectionID:              "f54ce4c0.devbot.kfirs.com",
 		LeaderElectionReleaseOnCancel: true,
 	})
 	if err != nil {
@@ -62,22 +62,13 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	//if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Environment{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Deployment{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &apiv1.GitHubRepositoryRef{}, "spec.ref", indexGitHubRepositoryRefSpecRef); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to index 'spec.ref' of 'GitHubRepositoryRef' objects")
-	//}
+	if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to create index")
+	}
 
-	deploymentReconciler := &deployment.Reconciler{Client: mgrClient, Scheme: mgrScheme}
-	if err := deploymentReconciler.SetupWithManager(mgr); err != nil {
-		log.Fatal().Err(err).Msg("Unable to create application environment controller")
+	repositoryReconciler := &github.RepositoryReconciler{Client: mgrClient, Scheme: mgrScheme}
+	if err := repositoryReconciler.SetupWithManager(mgr); err != nil {
+		log.Fatal().Err(err).Msg("Unable to create GitHub repository controller")
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -88,13 +79,11 @@ func main() {
 		log.Fatal().Err(err).Msg("Unable to set up readiness check")
 	}
 
+	if err := mgr.Add(github.NewRepositoryPoller(mgr)); err != nil {
+		log.Fatal().Err(err).Msg("Unable to add runnable")
+	}
+
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to run manager")
 	}
-}
-
-func indexGitHubRepositoryRefSpecRef(o client.Object) []string {
-	ghRepoRef := o.(*apiv1.GitHubRepositoryRef)
-	index := fmt.Sprintf("%s/%s:%s", ghRepoRef.Status.RepositoryOwner, ghRepoRef.Status.RepositoryName, ghRepoRef.Spec.Ref)
-	return []string{index}
 }

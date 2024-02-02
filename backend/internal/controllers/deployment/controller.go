@@ -1,14 +1,24 @@
 package deployment
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/pkg/k8s/reconcile"
+	"github.com/arikkfir/devbot/backend/internal/controllers/reconciler"
+	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/secureworks/errors"
+	"io"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"os"
+	"os/exec"
+	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 const (
@@ -26,34 +36,622 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var deployment *apiv1.Deployment
-	var env *apiv1.Environment
-	var app *apiv1.Application
-	var gitURL string
-	var ghRepo *git.Repository
-	var resourcesFile string
-	reconciliation := reconcile.Reconciliation{
-		Actions: []reconcile.Action{
-			reconcile.NewSaveObjectReferenceAction(&deployment),
-			reconcile.NewFinalizeAction(Finalizer, nil),
-			reconcile.NewAddFinalizerAction(Finalizer),
-			reconcile.NewGetControllerAction(false, deployment, env),
-			reconcile.NewGetControllerAction(false, env, app),
-			NewPrepareCloneDirectoryAction(&gitURL),
-			NewCloneRepositoryAction(gitURL, &ghRepo),
-			NewBakeAction(app, env, ghRepo, &resourcesFile),
-			NewApplyAction(resourcesFile),
-			reconcile.NewRequeueAfterAction(time.Minute), // TODO: make this configurable
-		},
+func (r *Reconciler) prepareCloneDirectory(rec *reconciler.Reconciliation[*apiv1.Deployment], gitURL *string) *reconciler.Result {
+	// Get the repository
+	var url string
+	if rec.Object.Spec.Repository.IsGitHubRepository() {
+		repo := &apiv1.GitHubRepository{}
+		repoKey := rec.Object.Spec.Repository.GetObjectKey()
+		if err := r.Get(rec.Ctx, repoKey, repo); err != nil {
+			if apierrors.IsNotFound(err) {
+				if rec.Object.Status.SetMaybeStaleDueToRepositoryNotFound("Repository '%s' could not be found", repoKey) {
+					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				} else {
+					return reconciler.Requeue()
+				}
+			} else if apierrors.IsForbidden(err) {
+				if rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("Repository '%s' is not accessible: %+v", repoKey, err) {
+					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				} else {
+					return reconciler.Requeue()
+				}
+			} else {
+				if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up repository '%s': %+v", repoKey, err) {
+					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				} else {
+					return reconciler.Requeue()
+				}
+			}
+		} else {
+			url = fmt.Sprintf("https://github.com/%s/%s", repo.Spec.Owner, repo.Spec.Name)
+			if rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNotSupported) {
+				if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+					return result
+				}
+			}
+		}
+	} else {
+		if rec.Object.Status.SetInvalidDueToRepositoryNotSupported("Unsupported repository type '%s.%s' specified", rec.Object.Spec.Repository.Kind, rec.Object.Spec.Repository.APIVersion) ||
+			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.DoNotRequeue))
+		} else {
+			return reconciler.DoNotRequeue()
+		}
 	}
-	return reconciliation.Execute(ctx, r.Client, req, &apiv1.Deployment{})
+
+	// Decide on a clone path and save it in the object
+	if rec.Object.Status.ClonePath == "" {
+		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s", rec.Object.Spec.Repository.Namespace, rec.Object.Spec.Repository.Name, strings.RandomHash(7))
+		return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+	} else if _, err := os.Stat(rec.Object.Status.ClonePath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			if rec.Object.Status.SetStaleDueToCloneMissing("Repository not cloned yet") {
+				if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+					return result
+				}
+			}
+		} else {
+			if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to stat local clone dir at '%s': %+v", rec.Object.Status.ClonePath, err) {
+				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.DoNotRequeue))
+			} else {
+				return reconciler.DoNotRequeue()
+			}
+		}
+	} else if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.CloneMissing) {
+		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+			return result
+		}
+	}
+
+	*gitURL = url
+	return reconciler.Continue()
+}
+
+func (r *Reconciler) cloneRepository(rec *reconciler.Reconciliation[*apiv1.Deployment], url string, ghRepo **git.Repository) *reconciler.Result {
+
+	// Set status to cloning
+	if rec.Object.Status.SetMaybeStaleDueToCloning("Cloning repository") {
+		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+			return result
+		}
+	}
+
+	// Attempt to open the clone directory
+	if repo, err := git.PlainOpen(rec.Object.Status.ClonePath); err != nil {
+		if errors.Is(err, git.ErrRepositoryNotExists) {
+
+			// Clone
+			cloneOptions := &git.CloneOptions{
+				URL:      url,
+				Progress: os.Stdout, // TODO: represent progress in status object
+				Depth:    1,
+			}
+			if _, err := git.PlainClone(rec.Object.Status.ClonePath, false, cloneOptions); err != nil {
+				// TODO: consider deleting the clone & status.ClonePath - to start over
+				if rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed cloning repository: %+v", err) {
+					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				} else {
+					return reconciler.Requeue()
+				}
+			} else {
+				return reconciler.Requeue()
+			}
+
+		} else {
+
+			// TODO: consider deleting the clone & status.ClonePath - to start over
+			if rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed opening repository: %+v", err) {
+				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			} else {
+				return reconciler.Requeue()
+			}
+		}
+
+	} else if worktree, err := repo.Worktree(); err != nil {
+
+		// TODO: consider deleting the clone & status.ClonePath - to start over
+		if rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed opening repository worktree: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+
+	} else {
+
+		// Set status to pulling
+		if rec.Object.Status.SetMaybeStaleDueToPulling("Pulling updates") {
+			if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+				return result
+			}
+		}
+
+		refName := plumbing.NewBranchReferenceName(rec.Object.Spec.Branch)
+		if err := worktree.Checkout(&git.CheckoutOptions{Branch: refName}); err != nil {
+			// TODO: consider deleting the clone & status.ClonePath - to start over
+			if rec.Object.Status.SetMaybeStaleDueToCheckoutFailed("Failed checking out branch '%s': %+v", rec.Object.Spec.Branch, err) {
+				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			} else {
+				return reconciler.Requeue()
+			}
+		}
+
+		pullOptions := git.PullOptions{SingleBranch: true, ReferenceName: refName}
+		if err := worktree.PullContext(rec.Ctx, &pullOptions); err != nil {
+			if errors.Is(err, git.NoErrAlreadyUpToDate) {
+				// No changes
+			} else {
+				if rec.Object.Status.SetMaybeStaleDueToPullFailed("Failed pulling changes: %+v", err) {
+					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				} else {
+					return reconciler.Requeue()
+				}
+			}
+		}
+
+		if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.Cloning, apiv1.CloneFailed, apiv1.Pulling, apiv1.CheckoutFailed, apiv1.PullFailed) {
+			if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+				return result
+			}
+		}
+
+		*ghRepo = repo
+		return reconciler.Continue()
+	}
+}
+
+// TODO: review all Requeue results and consider replacing with DoNotRequeue (thus rely on next polling event)
+//       also review error states - on many cases we probably should re-clone the repository
+
+func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, ghRepo *git.Repository, commitSHA, targetResourcesFile *string) *reconciler.Result {
+	reference, err := ghRepo.Head()
+	if err != nil {
+		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed getting Git HEAD revision: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+
+	// Find the kustomization
+	root := rec.Object.Status.ClonePath
+	possibleKustomizationFilePaths := []string{
+		filepath.Join(root, ".devbot", app.Name, strings.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
+		filepath.Join(root, ".devbot", app.Name, "kustomization.yaml"),
+		filepath.Join(root, ".devbot", strings.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
+		filepath.Join(root, ".devbot", "kustomization.yaml"),
+	}
+	var kustomizationFilePath string
+	for _, path := range possibleKustomizationFilePaths {
+		if info, err := os.Stat(path); err != nil {
+			if !os.IsNotExist(err) {
+				if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed checking if kustomization file exists at '%s': %+v", path, err) {
+					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				} else {
+					return reconciler.Requeue()
+				}
+			}
+		} else if info.IsDir() {
+			if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Kustomization file at '%s' is a directory", path) {
+				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			} else {
+				return reconciler.Requeue()
+			}
+		} else {
+			kustomizationFilePath = path
+			break
+		}
+	}
+	if kustomizationFilePath == "" {
+		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed locating kustomization file in '%s'", root) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+
+	// Create target resources file
+	resourcesFile, err := os.Create(filepath.Dir(kustomizationFilePath) + "/.devbot.output.resources.yaml")
+	if err != nil {
+		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed creating resources file: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+	defer resourcesFile.Close()
+
+	// Create a pipe that connects stdout of the "kustomize build" command to the "kustomize fn" command
+	pipeReader, pipeWriter := io.Pipe()
+
+	// This command produces resources from the kustomization file and outputs them to stdout
+	kustomizeBuildCmd := exec.CommandContext(rec.Ctx,
+		kustomizeBinaryFilePath,
+		"build",
+		filepath.Dir(kustomizationFilePath),
+	)
+	kustomizeBuildCmd.Dir = filepath.Dir(kustomizationFilePath)
+	kustomizeBuildCmd.Stderr = &bytes.Buffer{}
+	kustomizeBuildCmd.Stdout = pipeWriter
+
+	// This command accepts resources via stdin, processes them via the bash function script, and outputs to stdout
+	yqCmd := exec.CommandContext(rec.Ctx, yqBinaryFilePath, `(.. | select(tag == "!!str")) |= envsubst`)
+	yqCmd.Env = append(os.Environ(),
+		"APPLICATION="+app.Name,
+		"BRANCH="+rec.Object.Spec.Branch,
+		"COMMIT_SHA="+reference.Hash().String(),
+		"ENVIRONMENT="+env.Spec.PreferredBranch,
+	)
+	yqCmd.Dir = filepath.Dir(kustomizationFilePath)
+	yqCmd.Stderr = &bytes.Buffer{}
+	yqCmd.Stdin = pipeReader
+	yqCmd.Stdout = resourcesFile
+
+	// Execute kustomize build
+	if err := kustomizeBuildCmd.Start(); err != nil {
+		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed starting kustomize command: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+	defer kustomizeBuildCmd.Process.Kill()
+
+	// Execute kustomize fn
+	if err := yqCmd.Start(); err != nil {
+		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed starting kustomize fn: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+	defer yqCmd.Process.Kill()
+
+	// Wait for both commands to finish
+	if err := kustomizeBuildCmd.Wait(); err != nil {
+		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed executing kustomize build: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	} else if err := yqCmd.Wait(); err != nil {
+		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed executing kustomize fn: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+
+	// If kustomize failed, set condition and exit
+	if kustomizeBuildCmd.ProcessState.ExitCode()+yqCmd.ProcessState.ExitCode() > 0 {
+		stderr := bytes.Buffer{}
+		stderr.WriteString("--[kustomize build stderr:]--------------------------------------------------\n")
+		stderr.Write(kustomizeBuildCmd.Stderr.(*bytes.Buffer).Bytes())
+		stderr.WriteString("\n--[yq stderr:]---------------------------------------------------------------\n")
+		stderr.Write(yqCmd.Stderr.(*bytes.Buffer).Bytes())
+		if rec.Object.Status.SetStaleDueToBakingFailed("Manifest baking failed:\n%s", stderr.String()) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+
+	if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.BakingFailed) {
+		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+			return result
+		}
+	}
+
+	*targetResourcesFile = resourcesFile.Name()
+	*commitSHA = reference.Hash().String()
+	return reconciler.Continue()
+}
+
+func (r *Reconciler) apply(rec *reconciler.Reconciliation[*apiv1.Deployment], resourcesFile string) *reconciler.Result {
+	// TODO: support remote clusters
+
+	stdout := bytes.Buffer{}
+	stderr := bytes.Buffer{}
+	kubectlCmd := exec.CommandContext(rec.Ctx,
+		kubectlBinaryFilePath,
+		"apply",
+		fmt.Sprintf("--filename=%s", resourcesFile),
+		fmt.Sprintf("--dry-run='%s'", "server"),
+		fmt.Sprintf("--server-side=%v", true),
+	)
+	kubectlCmd.Dir = filepath.Dir(resourcesFile)
+	kubectlCmd.Stderr = &stderr
+	kubectlCmd.Stdout = &stdout
+	if err := kubectlCmd.Run(); err != nil {
+		if rec.Object.Status.SetMaybeStaleDueToApplyFailed("Failed applying resources: %+v", err) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		} else {
+			return reconciler.Requeue()
+		}
+	}
+
+	// TODO: infer inventory list from kubectl output (for potential pruning/health checks)
+
+	return reconciler.Continue()
+}
+
+func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	rec, result := reconciler.NewReconciliation(ctx, r.Client, req, &apiv1.Deployment{}, Finalizer, nil)
+	if result != nil {
+		return result.Return()
+	}
+
+	// Finalize object if deleted
+	if result := rec.FinalizeObjectIfDeleted(); result != nil {
+		return result.Return()
+	}
+
+	// Initialize object if not initialized
+	if result := rec.InitializeObject(); result != nil {
+		return result.Return()
+	}
+
+	// Get controlling environment
+	env := &apiv1.Environment{}
+	if result := rec.GetRequiredController(env); result != nil {
+		return result.Return()
+	}
+
+	// Get controlling application
+	app := &apiv1.Application{}
+	appControllerRef := metav1.GetControllerOf(env)
+	if appControllerRef == nil {
+		if rec.Object.Status.SetInvalidDueToInternalError("Could not find application controller reference in parent environment") ||
+			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
+			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.DoNotRequeue)).Return()
+		} else {
+			return reconciler.DoNotRequeue().Return()
+		}
+	} else if err := r.Client.Get(ctx, client.ObjectKey{Name: appControllerRef.Name, Namespace: env.Namespace}, app); err != nil {
+		if apierrors.IsNotFound(err) {
+			if rec.Object.Status.SetInvalidDueToControllerNotFound("Could not find application controller of parent environment: %+v", err) ||
+				rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
+				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue)).Return()
+			} else {
+				return reconciler.Requeue().Return()
+			}
+		} else if apierrors.IsForbidden(err) {
+			if rec.Object.Status.SetInvalidDueToControllerNotAccessible("Application controller of parent environment is not accessible: %+v", err) ||
+				rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
+				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue)).Return()
+			} else {
+				return reconciler.Requeue().Return()
+			}
+		} else {
+			if rec.Object.Status.SetInvalidDueToInternalError("Could not find application controller of parent environment: %+v", err) ||
+				rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
+				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue)).Return()
+			} else {
+				return reconciler.Requeue().Return()
+			}
+		}
+	} else if rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.ControllerNotAccessible, apiv1.ControllerNotFound, apiv1.InternalError) ||
+		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.Invalid) {
+		return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)).Return()
+	}
+
+	// Prepare clone directory
+	var gitURL string
+	if result := r.prepareCloneDirectory(rec, &gitURL); result != nil {
+		return result.Return()
+	}
+
+	// Clone repository
+	var ghRepo *git.Repository
+	if result := r.cloneRepository(rec, gitURL, &ghRepo); result != nil {
+		return result.Return()
+	}
+
+	// Bake resources manifest
+	var commitSHA, resourcesFile string
+	if result := r.bake(rec, app, env, ghRepo, &commitSHA, &resourcesFile); result != nil {
+		return result.Return()
+	}
+
+	// Apply resources manifest
+	if result := r.apply(rec, resourcesFile); result != nil {
+		return result.Return()
+	}
+
+	if rec.Object.Status.LastAppliedCommitSHA == commitSHA {
+		rec.Object.Status.LastAppliedCommitSHA = commitSHA
+		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+			return result.Return()
+		}
+	}
+
+	return reconciler.DoNotRequeue().Return()
 }
 
 // SetupWithManager sets up the controller with the Manager.
-// TODO: watch & reconcile on changes to controlling application, repositories and branches
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Deployment{}).
 		Complete(r)
 }
+
+/*func NewApplyAction(app *apiv1.Application, env *apiv1.Environment, ghRepo *git.Repository, dynamicClient *dynamic.DynamicClient, resourcesFile string) reconcile.Action {
+	return func(ctx context.Context, c client.Client, o client.Object) (*ctrl.Result, error) {
+		deployment := o.(*apiv1.Deployment)
+
+
+		resourcesContent, err := os.ReadFile(resourcesFile)
+		if err != nil {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed reading resources file: %+v", err)
+			return reconcile.Requeue()
+		}
+
+		var resources []unstructured.Unstructured
+		yamlDecoder := yaml.NewDecoder(bytes.NewReader(resourcesContent))
+		for {
+			var yamlDocument yaml.Node
+			if err := yamlDecoder.Decode(&yamlDocument); err != nil {
+				if err == io.EOF {
+					break
+				}
+				deployment.Status.SetMaybeStaleDueToInternalError("Failed decoding resources YAML: %+v", err)
+				return reconcile.Requeue()
+			}
+
+			var yamlBytes bytes.Buffer
+			if err := yaml.NewEncoder(&yamlBytes).Encode(yamlDocument); err != nil {
+				deployment.Status.SetMaybeStaleDueToInternalError("Failed encoding back to YAML string: %+v", err)
+				return reconcile.Requeue()
+			}
+
+			jsonData, err := yamlutil.ToJSON(yamlBytes.Bytes())
+			if err != nil {
+				deployment.Status.SetMaybeStaleDueToInternalError("Failed to convert YAML back to JSON: %+v", err)
+				return reconcile.Requeue()
+			}
+
+			unstructuredObject := &unstructured.Unstructured{}
+			if _, _, err = unstructured.UnstructuredJSONScheme.Decode(jsonData, nil, unstructuredObject); err != nil {
+				deployment.Status.SetMaybeStaleDueToInternalError("Failed decoding JSON to unstructured object: %+v", err)
+				return reconcile.Requeue()
+			}
+
+			gvk := unstructuredObject.GetObjectKind().GroupVersionKind()
+			gvr, _ := meta.UnsafeGuessKindToResource(gvk)
+			name := unstructuredObject.GetName()
+			namespace := unstructuredObject.GetNamespace()
+			if namespace == "" {
+				deployment.Status.SetMaybeStaleDueToInvalid("Resource '%s' has no namespace", name)
+				return reconcile.Requeue()
+			}
+			resourceClient := dynamicClient.Resource(gvr).Namespace(namespace)
+
+			if _, err = resourceClient.Get(ctx, name, metav1.GetOptions{}); err != nil {
+				if apierrors.IsNotFound(err) {
+					if _, err := resourceClient.Create(ctx, unstructuredObject, metav1.CreateOptions{}); err != nil {
+						deployment.Status.SetMaybeStaleDueToInternalError("Failed to create: %+v", err)
+						return reconcile.Requeue()
+					} else {
+						resources = append(resources, *unstructuredObject)
+					}
+				}
+			} else {
+				_, err := dynamicClient.Resource(gvr).Namespace(ns).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+				if err != nil {
+					log.Fatalf("Failed to update: %v", err)
+				}
+			}
+
+		}
+
+		reference, err := ghRepo.Head()
+		if err != nil {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed getting git head: %+v", err)
+			return reconcile.Requeue()
+		}
+		commitSHA := reference.Hash().String()
+		if deployment.Status.LastAppliedCommitSHA == commitSHA {
+			// Nothing to do!
+			return reconcile.DoNotRequeue()
+		}
+
+		root := deployment.Status.ClonePath
+		possibleKustomizationFilePaths := []string{
+			filepath.Join(root, ".devbot", app.Name, strings.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
+			filepath.Join(root, ".devbot", app.Name, "kustomization.yaml"),
+			filepath.Join(root, ".devbot", strings.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
+			filepath.Join(root, ".devbot", "kustomization.yaml"),
+		}
+
+		var kustomizationFilePath string
+		for _, path := range possibleKustomizationFilePaths {
+			if info, err := os.Stat(path); err != nil {
+				if !os.IsNotExist(err) {
+					deployment.Status.SetMaybeStaleDueToInternalError("Failed checking if kustomization file exists at '%s': %+v", path, err)
+					return reconcile.Requeue()
+				}
+			} else if info.IsDir() {
+				deployment.Status.SetMaybeStaleDueToInternalError("Kustomization file at '%s' is a directory", path)
+				return reconcile.Requeue()
+			} else {
+				kustomizationFilePath = path
+				break
+			}
+		}
+		if kustomizationFilePath == "" {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed locating kustomization file in '%s'", root)
+			return reconcile.Requeue()
+		}
+
+		// Create target resources file
+		resourcesFile, err := os.Create(filepath.Dir(kustomizationFilePath) + "/.devbot.output.resources.yaml")
+		if err != nil {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed creating resources file: %+v", err)
+			return reconcile.Requeue()
+		}
+		defer resourcesFile.Close()
+
+		// Create a pipe that connects stdout of the "kustomize build" command to the "kustomize fn" command
+		pipeReader, pipeWriter := io.Pipe()
+
+		// This command produces resources from the kustomization file and outputs them to stdout
+		kustomizeBuildCmd := exec.CommandContext(ctx,
+			kustomizeBinaryFilePath,
+			"build",
+			filepath.Dir(kustomizationFilePath),
+		)
+		kustomizeBuildCmd.Dir = filepath.Dir(kustomizationFilePath)
+		kustomizeBuildCmd.Stderr = &bytes.Buffer{}
+		kustomizeBuildCmd.Stdout = pipeWriter
+
+		// This command accepts resources via stdin, processes them via the bash function script, and outputs to stdout
+		kustomizeFnCmd := exec.CommandContext(ctx, yqBinaryFilePath, `(.. | select(tag == "!!str")) |= envsubst`)
+		kustomizeFnCmd.Env = append(os.Environ(),
+			"APPLICATION="+app.Name,
+			"BRANCH="+deployment.Spec.Branch,
+			"COMMIT_SHA="+commitSHA,
+			"ENVIRONMENT="+env.Spec.PreferredBranch,
+		)
+		kustomizeBuildCmd.Dir = filepath.Dir(kustomizationFilePath)
+		kustomizeFnCmd.Stderr = &bytes.Buffer{}
+		kustomizeFnCmd.Stdin = pipeReader
+		kustomizeFnCmd.Stdout = resourcesFile
+
+		// Execute kustomize build
+		if err := kustomizeBuildCmd.Start(); err != nil {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed starting kustomize command: %+v", err)
+			return reconcile.Requeue()
+		}
+		defer kustomizeBuildCmd.Process.Kill()
+
+		// Execute kustomize fn
+		if err := kustomizeFnCmd.Start(); err != nil {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed starting kustomize fn: %+v", err)
+			return reconcile.Requeue()
+		}
+		defer kustomizeFnCmd.Process.Kill()
+
+		// Wait for both commands to finish
+		if err := kustomizeBuildCmd.Wait(); err != nil {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed executing kustomize build: %+v", err)
+			return reconcile.Requeue()
+		} else if err := kustomizeFnCmd.Wait(); err != nil {
+			deployment.Status.SetMaybeStaleDueToInternalError("Failed executing kustomize fn: %+v", err)
+			return reconcile.Requeue()
+		}
+
+		// If kustomize failed, set condition and exit
+		if kustomizeBuildCmd.ProcessState.ExitCode()+kustomizeFnCmd.ProcessState.ExitCode() > 0 {
+			stderr := bytes.Buffer{}
+			stderr.WriteString("--[kustomize build stderr:]--------------------------------------------------\n")
+			stderr.Write(kustomizeBuildCmd.Stderr.(*bytes.Buffer).Bytes())
+			stderr.WriteString("\n--[kustomize fn stderr:]--------------------------------------------------\n")
+			stderr.Write(kustomizeFnCmd.Stderr.(*bytes.Buffer).Bytes())
+			deployment.Status.SetStaleDueToKustomizeFailure("Kustomize failed:\n%s", stderr.String())
+			return reconcile.Requeue()
+		}
+
+		*targetResourcesFile = resourcesFile.Name()
+		return reconcile.Continue()
+	}
+}
+*/

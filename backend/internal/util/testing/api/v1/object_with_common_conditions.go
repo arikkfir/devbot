@@ -7,7 +7,9 @@ import (
 // ObjectWithCommonConditions is a generic object with conditions.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Valid,Invalid:AddFinalizerFailed,ControllerMissing,FailedGettingOwnedObjects,FinalizationFailed,InternalError
+// +condition:Controlled,Uncontrolled:ControllerNotAccessible,ControllerNotFound,ControllerCannotBeFetched,OwnerReferenceMissing
+// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
+// +condition:Initialized,FailedToInitialize:InternalError
 type ObjectWithCommonConditions struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

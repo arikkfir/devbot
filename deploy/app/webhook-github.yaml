@@ -7,7 +7,7 @@ metadata:
 rules:
   - apiGroups: [devbot.kfirs.com]
     resources: [githubrepositories, githubrepositories/status]
-    verbs: [get, list, watch, patch, update]
+    verbs: [get, list, patch, update, watch]
 ---
 apiVersion: v1
 kind: ServiceAccount

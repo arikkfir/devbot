@@ -8,20 +8,26 @@ import (
     "fmt"
 {{if .HasCommonConditions}}	"github.com/arikkfir/devbot/backend/pkg/k8s"{{end}}
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
 )
 
 {{- range $ci, $c := .Conditions}}
 
 {{- range $ri, $r := $c.Reasons}}
 
-func (s *{{$.ObjectType}}Status) Set{{$c.Name}}DueTo{{$r}}(message string, args ...interface{}) {
+func (s *{{$.ObjectType}}Status) Set{{$c.Name}}DueTo{{$r}}(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == {{$c.Name}} {
-            c.Status = v1.ConditionTrue
-            c.Reason = {{$r}}
-            c.Message = fmt.Sprintf(message, args...)
-            s.Conditions[i] = c
-            return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != {{$r}} || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = {{$r}}
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -30,16 +36,22 @@ func (s *{{$.ObjectType}}Status) Set{{$c.Name}}DueTo{{$r}}(message string, args 
         Reason:             {{$r}},
         Message:            fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *{{$.ObjectType}}Status) SetMaybe{{$c.Name}}DueTo{{$r}}(message string, args ...interface{}) {
+func (s *{{$.ObjectType}}Status) SetMaybe{{$c.Name}}DueTo{{$r}}(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == {{$c.Name}} {
-            c.Status = v1.ConditionUnknown
-            c.Reason = {{$r}}
-            c.Message = fmt.Sprintf(message, args...)
-            s.Conditions[i] = c
-            return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != {{$r}} || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = {{$r}}
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -48,18 +60,25 @@ func (s *{{$.ObjectType}}Status) SetMaybe{{$c.Name}}DueTo{{$r}}(message string, 
         Reason:             {{$r}},
         Message:            fmt.Sprintf(message, args...),
 	})
-}
-
-func (s *{{$.ObjectType}}Status) Set{{$c.RemovalVerb}}If{{$c.Name}}DueTo{{$r}}() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != {{$c.Name}} || c.Reason != {{$r}} {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
+	return true
 }
 {{end}}
+
+func (s *{{$.ObjectType}}Status) Set{{$c.RemovalVerb}}If{{$c.Name}}DueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != {{$c.Name}} || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
 
 func (s *{{$.ObjectType}}Status) Set{{$c.RemovalVerb}}() {
     var newConditions []v1.Condition
@@ -74,7 +93,7 @@ func (s *{{$.ObjectType}}Status) Set{{$c.RemovalVerb}}() {
 func (s *{{$.ObjectType}}Status) Is{{$c.RemovalVerb}}() bool {
 	for _, c := range s.Conditions {
 		if c.Type == {{$c.Name}} {
-			return c.Status == v1.ConditionTrue
+			return c.Status != v1.ConditionTrue
 		}
 	}
     return true

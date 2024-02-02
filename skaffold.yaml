@@ -21,10 +21,15 @@ build:
       docker:
         dockerfile: Dockerfile.environment-controller
 
-    - image: ghcr.io/arikkfir/devbot/github-controller
+    - image: ghcr.io/arikkfir/devbot/github-ref-controller
       context: backend
       docker:
-        dockerfile: Dockerfile.github-controller
+        dockerfile: Dockerfile.github-ref-controller
+
+    - image: ghcr.io/arikkfir/devbot/github-repository-controller
+      context: backend
+      docker:
+        dockerfile: Dockerfile.github-repository-controller
 
     - image: ghcr.io/arikkfir/devbot/github-webhook
       context: backend

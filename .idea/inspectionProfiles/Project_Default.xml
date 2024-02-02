@@ -17,5 +17,6 @@
         <method importPath="os" receiver="*Process" name="Kill" />
       </methods>
     </inspection_tool>
+    <inspection_tool class="NonAsciiCharacters" enabled="false" level="WARNING" enabled_by_default="false" />
   </profile>
 </component>

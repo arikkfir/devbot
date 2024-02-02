@@ -6,18 +6,24 @@ package v1
 
 import (
 	"fmt"
-	"github.com/arikkfir/devbot/backend/pkg/k8s"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
 )
 
-func (s *EnvironmentStatus) SetStaleDueToInternalError(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetStaleDueToInternalError(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -26,16 +32,22 @@ func (s *EnvironmentStatus) SetStaleDueToInternalError(message string, args ...i
 		Reason:  InternalError,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetMaybeStaleDueToInternalError(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetMaybeStaleDueToInternalError(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -44,164 +56,22 @@ func (s *EnvironmentStatus) SetMaybeStaleDueToInternalError(message string, args
 		Reason:  InternalError,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToInternalError() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != InternalError {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetStaleDueToInvalid(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetStaleDueToRepositoryNotAccessible(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = Invalid
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  Invalid,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeStaleDueToInvalid(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = Invalid
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  Invalid,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToInvalid() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != Invalid {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetStaleDueToRepositoryAdded(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryAdded
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryAdded,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryAdded(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryAdded
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryAdded,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToRepositoryAdded() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryAdded {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetStaleDueToRepositoryMissingDefaultBranch(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryMissingDefaultBranch
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryMissingDefaultBranch,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryMissingDefaultBranch(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryMissingDefaultBranch
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryMissingDefaultBranch,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToRepositoryMissingDefaultBranch() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryMissingDefaultBranch {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetStaleDueToRepositoryNotAccessible(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryNotAccessible
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -210,16 +80,22 @@ func (s *EnvironmentStatus) SetStaleDueToRepositoryNotAccessible(message string,
 		Reason:  RepositoryNotAccessible,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotAccessible(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotAccessible(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryNotAccessible
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -228,72 +104,22 @@ func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotAccessible(message st
 		Reason:  RepositoryNotAccessible,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToRepositoryNotAccessible() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryNotAccessible {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetStaleDueToRepositoryNotApplicable(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryNotApplicable
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryNotApplicable,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotApplicable(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryNotApplicable
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryNotApplicable,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToRepositoryNotApplicable() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryNotApplicable {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetStaleDueToRepositoryNotFound(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryNotFound
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -302,16 +128,22 @@ func (s *EnvironmentStatus) SetStaleDueToRepositoryNotFound(message string, args
 		Reason:  RepositoryNotFound,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotFound(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryNotFound
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -320,26 +152,70 @@ func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotFound(message string,
 		Reason:  RepositoryNotFound,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToRepositoryNotFound() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryNotFound {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetStaleDueToRepositoryNotSupported(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetStaleDueToRepositoryNotReady(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryNotSupported
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotReady || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryNotReady
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  RepositoryNotReady,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotReady(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotReady || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryNotReady
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  RepositoryNotReady,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetStaleDueToRepositoryNotSupported(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotSupported || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryNotSupported
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -348,16 +224,22 @@ func (s *EnvironmentStatus) SetStaleDueToRepositoryNotSupported(message string, 
 		Reason:  RepositoryNotSupported,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotSupported(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotSupported(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryNotSupported
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotSupported || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryNotSupported
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -366,16 +248,71 @@ func (s *EnvironmentStatus) SetMaybeStaleDueToRepositoryNotSupported(message str
 		Reason:  RepositoryNotSupported,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetCurrentIfStaleDueToRepositoryNotSupported() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryNotSupported {
-			newConditions = append(newConditions, c)
+func (s *EnvironmentStatus) SetStaleDueToUnsupportedBranchStrategy(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != UnsupportedBranchStrategy || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = UnsupportedBranchStrategy
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
-	s.Conditions = newConditions
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  UnsupportedBranchStrategy,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeStaleDueToUnsupportedBranchStrategy(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != UnsupportedBranchStrategy || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = UnsupportedBranchStrategy
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  UnsupportedBranchStrategy,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetCurrentIfStaleDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Stale || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
 }
 
 func (s *EnvironmentStatus) SetCurrent() {
@@ -391,7 +328,7 @@ func (s *EnvironmentStatus) SetCurrent() {
 func (s *EnvironmentStatus) IsCurrent() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Stale {
-			return c.Status == v1.ConditionTrue
+			return c.Status != v1.ConditionTrue
 		}
 	}
 	return true
@@ -444,244 +381,519 @@ func (s *EnvironmentStatus) GetStaleMessage() string {
 	return ""
 }
 
-func (s *EnvironmentStatus) SetInvalidDueToAddFinalizerFailed(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = AddFinalizerFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != FinalizationFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = FinalizationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  AddFinalizerFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToAddFinalizerFailed(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = AddFinalizerFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  AddFinalizerFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetValidIfInvalidDueToAddFinalizerFailed() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != AddFinalizerFailed {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToControllerMissing(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = ControllerMissing
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  ControllerMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerMissing(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = ControllerMissing
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  ControllerMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetValidIfInvalidDueToControllerMissing() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != ControllerMissing {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToDeploymentNotFound(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = DeploymentNotFound
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  DeploymentNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToDeploymentNotFound(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = DeploymentNotFound
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  DeploymentNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetValidIfInvalidDueToDeploymentNotFound() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != DeploymentNotFound {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToFailedGettingOwnedObjects(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = FailedGettingOwnedObjects
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  FailedGettingOwnedObjects,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToFailedGettingOwnedObjects(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = FailedGettingOwnedObjects
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  FailedGettingOwnedObjects,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetValidIfInvalidDueToFailedGettingOwnedObjects() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != FailedGettingOwnedObjects {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToFinalizationFailed(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = FinalizationFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Finalizing,
 		Status:  v1.ConditionTrue,
 		Reason:  FinalizationFailed,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetMaybeInvalidDueToFinalizationFailed(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetMaybeFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = FinalizationFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != FinalizationFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = FinalizationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Finalizing,
 		Status:  v1.ConditionUnknown,
 		Reason:  FinalizationFailed,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetValidIfInvalidDueToFinalizationFailed() {
+func (s *EnvironmentStatus) SetFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != FinalizerRemovalFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = FinalizerRemovalFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionTrue,
+		Reason:  FinalizerRemovalFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != FinalizerRemovalFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = FinalizerRemovalFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionUnknown,
+		Reason:  FinalizerRemovalFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InProgress || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InProgress
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionTrue,
+		Reason:  InProgress,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InProgress || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InProgress
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionUnknown,
+		Reason:  InProgress,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetFinalizedIfFinalizingDueToAnyOf(reasons ...string) bool {
+	changed := false
 	var newConditions []v1.Condition
 	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != FinalizationFailed {
+		if c.Type != Finalizing || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *EnvironmentStatus) SetFinalized() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Finalizing {
 			newConditions = append(newConditions, c)
 		}
 	}
 	s.Conditions = newConditions
 }
 
-func (s *EnvironmentStatus) SetInvalidDueToInternalError(message string, args ...interface{}) {
+func (s *EnvironmentStatus) IsFinalized() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Status != v1.ConditionTrue
+		}
+	}
+	return true
+}
+
+func (s *EnvironmentStatus) IsFinalizing() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *EnvironmentStatus) GetFinalizingCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *EnvironmentStatus) GetFinalizingReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *EnvironmentStatus) GetFinalizingStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *EnvironmentStatus) GetFinalizingMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+func (s *EnvironmentStatus) SetFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    FailedToInitialize,
+		Status:  v1.ConditionTrue,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    FailedToInitialize,
+		Status:  v1.ConditionUnknown,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetInitializedIfFailedToInitializeDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != FailedToInitialize || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *EnvironmentStatus) SetInitialized() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != FailedToInitialize {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (s *EnvironmentStatus) IsInitialized() bool {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Status != v1.ConditionTrue
+		}
+	}
+	return true
+}
+
+func (s *EnvironmentStatus) IsFailedToInitialize() bool {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  ControllerNotAccessible,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  ControllerNotAccessible,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  ControllerNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  ControllerNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerReferenceMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerReferenceMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  ControllerReferenceMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerReferenceMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerReferenceMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  ControllerReferenceMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -690,16 +902,22 @@ func (s *EnvironmentStatus) SetInvalidDueToInternalError(message string, args ..
 		Reason:  InternalError,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) {
+func (s *EnvironmentStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -708,62 +926,23 @@ func (s *EnvironmentStatus) SetMaybeInvalidDueToInternalError(message string, ar
 		Reason:  InternalError,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *EnvironmentStatus) SetValidIfInvalidDueToInternalError() {
+func (s *EnvironmentStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
+	changed := false
 	var newConditions []v1.Condition
 	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != InternalError {
+		if c.Type != Invalid || !slices.Contains(reasons, c.Reason) {
 			newConditions = append(newConditions, c)
+		} else {
+			changed = true
 		}
 	}
-	s.Conditions = newConditions
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToRepositoryNotSupported(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryNotSupported
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
+	if changed {
+		s.Conditions = newConditions
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryNotSupported,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToRepositoryNotSupported(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryNotSupported
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryNotSupported,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *EnvironmentStatus) SetValidIfInvalidDueToRepositoryNotSupported() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != RepositoryNotSupported {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
+	return changed
 }
 
 func (s *EnvironmentStatus) SetValid() {
@@ -779,7 +958,7 @@ func (s *EnvironmentStatus) SetValid() {
 func (s *EnvironmentStatus) IsValid() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Invalid {
-			return c.Status == v1.ConditionTrue
+			return c.Status != v1.ConditionTrue
 		}
 	}
 	return true
@@ -848,7 +1027,4 @@ func (s *EnvironmentStatus) ClearStaleConditions(currentGeneration int64) {
 		}
 	}
 	s.Conditions = newConditions
-}
-func (o *Environment) GetStatus() k8s.CommonStatus {
-	return &o.Status
 }

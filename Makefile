@@ -1,6 +1,6 @@
 .PHONY: generate
 generate:
-	rm -rf backend/api/v1/zz_* deploy/app/crd/*.yaml
+	rm -rf backend/internal/util/testing/api/v1/zz_* backend/api/v1/zz_* deploy/app/crd/*.yaml
 	cd backend && go generate ./...
 
 .PHONY: test

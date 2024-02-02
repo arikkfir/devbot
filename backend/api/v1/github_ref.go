@@ -4,11 +4,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// +condition:Current,Stale:
+
 // GitHubRepositoryRef is the Schema for the githubrepositoryrefs API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Current,Stale:CommitSHAOutOfSync,RepositoryOwnerOutOfSync,RepositoryNameOutOfSync
-// +condition:Valid,Invalid:AddFinalizerFailed,ControllerMissing,FailedGettingOwnedObjects,FinalizationFailed,InternalError
+// +condition:Authenticated,Unauthenticated:AuthSecretForbidden,AuthSecretGetFailed,AuthSecretKeyNotFound,AuthSecretNotFound,AuthTokenEmpty,Invalid,TokenValidationFailed
+// +condition:Current,Stale:CommitSHAOutOfSync,Invalid,InternalError,RepositoryNameOutOfSync,RepositoryNotFound,RepositoryOwnerOutOfSync,Unauthenticated
+// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
+// +condition:Initialized,FailedToInitialize:InternalError
+// +condition:Valid,Invalid:AuthConfigMissing,AuthSecretKeyMissing,AuthSecretNameMissing,ControllerNotAccessible,ControllerNotFound,ControllerReferenceMissing,InternalError,InvalidRefreshInterval,RepositoryNameMissing,RepositoryOwnerMissing
 type GitHubRepositoryRef struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

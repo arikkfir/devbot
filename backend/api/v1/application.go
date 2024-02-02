@@ -13,7 +13,8 @@ const (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +condition:Current,Stale:InternalError,Invalid,RepositoryNotAccessible,RepositoryNotFound
-// +condition:Valid,Invalid:AddFinalizerFailed,ControllerMissing,FailedGettingOwnedObjects,FinalizationFailed,InternalError
+// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
+// +condition:Initialized,FailedToInitialize:InternalError
 // +condition:Valid,Invalid:RepositoryNotSupported
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`

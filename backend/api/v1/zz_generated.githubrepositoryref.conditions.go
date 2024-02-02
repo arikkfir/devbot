@@ -6,18 +6,442 @@ package v1
 
 import (
 	"fmt"
-	"github.com/arikkfir/devbot/backend/pkg/k8s"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
 )
 
-func (s *GitHubRepositoryRefStatus) SetStaleDueToCommitSHAOutOfSync(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetUnauthenticatedDueToAuthSecretForbidden(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthSecretForbidden || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthSecretForbidden
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthSecretForbidden,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeUnauthenticatedDueToAuthSecretForbidden(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthSecretForbidden || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthSecretForbidden
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthSecretForbidden,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetUnauthenticatedDueToAuthSecretGetFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthSecretGetFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthSecretGetFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthSecretGetFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeUnauthenticatedDueToAuthSecretGetFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthSecretGetFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthSecretGetFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthSecretGetFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetUnauthenticatedDueToAuthSecretKeyNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthSecretKeyNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthSecretKeyNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthSecretKeyNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeUnauthenticatedDueToAuthSecretKeyNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthSecretKeyNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthSecretKeyNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthSecretKeyNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetUnauthenticatedDueToAuthSecretNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthSecretNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthSecretNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthSecretNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeUnauthenticatedDueToAuthSecretNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthSecretNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthSecretNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthSecretNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetUnauthenticatedDueToAuthTokenEmpty(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthTokenEmpty || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthTokenEmpty
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthTokenEmpty,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeUnauthenticatedDueToAuthTokenEmpty(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthTokenEmpty || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthTokenEmpty
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthTokenEmpty,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetUnauthenticatedDueToInvalid(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != Invalid || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = Invalid
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionTrue,
+		Reason:  Invalid,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeUnauthenticatedDueToInvalid(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != Invalid || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = Invalid
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionUnknown,
+		Reason:  Invalid,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetUnauthenticatedDueToTokenValidationFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != TokenValidationFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = TokenValidationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionTrue,
+		Reason:  TokenValidationFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeUnauthenticatedDueToTokenValidationFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != TokenValidationFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = TokenValidationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Unauthenticated,
+		Status:  v1.ConditionUnknown,
+		Reason:  TokenValidationFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetAuthenticatedIfUnauthenticatedDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Unauthenticated || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *GitHubRepositoryRefStatus) SetAuthenticated() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Unauthenticated {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (s *GitHubRepositoryRefStatus) IsAuthenticated() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			return c.Status != v1.ConditionTrue
+		}
+	}
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) IsUnauthenticated() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *GitHubRepositoryRefStatus) GetUnauthenticatedCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *GitHubRepositoryRefStatus) GetUnauthenticatedReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *GitHubRepositoryRefStatus) GetUnauthenticatedStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *GitHubRepositoryRefStatus) GetUnauthenticatedMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == Unauthenticated {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+func (s *GitHubRepositoryRefStatus) SetStaleDueToCommitSHAOutOfSync(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = CommitSHAOutOfSync
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != CommitSHAOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = CommitSHAOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -26,16 +450,22 @@ func (s *GitHubRepositoryRefStatus) SetStaleDueToCommitSHAOutOfSync(message stri
 		Reason:  CommitSHAOutOfSync,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToCommitSHAOutOfSync(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToCommitSHAOutOfSync(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = CommitSHAOutOfSync
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != CommitSHAOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = CommitSHAOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -44,26 +474,118 @@ func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToCommitSHAOutOfSync(message
 		Reason:  CommitSHAOutOfSync,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetCurrentIfStaleDueToCommitSHAOutOfSync() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != CommitSHAOutOfSync {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *GitHubRepositoryRefStatus) SetStaleDueToRepositoryNameOutOfSync(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetStaleDueToInternalError(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryNameOutOfSync
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetStaleDueToInvalid(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != Invalid || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = Invalid
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  Invalid,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToInvalid(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != Invalid || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = Invalid
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  Invalid,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetStaleDueToRepositoryNameOutOfSync(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNameOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryNameOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -72,16 +594,22 @@ func (s *GitHubRepositoryRefStatus) SetStaleDueToRepositoryNameOutOfSync(message
 		Reason:  RepositoryNameOutOfSync,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToRepositoryNameOutOfSync(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToRepositoryNameOutOfSync(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryNameOutOfSync
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNameOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryNameOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -90,26 +618,70 @@ func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToRepositoryNameOutOfSync(me
 		Reason:  RepositoryNameOutOfSync,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetCurrentIfStaleDueToRepositoryNameOutOfSync() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryNameOutOfSync {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *GitHubRepositoryRefStatus) SetStaleDueToRepositoryOwnerOutOfSync(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionTrue
-			c.Reason = RepositoryOwnerOutOfSync
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  RepositoryNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  RepositoryNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetStaleDueToRepositoryOwnerOutOfSync(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryOwnerOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryOwnerOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -118,16 +690,22 @@ func (s *GitHubRepositoryRefStatus) SetStaleDueToRepositoryOwnerOutOfSync(messag
 		Reason:  RepositoryOwnerOutOfSync,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToRepositoryOwnerOutOfSync(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToRepositoryOwnerOutOfSync(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
-			c.Status = v1.ConditionUnknown
-			c.Reason = RepositoryOwnerOutOfSync
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryOwnerOutOfSync || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryOwnerOutOfSync
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -136,16 +714,71 @@ func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToRepositoryOwnerOutOfSync(m
 		Reason:  RepositoryOwnerOutOfSync,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetCurrentIfStaleDueToRepositoryOwnerOutOfSync() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || c.Reason != RepositoryOwnerOutOfSync {
-			newConditions = append(newConditions, c)
+func (s *GitHubRepositoryRefStatus) SetStaleDueToUnauthenticated(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != Unauthenticated || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = Unauthenticated
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
-	s.Conditions = newConditions
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  Unauthenticated,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeStaleDueToUnauthenticated(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != Unauthenticated || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = Unauthenticated
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  Unauthenticated,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetCurrentIfStaleDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Stale || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
 }
 
 func (s *GitHubRepositoryRefStatus) SetCurrent() {
@@ -161,7 +794,7 @@ func (s *GitHubRepositoryRefStatus) SetCurrent() {
 func (s *GitHubRepositoryRefStatus) IsCurrent() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Stale {
-			return c.Status == v1.ConditionTrue
+			return c.Status != v1.ConditionTrue
 		}
 	}
 	return true
@@ -214,198 +847,663 @@ func (s *GitHubRepositoryRefStatus) GetStaleMessage() string {
 	return ""
 }
 
-func (s *GitHubRepositoryRefStatus) SetInvalidDueToAddFinalizerFailed(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = AddFinalizerFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != FinalizationFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = FinalizationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  AddFinalizerFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToAddFinalizerFailed(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = AddFinalizerFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  AddFinalizerFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *GitHubRepositoryRefStatus) SetValidIfInvalidDueToAddFinalizerFailed() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != AddFinalizerFailed {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *GitHubRepositoryRefStatus) SetInvalidDueToControllerMissing(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = ControllerMissing
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  ControllerMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToControllerMissing(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = ControllerMissing
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  ControllerMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *GitHubRepositoryRefStatus) SetValidIfInvalidDueToControllerMissing() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != ControllerMissing {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *GitHubRepositoryRefStatus) SetInvalidDueToFailedGettingOwnedObjects(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = FailedGettingOwnedObjects
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  FailedGettingOwnedObjects,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToFailedGettingOwnedObjects(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = FailedGettingOwnedObjects
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  FailedGettingOwnedObjects,
-		Message: fmt.Sprintf(message, args...),
-	})
-}
-
-func (s *GitHubRepositoryRefStatus) SetValidIfInvalidDueToFailedGettingOwnedObjects() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != FailedGettingOwnedObjects {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *GitHubRepositoryRefStatus) SetInvalidDueToFinalizationFailed(message string, args ...interface{}) {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = FinalizationFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Finalizing,
 		Status:  v1.ConditionTrue,
 		Reason:  FinalizationFailed,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToFinalizationFailed(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetMaybeFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = FinalizationFailed
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != FinalizationFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = FinalizationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
+		Type:    Finalizing,
 		Status:  v1.ConditionUnknown,
 		Reason:  FinalizationFailed,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetValidIfInvalidDueToFinalizationFailed() {
+func (s *GitHubRepositoryRefStatus) SetFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != FinalizerRemovalFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = FinalizerRemovalFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionTrue,
+		Reason:  FinalizerRemovalFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != FinalizerRemovalFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = FinalizerRemovalFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionUnknown,
+		Reason:  FinalizerRemovalFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InProgress || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InProgress
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionTrue,
+		Reason:  InProgress,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Finalizing {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InProgress || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InProgress
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Finalizing,
+		Status:  v1.ConditionUnknown,
+		Reason:  InProgress,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetFinalizedIfFinalizingDueToAnyOf(reasons ...string) bool {
+	changed := false
 	var newConditions []v1.Condition
 	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != FinalizationFailed {
+		if c.Type != Finalizing || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *GitHubRepositoryRefStatus) SetFinalized() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Finalizing {
 			newConditions = append(newConditions, c)
 		}
 	}
 	s.Conditions = newConditions
 }
 
-func (s *GitHubRepositoryRefStatus) SetInvalidDueToInternalError(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) IsFinalized() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Status != v1.ConditionTrue
+		}
+	}
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) IsFinalizing() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *GitHubRepositoryRefStatus) GetFinalizingCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *GitHubRepositoryRefStatus) GetFinalizingReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *GitHubRepositoryRefStatus) GetFinalizingStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *GitHubRepositoryRefStatus) GetFinalizingMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == Finalizing {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+func (s *GitHubRepositoryRefStatus) SetFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    FailedToInitialize,
+		Status:  v1.ConditionTrue,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    FailedToInitialize,
+		Status:  v1.ConditionUnknown,
+		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInitializedIfFailedToInitializeDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != FailedToInitialize || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *GitHubRepositoryRefStatus) SetInitialized() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != FailedToInitialize {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (s *GitHubRepositoryRefStatus) IsInitialized() bool {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Status != v1.ConditionTrue
+		}
+	}
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) IsFailedToInitialize() bool {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *GitHubRepositoryRefStatus) GetFailedToInitializeCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *GitHubRepositoryRefStatus) GetFailedToInitializeReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *GitHubRepositoryRefStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *GitHubRepositoryRefStatus) GetFailedToInitializeMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == FailedToInitialize {
+			return c.Message
+		}
+	}
+	return ""
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToAuthConfigMissing(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthConfigMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthConfigMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthConfigMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToAuthConfigMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthConfigMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthConfigMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthConfigMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToAuthSecretKeyMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthSecretKeyMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthSecretKeyMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthSecretKeyMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToAuthSecretKeyMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthSecretKeyMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthSecretKeyMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthSecretKeyMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToAuthSecretNameMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != AuthSecretNameMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = AuthSecretNameMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  AuthSecretNameMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToAuthSecretNameMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != AuthSecretNameMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = AuthSecretNameMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  AuthSecretNameMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  ControllerNotAccessible,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotAccessible || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerNotAccessible
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  ControllerNotAccessible,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  ControllerNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  ControllerNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != ControllerReferenceMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = ControllerReferenceMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  ControllerReferenceMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != ControllerReferenceMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = ControllerReferenceMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  ControllerReferenceMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToInternalError(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -414,16 +1512,22 @@ func (s *GitHubRepositoryRefStatus) SetInvalidDueToInternalError(message string,
 		Reason:  InternalError,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) {
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = InternalError
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InternalError
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -432,16 +1536,167 @@ func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToInternalError(message st
 		Reason:  InternalError,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *GitHubRepositoryRefStatus) SetValidIfInvalidDueToInternalError() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != InternalError {
-			newConditions = append(newConditions, c)
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToInvalidRefreshInterval(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InvalidRefreshInterval || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InvalidRefreshInterval
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
-	s.Conditions = newConditions
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  InvalidRefreshInterval,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToInvalidRefreshInterval(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InvalidRefreshInterval || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InvalidRefreshInterval
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  InvalidRefreshInterval,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToRepositoryNameMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNameMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryNameMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  RepositoryNameMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToRepositoryNameMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNameMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryNameMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  RepositoryNameMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetInvalidDueToRepositoryOwnerMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != RepositoryOwnerMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = RepositoryOwnerMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  RepositoryOwnerMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetMaybeInvalidDueToRepositoryOwnerMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryOwnerMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = RepositoryOwnerMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  RepositoryOwnerMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *GitHubRepositoryRefStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Invalid || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
 }
 
 func (s *GitHubRepositoryRefStatus) SetValid() {
@@ -457,7 +1712,7 @@ func (s *GitHubRepositoryRefStatus) SetValid() {
 func (s *GitHubRepositoryRefStatus) IsValid() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Invalid {
-			return c.Status == v1.ConditionTrue
+			return c.Status != v1.ConditionTrue
 		}
 	}
 	return true
@@ -526,7 +1781,4 @@ func (s *GitHubRepositoryRefStatus) ClearStaleConditions(currentGeneration int64
 		}
 	}
 	s.Conditions = newConditions
-}
-func (o *GitHubRepositoryRef) GetStatus() k8s.CommonStatus {
-	return &o.Status
 }

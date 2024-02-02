@@ -5,19 +5,19 @@ metadata:
 rules:
   - apiGroups: [devbot.kfirs.com]
     resources: [applications]
-    verbs: [get, list, watch, update, patch]
+    verbs: [get, list, patch, update, watch]
   - apiGroups: [devbot.kfirs.com]
     resources: [applications/status]
-    verbs: [get, watch, patch, update]
+    verbs: [create, delete, get, patch, update]
   - apiGroups: [devbot.kfirs.com]
     resources: [environments]
-    verbs: [create, get, list, watch, patch, update]
+    verbs: [create, delete, get, list, patch, update, watch]
   - apiGroups: [devbot.kfirs.com]
-    resources: [environments/status]
-    verbs: [create, get, watch, patch, update]
-  - apiGroups: [devbot.kfirs.com]
-    resources: [githubrepositories, githubrepositoryrefs/status, githubrepositoryrefs, githubrepositoryrefs/status]
+    resources: [githubrepositories, githubrepositoryrefs]
     verbs: [get, list, watch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [githubrepositories/status, githubrepositoryrefs/status]
+    verbs: [get]
 ---
 apiVersion: v1
 kind: ServiceAccount

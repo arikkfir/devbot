@@ -7,10 +7,10 @@ import (
 // Deployment represents a deployment of a repository into an environment.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Current,Stale:ApplyFailed,BakingFailed,CloneFailed,CloneMissing,Cloning,Pulling
-// +condition:Current,Stale:InternalError,Invalid
-// +condition:Valid,Invalid:AddFinalizerFailed,ControllerMissing,FailedGettingOwnedObjects,FinalizationFailed,InternalError
-// +condition:Valid,Invalid:RepositoryNotAccessible,RepositoryNotFound,RepositoryNotSupported
+// +condition:Current,Stale:ApplyFailed,BakingFailed,CheckoutFailed,CloneFailed,CloneMissing,Cloning,InternalError,Invalid,PullFailed,Pulling,RepositoryNotAccessible,RepositoryNotFound
+// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
+// +condition:Initialized,FailedToInitialize:InternalError
+// +condition:Valid,Invalid:ControllerNotAccessible,ControllerNotFound,ControllerReferenceMissing,InternalError,RepositoryNotSupported
 type Deployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

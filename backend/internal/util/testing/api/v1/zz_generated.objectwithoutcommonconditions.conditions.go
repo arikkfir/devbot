@@ -8,16 +8,22 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
 )
 
-func (s *ObjectWithoutCommonConditionsStatus) SetInvalidDueToC1(message string, args ...interface{}) {
+func (s *ObjectWithoutCommonConditionsStatus) SetInvalidDueToC1(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = C1
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != C1 || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = C1
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -26,16 +32,22 @@ func (s *ObjectWithoutCommonConditionsStatus) SetInvalidDueToC1(message string, 
 		Reason:  C1,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithoutCommonConditionsStatus) SetMaybeInvalidDueToC1(message string, args ...interface{}) {
+func (s *ObjectWithoutCommonConditionsStatus) SetMaybeInvalidDueToC1(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = C1
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != C1 || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = C1
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -44,26 +56,22 @@ func (s *ObjectWithoutCommonConditionsStatus) SetMaybeInvalidDueToC1(message str
 		Reason:  C1,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithoutCommonConditionsStatus) SetValidIfInvalidDueToC1() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != C1 {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *ObjectWithoutCommonConditionsStatus) SetInvalidDueToC2(message string, args ...interface{}) {
+func (s *ObjectWithoutCommonConditionsStatus) SetInvalidDueToC2(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionTrue
-			c.Reason = C2
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != C2 || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = C2
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -72,16 +80,22 @@ func (s *ObjectWithoutCommonConditionsStatus) SetInvalidDueToC2(message string, 
 		Reason:  C2,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithoutCommonConditionsStatus) SetMaybeInvalidDueToC2(message string, args ...interface{}) {
+func (s *ObjectWithoutCommonConditionsStatus) SetMaybeInvalidDueToC2(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
-			c.Status = v1.ConditionUnknown
-			c.Reason = C2
-			c.Message = fmt.Sprintf(message, args...)
-			s.Conditions[i] = c
-			return
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != C2 || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = C2
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
 		}
 	}
 	s.Conditions = append(s.Conditions, v1.Condition{
@@ -90,16 +104,23 @@ func (s *ObjectWithoutCommonConditionsStatus) SetMaybeInvalidDueToC2(message str
 		Reason:  C2,
 		Message: fmt.Sprintf(message, args...),
 	})
+	return true
 }
 
-func (s *ObjectWithoutCommonConditionsStatus) SetValidIfInvalidDueToC2() {
+func (s *ObjectWithoutCommonConditionsStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
+	changed := false
 	var newConditions []v1.Condition
 	for _, c := range s.Conditions {
-		if c.Type != Invalid || c.Reason != C2 {
+		if c.Type != Invalid || !slices.Contains(reasons, c.Reason) {
 			newConditions = append(newConditions, c)
+		} else {
+			changed = true
 		}
 	}
-	s.Conditions = newConditions
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
 }
 
 func (s *ObjectWithoutCommonConditionsStatus) SetValid() {
@@ -115,7 +136,7 @@ func (s *ObjectWithoutCommonConditionsStatus) SetValid() {
 func (s *ObjectWithoutCommonConditionsStatus) IsValid() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Invalid {
-			return c.Status == v1.ConditionTrue
+			return c.Status != v1.ConditionTrue
 		}
 	}
 	return true

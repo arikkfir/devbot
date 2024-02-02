@@ -12,17 +12,17 @@ COPY go.sum go.sum
 RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
-COPY cmd/github-controller cmd/github-controller/
+COPY cmd/github-repository-controller cmd/github-repository-controller/
 COPY internal/config internal/config/
-COPY internal/controllers/*.go internal/controllers/
+COPY internal/controllers/config.go internal/controllers/
 COPY internal/controllers/github/*.go internal/controllers/github/
+COPY internal/controllers/reconciler internal/controllers/reconciler/
 COPY internal/util internal/util/
-COPY pkg pkg/
-RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o github-controller cmd/github-controller/main.go
+RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o github-repository-controller cmd/github-repository-controller/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/github-controller ./
+COPY --from=builder /workspace/github-repository-controller ./
 USER 65532:65532
 ENV GOTRACEBACK=single
-ENTRYPOINT ["/github-controller"]
+ENTRYPOINT ["/github-repository-controller"]

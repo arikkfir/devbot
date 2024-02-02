@@ -7,14 +7,11 @@ import (
 // GitHubRepository is the Schema for the githubrepositories API.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Authenticated,Unauthenticated:Invalid
-// +condition:Authenticated,Unauthenticated:AuthSecretForbidden,AuthSecretGetFailed,AuthSecretKeyNotFound,AuthSecretNotFound,AuthTokenEmpty,TokenValidationFailed
-// +condition:Current,Stale:GitHubAPIFailed,InternalError,Invalid,Unauthenticated
-// +condition:Current,Stale:BranchesOutOfSync,DefaultBranchOutOfSync,RepositoryNotFound
-// +condition:Valid,Invalid:AddFinalizerFailed,ControllerMissing,FailedGettingOwnedObjects,FinalizationFailed,InternalError
-// +condition:Valid,Invalid:AuthConfigMissing,AuthSecretKeyMissing,AuthSecretNameMissing
-// +condition:Valid,Invalid:InvalidRefreshInterval
-// +condition:Valid,Invalid:RepositoryNameMissing,RepositoryOwnerMissing
+// +condition:Authenticated,Unauthenticated:AuthSecretForbidden,AuthSecretGetFailed,AuthSecretKeyNotFound,AuthSecretNotFound,AuthTokenEmpty,Invalid,TokenValidationFailed
+// +condition:Current,Stale:BranchesOutOfSync,DefaultBranchOutOfSync,GitHubAPIFailure,InternalError,Invalid,RepositoryNotFound,Unauthenticated
+// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
+// +condition:Initialized,FailedToInitialize:InternalError
+// +condition:Valid,Invalid:AuthConfigMissing,AuthSecretKeyMissing,AuthSecretNameMissing,InvalidRefreshInterval,RepositoryNameMissing,RepositoryOwnerMissing
 type GitHubRepository struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

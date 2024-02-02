@@ -15,6 +15,7 @@ resources:
   - application-controller.yaml
   - deployment-controller.yaml
   - environment-controller.yaml
-  - github-controller.yaml
+  - github-ref-controller.yaml
+  - github-repository-controller.yaml
   - webhook-github.yaml
   - leader-election.yaml

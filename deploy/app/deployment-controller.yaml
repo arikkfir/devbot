@@ -4,19 +4,19 @@ metadata:
   name: deployment-controller
 rules:
   - apiGroups: [devbot.kfirs.com]
-    resources: [applications, applications/status]
-    verbs: [get, list, watch]
-  - apiGroups: [devbot.kfirs.com]
-    resources: [environments, environments/status]
+    resources: [applications]
     verbs: [get, list, watch]
   - apiGroups: [devbot.kfirs.com]
     resources: [deployments]
-    verbs: [get, list, watch, update, patch]
+    verbs: [get, list, patch, update, watch]
   - apiGroups: [devbot.kfirs.com]
     resources: [deployments/status]
-    verbs: [get, watch, patch, update]
+    verbs: [create, delete, get, patch, update]
   - apiGroups: [devbot.kfirs.com]
-    resources: [githubrepositories, githubrepositoryrefs/status, githubrepositoryrefs, githubrepositoryrefs/status]
+    resources: [environments]
+    verbs: [get, list, watch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [githubrepositories]
     verbs: [get, list, watch]
 ---
 apiVersion: v1
