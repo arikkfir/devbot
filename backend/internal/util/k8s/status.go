@@ -1,4 +1,4 @@
-package reconciler
+package k8s
 
 import (
 	"github.com/secureworks/errors"

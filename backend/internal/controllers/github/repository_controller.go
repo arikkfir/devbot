@@ -3,7 +3,7 @@ package github
 import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/controllers/reconciler"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/google/go-github/v56/github"
 	"github.com/secureworks/errors"
@@ -24,7 +24,7 @@ type RepositoryReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *RepositoryReconciler) CreateMissingRefObjects(rec *reconciler.Reconciliation[*apiv1.GitHubRepository], gh *github.Client, refsList *apiv1.GitHubRepositoryRefList) *reconciler.Result {
+func (r *RepositoryReconciler) CreateMissingRefObjects(rec *k8s.Reconciliation[*apiv1.GitHubRepository], gh *github.Client, refsList *apiv1.GitHubRepositoryRefList) *k8s.Result {
 	o := rec.Object
 
 	var branchesWithoutRefs []string
@@ -33,7 +33,7 @@ func (r *RepositoryReconciler) CreateMissingRefObjects(rec *reconciler.Reconcili
 		branchesList, response, err := gh.Repositories.ListBranches(rec.Ctx, o.Spec.Owner, o.Spec.Name, branchesListOptions)
 		if err != nil {
 			o.Status.SetMaybeStaleDueToGitHubAPIFailure("Failed listing branches: %+v", err)
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		}
 		for _, branch := range branchesList {
 
@@ -47,7 +47,7 @@ func (r *RepositoryReconciler) CreateMissingRefObjects(rec *reconciler.Reconcili
 			if !found {
 				branchesWithoutRefs = append(branchesWithoutRefs, branch.GetName())
 				o.Status.SetStaleDueToBranchesOutOfSync("Branches without GitHubRepositoryRef object found: %s", strings.Join(branchesWithoutRefs, ", "))
-				if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+				if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 					return result
 				}
 
@@ -61,7 +61,7 @@ func (r *RepositoryReconciler) CreateMissingRefObjects(rec *reconciler.Reconcili
 				}
 				if err := r.Client.Create(rec.Ctx, ref); err != nil {
 					o.Status.SetStaleDueToInternalError("Failed creating ref object for branch '%s': %+v", branch.GetName(), err)
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				}
 			}
 		}
@@ -72,14 +72,14 @@ func (r *RepositoryReconciler) CreateMissingRefObjects(rec *reconciler.Reconcili
 	}
 
 	if o.Status.SetCurrentIfStaleDueToAnyOf(apiv1.GitHubAPIFailure, apiv1.BranchesOutOfSync, apiv1.InternalError) {
-		return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue))
+		return rec.UpdateStatus(k8s.WithStrategy(k8s.Continue))
 	} else {
-		return reconciler.Continue()
+		return k8s.Continue()
 	}
 }
 
 func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	rec, result := reconciler.NewReconciliation(ctx, r.Client, req, &apiv1.GitHubRepository{}, RepositoryFinalizer, nil)
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.GitHubRepository{}, RepositoryFinalizer, nil)
 	if result != nil {
 		return result.Return()
 	}
@@ -99,7 +99,7 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if result := rec.ParseRefreshInterval(rec.Object.Spec.RefreshInterval, &refreshInterval, rec.Object.Status.SetInvalidDueToInvalidRefreshInterval, rec.Object.Status.SetMaybeStaleDueToInvalid); result != nil {
 		return result.Return()
 	} else if rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.InvalidRefreshInterval) || rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.Invalid) {
-		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+		if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 			return result.Return()
 		}
 	}
@@ -115,17 +115,17 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if ghRepo.GetDefaultBranch() != rec.Object.Status.DefaultBranch {
 		rec.Object.Status.SetStaleDueToDefaultBranchOutOfSync("Default branch is set to '%s' but should be '%s'", rec.Object.Status.DefaultBranch, ghRepo.GetDefaultBranch())
 		rec.Object.Status.DefaultBranch = ghRepo.GetDefaultBranch()
-		return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue)).Return()
+		return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue)).Return()
 	} else if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.DefaultBranchOutOfSync) {
-		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+		if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 			return result.Return()
 		}
 	}
 
 	// Fetch existing ref objects
 	refsList := &apiv1.GitHubRepositoryRefList{}
-	if err := r.List(ctx, refsList, reconciler.OwnedBy(r.Client.Scheme(), rec.Object)); err != nil {
-		return reconciler.RequeueDueToError(errors.New("failed listing owned objects: %w", err)).Return()
+	if err := r.List(ctx, refsList, k8s.OwnedBy(r.Client.Scheme(), rec.Object)); err != nil {
+		return k8s.RequeueDueToError(errors.New("failed listing owned objects: %w", err)).Return()
 	}
 
 	// Create missing ref objects based on current branches in the repository
@@ -134,7 +134,7 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Done
-	return reconciler.RequeueAfter(refreshInterval).Return()
+	return k8s.RequeueAfter(refreshInterval).Return()
 }
 
 // SetupWithManager sets up the controller with the Manager.

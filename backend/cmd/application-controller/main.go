@@ -4,8 +4,8 @@ import (
 	"context"
 	"github.com/arikkfir/devbot/backend/internal/controllers"
 	"github.com/arikkfir/devbot/backend/internal/controllers/application"
-	"github.com/arikkfir/devbot/backend/internal/controllers/reconciler"
 	"github.com/arikkfir/devbot/backend/internal/util/configuration"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
@@ -63,10 +63,10 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Environment{}); err != nil {
+	if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Environment{}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to create index")
 	}
-	if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
+	if err := k8s.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to create index")
 	}
 	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &apiv1.GitHubRepositoryRef{}, "spec.ref", indexGitHubRepositoryRefSpecRef); err != nil {

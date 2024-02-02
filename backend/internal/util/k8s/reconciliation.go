@@ -1,4 +1,4 @@
-package reconciler
+package k8s
 
 import (
 	"context"
@@ -56,6 +56,38 @@ func NewReconciliation[O client.Object](ctx context.Context, c client.Client, re
 		FinalizerValue: finalizerValue,
 		FinalizerFunc:  finalizerFunc,
 	}, nil
+}
+
+func (r *Reconciliation[O]) UpdateStatus(strategy *ErrorStrategy) *Result {
+	// TODO: find a way to prevent excessive status updates; this is called in every action in every reconciliation, multiple times
+
+	// Ensure that newly-set conditions have the correct ObservedGeneration and LastTransitionTime
+	if conditionsProvider, ok := GetStatusOfType[ConditionsProvider](r.Object); ok {
+		var newConditions []metav1.Condition
+		for _, c := range conditionsProvider.GetConditions() {
+			nc := c
+			if nc.ObservedGeneration == 0 {
+				nc.ObservedGeneration = r.Object.GetGeneration()
+			}
+			if nc.LastTransitionTime.IsZero() {
+				nc.LastTransitionTime = metav1.Now()
+			}
+			newConditions = append(newConditions, nc)
+		}
+		conditionsProvider.SetConditions(newConditions)
+	}
+
+	// Update the status subresource, invoking the error strategy accordingly if an error occurs
+	if err := r.Client.Status().Update(r.Ctx, r.Object); err != nil {
+		if apierrors.IsNotFound(err) {
+			return strategy.OnSuccess()
+		} else if apierrors.IsConflict(err) || apierrors.IsGone(err) {
+			return strategy.OnConflict()
+		} else {
+			return strategy.OnUnexpectedError(errors.New("failed to update object status: %w", err))
+		}
+	}
+	return strategy.OnSuccess()
 }
 
 func (r *Reconciliation[O]) FinalizeObjectIfDeleted() *Result {
@@ -118,38 +150,6 @@ func (r *Reconciliation[O]) InitializeObject() *Result {
 
 	status.SetInitializedIfFailedToInitializeDueToAnyOf(v1.InternalError)
 	return r.UpdateStatus(WithStrategy(Continue))
-}
-
-func (r *Reconciliation[O]) UpdateStatus(strategy *ErrorStrategy) *Result {
-	// TODO: find a way to prevent excessive status updates; this is called in every action in every reconciliation, multiple times
-
-	// Ensure that newly-set conditions have the correct ObservedGeneration and LastTransitionTime
-	if conditionsProvider, ok := GetStatusOfType[ConditionsProvider](r.Object); ok {
-		var newConditions []metav1.Condition
-		for _, c := range conditionsProvider.GetConditions() {
-			nc := c
-			if nc.ObservedGeneration == 0 {
-				nc.ObservedGeneration = r.Object.GetGeneration()
-			}
-			if nc.LastTransitionTime.IsZero() {
-				nc.LastTransitionTime = metav1.Now()
-			}
-			newConditions = append(newConditions, nc)
-		}
-		conditionsProvider.SetConditions(newConditions)
-	}
-
-	// Update the status subresource, invoking the error strategy accordingly if an error occurs
-	if err := r.Client.Status().Update(r.Ctx, r.Object); err != nil {
-		if apierrors.IsNotFound(err) {
-			return strategy.OnSuccess()
-		} else if apierrors.IsConflict(err) || apierrors.IsGone(err) {
-			return strategy.OnConflict()
-		} else {
-			return strategy.OnUnexpectedError(errors.New("failed to update object status: %w", err))
-		}
-	}
-	return strategy.OnSuccess()
 }
 
 func (r *Reconciliation[O]) GetRequiredController(controller client.Object) *Result {

@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/controllers/reconciler"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/secureworks/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,12 +27,12 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *Reconciler) SyncEnvironments(rec *reconciler.Reconciliation[*apiv1.Application]) *reconciler.Result {
+func (r *Reconciler) SyncEnvironments(rec *k8s.Reconciliation[*apiv1.Application]) *k8s.Result {
 
 	// Fetch existing ref objects
 	envsList := &apiv1.EnvironmentList{}
-	if err := r.List(rec.Ctx, envsList, reconciler.OwnedBy(r.Scheme, rec.Object)); err != nil {
-		return reconciler.RequeueDueToError(errors.New("failed listing owned objects: %w", err))
+	if err := r.List(rec.Ctx, envsList, k8s.OwnedBy(r.Scheme, rec.Object)); err != nil {
+		return k8s.RequeueDueToError(errors.New("failed listing owned objects: %w", err))
 	}
 
 	// Create a map of all environments by their preferred branch
@@ -52,21 +52,21 @@ func (r *Reconciler) SyncEnvironments(rec *reconciler.Reconciliation[*apiv1.Appl
 			if err := r.Get(rec.Ctx, repoClientKey, repo); err != nil {
 				if apierrors.IsNotFound(err) {
 					rec.Object.Status.SetStaleDueToRepositoryNotFound("GitHub repository '%s' not found", repoClientKey)
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else if apierrors.IsForbidden(err) {
 					rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("GitHub repository '%s' is not accessible: %+v", repoClientKey, err)
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else {
 					rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up GitHub repository '%s': %+v", repoClientKey, err)
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				}
 			}
 
 			// Get all GitHubRepositoryRef objects that belong to this repository
 			refs := &apiv1.GitHubRepositoryRefList{}
-			if err := r.List(rec.Ctx, refs, reconciler.OwnedBy(r.Scheme, repo)); err != nil {
+			if err := r.List(rec.Ctx, refs, k8s.OwnedBy(r.Scheme, repo)); err != nil {
 				rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up refs for GitHub repository '%s': %+v", repoClientKey, err)
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 			}
 
 			// For every repository branch found, ensure there's an environment for it
@@ -83,7 +83,7 @@ func (r *Reconciler) SyncEnvironments(rec *reconciler.Reconciliation[*apiv1.Appl
 					}
 					if err := r.Create(rec.Ctx, env); err != nil {
 						rec.Object.Status.SetMaybeStaleDueToInternalError("Failed creating environment for branch '%s': %+v", ref.Spec.Ref, err)
-						return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+						return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 					}
 				}
 			}
@@ -91,7 +91,7 @@ func (r *Reconciler) SyncEnvironments(rec *reconciler.Reconciliation[*apiv1.Appl
 		} else {
 			rec.Object.Status.SetInvalidDueToRepositoryNotSupported("Unsupported repository type '%s.%s' specified", repoRef.Kind, repoRef.APIVersion)
 			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.DoNotRequeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
 		}
 	}
 
@@ -103,7 +103,7 @@ func (r *Reconciler) SyncEnvironments(rec *reconciler.Reconciliation[*apiv1.Appl
 					continue
 				} else {
 					rec.Object.Status.SetStaleDueToInternalError("Failed deleting environment '%s': %+v", env.Name, err)
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				}
 			}
 		}
@@ -112,16 +112,16 @@ func (r *Reconciler) SyncEnvironments(rec *reconciler.Reconciliation[*apiv1.Appl
 	if rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNotSupported) ||
 		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.Invalid) {
 
-		return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 
 	}
-	return reconciler.Continue()
+	return k8s.Continue()
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	rec, result := reconciler.NewReconciliation(ctx, r.Client, req, &apiv1.Application{}, Finalizer, nil)
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Application{}, Finalizer, nil)
 	if result != nil {
 		return result.Return()
 	}
@@ -142,7 +142,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Done
-	return reconciler.DoNotRequeue().Return()
+	return k8s.DoNotRequeue().Return()
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/controllers/reconciler"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -36,7 +36,7 @@ type Reconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func (r *Reconciler) prepareCloneDirectory(rec *reconciler.Reconciliation[*apiv1.Deployment], gitURL *string) *reconciler.Result {
+func (r *Reconciler) prepareCloneDirectory(rec *k8s.Reconciliation[*apiv1.Deployment], gitURL *string) *k8s.Result {
 	// Get the repository
 	var url string
 	if rec.Object.Spec.Repository.IsGitHubRepository() {
@@ -45,27 +45,27 @@ func (r *Reconciler) prepareCloneDirectory(rec *reconciler.Reconciliation[*apiv1
 		if err := r.Get(rec.Ctx, repoKey, repo); err != nil {
 			if apierrors.IsNotFound(err) {
 				if rec.Object.Status.SetMaybeStaleDueToRepositoryNotFound("Repository '%s' could not be found", repoKey) {
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else {
-					return reconciler.Requeue()
+					return k8s.Requeue()
 				}
 			} else if apierrors.IsForbidden(err) {
 				if rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("Repository '%s' is not accessible: %+v", repoKey, err) {
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else {
-					return reconciler.Requeue()
+					return k8s.Requeue()
 				}
 			} else {
 				if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up repository '%s': %+v", repoKey, err) {
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else {
-					return reconciler.Requeue()
+					return k8s.Requeue()
 				}
 			}
 		} else {
 			url = fmt.Sprintf("https://github.com/%s/%s", repo.Spec.Owner, repo.Spec.Name)
 			if rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNotSupported) {
-				if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+				if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 					return result
 				}
 			}
@@ -73,45 +73,45 @@ func (r *Reconciler) prepareCloneDirectory(rec *reconciler.Reconciliation[*apiv1
 	} else {
 		if rec.Object.Status.SetInvalidDueToRepositoryNotSupported("Unsupported repository type '%s.%s' specified", rec.Object.Spec.Repository.Kind, rec.Object.Spec.Repository.APIVersion) ||
 			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.DoNotRequeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
 		} else {
-			return reconciler.DoNotRequeue()
+			return k8s.DoNotRequeue()
 		}
 	}
 
 	// Decide on a clone path and save it in the object
 	if rec.Object.Status.ClonePath == "" {
 		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s", rec.Object.Spec.Repository.Namespace, rec.Object.Spec.Repository.Name, strings.RandomHash(7))
-		return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+		return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 	} else if _, err := os.Stat(rec.Object.Status.ClonePath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			if rec.Object.Status.SetStaleDueToCloneMissing("Repository not cloned yet") {
-				if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+				if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 					return result
 				}
 			}
 		} else {
 			if rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to stat local clone dir at '%s': %+v", rec.Object.Status.ClonePath, err) {
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.DoNotRequeue))
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue))
 			} else {
-				return reconciler.DoNotRequeue()
+				return k8s.DoNotRequeue()
 			}
 		}
 	} else if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.CloneMissing) {
-		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+		if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 			return result
 		}
 	}
 
 	*gitURL = url
-	return reconciler.Continue()
+	return k8s.Continue()
 }
 
-func (r *Reconciler) cloneRepository(rec *reconciler.Reconciliation[*apiv1.Deployment], url string, ghRepo **git.Repository) *reconciler.Result {
+func (r *Reconciler) cloneRepository(rec *k8s.Reconciliation[*apiv1.Deployment], url string, ghRepo **git.Repository) *k8s.Result {
 
 	// Set status to cloning
 	if rec.Object.Status.SetMaybeStaleDueToCloning("Cloning repository") {
-		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+		if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 			return result
 		}
 	}
@@ -129,21 +129,21 @@ func (r *Reconciler) cloneRepository(rec *reconciler.Reconciliation[*apiv1.Deplo
 			if _, err := git.PlainClone(rec.Object.Status.ClonePath, false, cloneOptions); err != nil {
 				// TODO: consider deleting the clone & status.ClonePath - to start over
 				if rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed cloning repository: %+v", err) {
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else {
-					return reconciler.Requeue()
+					return k8s.Requeue()
 				}
 			} else {
-				return reconciler.Requeue()
+				return k8s.Requeue()
 			}
 
 		} else {
 
 			// TODO: consider deleting the clone & status.ClonePath - to start over
 			if rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed opening repository: %+v", err) {
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 			} else {
-				return reconciler.Requeue()
+				return k8s.Requeue()
 			}
 		}
 
@@ -151,16 +151,16 @@ func (r *Reconciler) cloneRepository(rec *reconciler.Reconciliation[*apiv1.Deplo
 
 		// TODO: consider deleting the clone & status.ClonePath - to start over
 		if rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed opening repository worktree: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 
 	} else {
 
 		// Set status to pulling
 		if rec.Object.Status.SetMaybeStaleDueToPulling("Pulling updates") {
-			if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+			if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 				return result
 			}
 		}
@@ -169,9 +169,9 @@ func (r *Reconciler) cloneRepository(rec *reconciler.Reconciliation[*apiv1.Deplo
 		if err := worktree.Checkout(&git.CheckoutOptions{Branch: refName}); err != nil {
 			// TODO: consider deleting the clone & status.ClonePath - to start over
 			if rec.Object.Status.SetMaybeStaleDueToCheckoutFailed("Failed checking out branch '%s': %+v", rec.Object.Spec.Branch, err) {
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 			} else {
-				return reconciler.Requeue()
+				return k8s.Requeue()
 			}
 		}
 
@@ -181,34 +181,34 @@ func (r *Reconciler) cloneRepository(rec *reconciler.Reconciliation[*apiv1.Deplo
 				// No changes
 			} else {
 				if rec.Object.Status.SetMaybeStaleDueToPullFailed("Failed pulling changes: %+v", err) {
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else {
-					return reconciler.Requeue()
+					return k8s.Requeue()
 				}
 			}
 		}
 
 		if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.Cloning, apiv1.CloneFailed, apiv1.Pulling, apiv1.CheckoutFailed, apiv1.PullFailed) {
-			if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+			if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 				return result
 			}
 		}
 
 		*ghRepo = repo
-		return reconciler.Continue()
+		return k8s.Continue()
 	}
 }
 
 // TODO: review all Requeue results and consider replacing with DoNotRequeue (thus rely on next polling event)
 //       also review error states - on many cases we probably should re-clone the repository
 
-func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, ghRepo *git.Repository, commitSHA, targetResourcesFile *string) *reconciler.Result {
+func (r *Reconciler) bake(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, ghRepo *git.Repository, commitSHA, targetResourcesFile *string) *k8s.Result {
 	reference, err := ghRepo.Head()
 	if err != nil {
 		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed getting Git HEAD revision: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 
@@ -225,16 +225,16 @@ func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app
 		if info, err := os.Stat(path); err != nil {
 			if !os.IsNotExist(err) {
 				if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed checking if kustomization file exists at '%s': %+v", path, err) {
-					return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+					return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 				} else {
-					return reconciler.Requeue()
+					return k8s.Requeue()
 				}
 			}
 		} else if info.IsDir() {
 			if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Kustomization file at '%s' is a directory", path) {
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 			} else {
-				return reconciler.Requeue()
+				return k8s.Requeue()
 			}
 		} else {
 			kustomizationFilePath = path
@@ -243,9 +243,9 @@ func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app
 	}
 	if kustomizationFilePath == "" {
 		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed locating kustomization file in '%s'", root) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 
@@ -253,9 +253,9 @@ func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app
 	resourcesFile, err := os.Create(filepath.Dir(kustomizationFilePath) + "/.devbot.output.resources.yaml")
 	if err != nil {
 		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed creating resources file: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 	defer resourcesFile.Close()
@@ -289,9 +289,9 @@ func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app
 	// Execute kustomize build
 	if err := kustomizeBuildCmd.Start(); err != nil {
 		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed starting kustomize command: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 	defer kustomizeBuildCmd.Process.Kill()
@@ -299,9 +299,9 @@ func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app
 	// Execute kustomize fn
 	if err := yqCmd.Start(); err != nil {
 		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed starting kustomize fn: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 	defer yqCmd.Process.Kill()
@@ -309,15 +309,15 @@ func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app
 	// Wait for both commands to finish
 	if err := kustomizeBuildCmd.Wait(); err != nil {
 		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed executing kustomize build: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	} else if err := yqCmd.Wait(); err != nil {
 		if rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed executing kustomize fn: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 
@@ -329,24 +329,24 @@ func (r *Reconciler) bake(rec *reconciler.Reconciliation[*apiv1.Deployment], app
 		stderr.WriteString("\n--[yq stderr:]---------------------------------------------------------------\n")
 		stderr.Write(yqCmd.Stderr.(*bytes.Buffer).Bytes())
 		if rec.Object.Status.SetStaleDueToBakingFailed("Manifest baking failed:\n%s", stderr.String()) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 
 	if rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.BakingFailed) {
-		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+		if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 			return result
 		}
 	}
 
 	*targetResourcesFile = resourcesFile.Name()
 	*commitSHA = reference.Hash().String()
-	return reconciler.Continue()
+	return k8s.Continue()
 }
 
-func (r *Reconciler) apply(rec *reconciler.Reconciliation[*apiv1.Deployment], resourcesFile string) *reconciler.Result {
+func (r *Reconciler) apply(rec *k8s.Reconciliation[*apiv1.Deployment], resourcesFile string) *k8s.Result {
 	// TODO: support remote clusters
 
 	stdout := bytes.Buffer{}
@@ -363,19 +363,19 @@ func (r *Reconciler) apply(rec *reconciler.Reconciliation[*apiv1.Deployment], re
 	kubectlCmd.Stdout = &stdout
 	if err := kubectlCmd.Run(); err != nil {
 		if rec.Object.Status.SetMaybeStaleDueToApplyFailed("Failed applying resources: %+v", err) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue))
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue))
 		} else {
-			return reconciler.Requeue()
+			return k8s.Requeue()
 		}
 	}
 
 	// TODO: infer inventory list from kubectl output (for potential pruning/health checks)
 
-	return reconciler.Continue()
+	return k8s.Continue()
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	rec, result := reconciler.NewReconciliation(ctx, r.Client, req, &apiv1.Deployment{}, Finalizer, nil)
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Deployment{}, Finalizer, nil)
 	if result != nil {
 		return result.Return()
 	}
@@ -402,36 +402,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if appControllerRef == nil {
 		if rec.Object.Status.SetInvalidDueToInternalError("Could not find application controller reference in parent environment") ||
 			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
-			return rec.UpdateStatus(reconciler.WithStrategy(reconciler.DoNotRequeue)).Return()
+			return rec.UpdateStatus(k8s.WithStrategy(k8s.DoNotRequeue)).Return()
 		} else {
-			return reconciler.DoNotRequeue().Return()
+			return k8s.DoNotRequeue().Return()
 		}
 	} else if err := r.Client.Get(ctx, client.ObjectKey{Name: appControllerRef.Name, Namespace: env.Namespace}, app); err != nil {
 		if apierrors.IsNotFound(err) {
 			if rec.Object.Status.SetInvalidDueToControllerNotFound("Could not find application controller of parent environment: %+v", err) ||
 				rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue)).Return()
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue)).Return()
 			} else {
-				return reconciler.Requeue().Return()
+				return k8s.Requeue().Return()
 			}
 		} else if apierrors.IsForbidden(err) {
 			if rec.Object.Status.SetInvalidDueToControllerNotAccessible("Application controller of parent environment is not accessible: %+v", err) ||
 				rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue)).Return()
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue)).Return()
 			} else {
-				return reconciler.Requeue().Return()
+				return k8s.Requeue().Return()
 			}
 		} else {
 			if rec.Object.Status.SetInvalidDueToInternalError("Could not find application controller of parent environment: %+v", err) ||
 				rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage()) {
-				return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Requeue)).Return()
+				return rec.UpdateStatus(k8s.WithStrategy(k8s.Requeue)).Return()
 			} else {
-				return reconciler.Requeue().Return()
+				return k8s.Requeue().Return()
 			}
 		}
 	} else if rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.ControllerNotAccessible, apiv1.ControllerNotFound, apiv1.InternalError) ||
 		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.Invalid) {
-		return rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)).Return()
+		return rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)).Return()
 	}
 
 	// Prepare clone directory
@@ -459,12 +459,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	if rec.Object.Status.LastAppliedCommitSHA == commitSHA {
 		rec.Object.Status.LastAppliedCommitSHA = commitSHA
-		if result := rec.UpdateStatus(reconciler.WithStrategy(reconciler.Continue)); result != nil {
+		if result := rec.UpdateStatus(k8s.WithStrategy(k8s.Continue)); result != nil {
 			return result.Return()
 		}
 	}
 
-	return reconciler.DoNotRequeue().Return()
+	return k8s.DoNotRequeue().Return()
 }
 
 // SetupWithManager sets up the controller with the Manager.
