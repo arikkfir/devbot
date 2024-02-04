@@ -11,8 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"slices"
-	"strings"
 	"time"
 )
 
@@ -74,16 +72,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 
 				refs := &apiv1.GitHubRepositoryRefList{}
 				o.Expect(k.List(ctx, refs, client.InNamespace(namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
-				o.Expect(refs.Items).To(HaveLen(1))
-				o.Expect(refs.Items[0].Spec.Ref).To(Equal("main"))
-				o.Expect(refs.Items[0].Status.RepositoryOwner).To(Equal(r.Spec.Owner))
-				o.Expect(refs.Items[0].Status.RepositoryName).To(Equal(r.Spec.Name))
-				o.Expect(refs.Items[0].Status.CommitSHA).To(Equal(mainSHA))
-				o.Expect(refs.Items[0].Status.GetFailedToInitializeCondition()).To(BeNil())
-				o.Expect(refs.Items[0].Status.GetFinalizingCondition()).To(BeNil())
-				o.Expect(refs.Items[0].Status.GetInvalidCondition()).To(BeNil())
-				o.Expect(refs.Items[0].Status.GetStaleCondition()).To(BeNil())
-				o.Expect(refs.Items[0].Status.GetUnauthenticatedCondition()).To(BeNil())
+				o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
 			}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 		})
 
@@ -102,26 +91,10 @@ var _ = Describe("GitHub Branch Tracking", func() {
 
 					refs := &apiv1.GitHubRepositoryRefList{}
 					o.Expect(k.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
-					o.Expect(refs.Items).To(HaveLen(2))
-					slices.SortFunc(refs.Items, func(i, j apiv1.GitHubRepositoryRef) int { return strings.Compare(i.Spec.Ref, j.Spec.Ref) })
-					o.Expect(refs.Items[0].Spec.Ref).To(Equal("main"))
-					o.Expect(refs.Items[0].Status.RepositoryOwner).To(Equal(r.Spec.Owner))
-					o.Expect(refs.Items[0].Status.RepositoryName).To(Equal(r.Spec.Name))
-					o.Expect(refs.Items[0].Status.CommitSHA).To(Equal(mainSHA))
-					o.Expect(refs.Items[0].Status.GetFailedToInitializeCondition()).To(BeNil())
-					o.Expect(refs.Items[0].Status.GetFinalizingCondition()).To(BeNil())
-					o.Expect(refs.Items[0].Status.GetInvalidCondition()).To(BeNil())
-					o.Expect(refs.Items[0].Status.GetStaleCondition()).To(BeNil())
-					o.Expect(refs.Items[0].Status.GetUnauthenticatedCondition()).To(BeNil())
-					o.Expect(refs.Items[1].Spec.Ref).To(Equal(newBranchName))
-					o.Expect(refs.Items[1].Status.RepositoryOwner).To(Equal(r.Spec.Owner))
-					o.Expect(refs.Items[1].Status.RepositoryName).To(Equal(r.Spec.Name))
-					o.Expect(refs.Items[1].Status.CommitSHA).To(Equal(newBranchSHA))
-					o.Expect(refs.Items[1].Status.GetFailedToInitializeCondition()).To(BeNil())
-					o.Expect(refs.Items[1].Status.GetFinalizingCondition()).To(BeNil())
-					o.Expect(refs.Items[1].Status.GetInvalidCondition()).To(BeNil())
-					o.Expect(refs.Items[1].Status.GetStaleCondition()).To(BeNil())
-					o.Expect(refs.Items[1].Status.GetUnauthenticatedCondition()).To(BeNil())
+					o.Expect(refs.Items).To(ConsistOf(
+						BeReady(*r, "main", mainSHA),
+						BeReady(*r, newBranchName, newBranchSHA),
+					))
 				}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 			})
 
@@ -138,21 +111,10 @@ var _ = Describe("GitHub Branch Tracking", func() {
 
 						refs := &apiv1.GitHubRepositoryRefList{}
 						o.Expect(k.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
-
-						var ref *apiv1.GitHubRepositoryRef
-						for _, r := range refs.Items {
-							if r.Spec.Ref == newBranchName {
-								ref = &r
-								break
-							}
-						}
-						o.Expect(ref).ToNot(BeNil())
-						o.Expect(ref.Status.CommitSHA).To(Equal(updatedBranchSHA))
-						o.Expect(ref.Status.GetFailedToInitializeCondition()).To(BeNil())
-						o.Expect(ref.Status.GetFinalizingCondition()).To(BeNil())
-						o.Expect(ref.Status.GetInvalidCondition()).To(BeNil())
-						o.Expect(ref.Status.GetStaleCondition()).To(BeNil())
-						o.Expect(ref.Status.GetUnauthenticatedCondition()).To(BeNil())
+						o.Expect(refs.Items).To(ConsistOf(
+							BeReady(*r, "main", mainSHA),
+							BeReady(*r, newBranchName, updatedBranchSHA),
+						))
 					}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 				})
 			})
@@ -170,8 +132,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 
 						refs := &apiv1.GitHubRepositoryRefList{}
 						o.Expect(k.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
-						o.Expect(refs.Items).To(HaveLen(1))
-						o.Expect(refs.Items[0].Spec.Ref).To(Equal("main"))
+						o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
 					}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 				})
 			})
