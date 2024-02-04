@@ -6,7 +6,7 @@ import (
 	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
-	"github.com/arikkfir/devbot/backend/internal/util/strings"
+	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/secureworks/errors"
@@ -189,7 +189,7 @@ func (r *Reconciler) clone(rec *k8s.Reconciliation[*apiv1.Deployment], gitURL *s
 			return result
 		}
 
-		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s", rec.Object.Spec.Repository.Namespace, rec.Object.Spec.Repository.Name, strings.RandomHash(7))
+		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s", rec.Object.Spec.Repository.Namespace, rec.Object.Spec.Repository.Name, stringsutil.RandomHash(7))
 		if result := rec.UpdateStatus(); result != nil {
 			return result
 		}
@@ -306,10 +306,10 @@ func (r *Reconciler) bake(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1
 	// Find the kustomization
 	root := rec.Object.Status.ClonePath
 	possibleKustomizationFilePaths := []string{
-		filepath.Join(root, ".devbot", app.Name, strings.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
-		filepath.Join(root, ".devbot", app.Name, "kustomization.yaml"),
-		filepath.Join(root, ".devbot", strings.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
-		filepath.Join(root, ".devbot", "kustomization.yaml"),
+		filepath.Join(root, ".devbot", app.Name, stringsutil.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
+		filepath.Join(root, ".devbot", app.Name, stringsutil.Slugify(rec.Object.Spec.Branch), "kustomization.yaml"),
+		filepath.Join(root, ".devbot", stringsutil.Slugify(rec.Object.Spec.Branch), "kustomization.yaml"),
+		filepath.Join(root, ".devbot", stringsutil.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
 	}
 	var kustomizationFilePath string
 	for _, path := range possibleKustomizationFilePaths {
@@ -371,10 +371,10 @@ func (r *Reconciler) bake(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1
 	// This command accepts resources via stdin, processes them via the bash function script, and outputs to stdout
 	yqCmd := exec.CommandContext(rec.Ctx, yqBinaryFilePath, `(.. | select(tag == "!!str")) |= envsubst`)
 	yqCmd.Env = append(os.Environ(),
-		"APPLICATION="+app.Name,
-		"BRANCH="+rec.Object.Spec.Branch,
+		"APPLICATION="+stringsutil.Slugify(app.Name),
+		"BRANCH="+stringsutil.Slugify(rec.Object.Spec.Branch),
 		"COMMIT_SHA="+reference.Hash().String(),
-		"ENVIRONMENT="+env.Spec.PreferredBranch,
+		"ENVIRONMENT="+stringsutil.Slugify(env.Spec.PreferredBranch),
 	)
 	yqCmd.Dir = filepath.Dir(kustomizationFilePath)
 	yqCmd.Stderr = &bytes.Buffer{}
