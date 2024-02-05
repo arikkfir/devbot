@@ -16,7 +16,7 @@ func ListGitHubBranches(ctx context.Context, gh *github.Client, owner, repoName 
 	branchesListOptions := &github.BranchListOptions{}
 	for {
 		branchesList, response, err := gh.Repositories.ListBranches(ctx, owner, repoName, branchesListOptions)
-		Expect(err).ToNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 		for _, branch := range branchesList {
 			branches = append(branches, branch)
 		}

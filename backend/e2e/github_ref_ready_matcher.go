@@ -6,13 +6,13 @@ import (
 	"github.com/onsi/gomega/types"
 )
 
-type matchState struct {
+type GitHubRepositoryRefReadyMatcher struct {
 	repo   apiv1.GitHubRepository
 	branch string
 	sha    string
 }
 
-func (m *matchState) Match(actual interface{}) (success bool, err error) {
+func (m *GitHubRepositoryRefReadyMatcher) Match(actual interface{}) (success bool, err error) {
 	if ref, ok := actual.(apiv1.GitHubRepositoryRef); ok {
 		return ref.Spec.Ref == m.branch &&
 			ref.Status.RepositoryOwner == m.repo.Spec.Owner &&
@@ -27,16 +27,16 @@ func (m *matchState) Match(actual interface{}) (success bool, err error) {
 	return false, fmt.Errorf("value is not a GitHubRepositoryRef")
 }
 
-func (m *matchState) FailureMessage(actual interface{}) (message string) {
-	return "Ref is ready"
+func (m *GitHubRepositoryRefReadyMatcher) FailureMessage(_ interface{}) (message string) {
+	return "Ref is not ready"
 }
 
-func (m *matchState) NegatedFailureMessage(actual interface{}) (message string) {
+func (m *GitHubRepositoryRefReadyMatcher) NegatedFailureMessage(_ interface{}) (message string) {
 	return "Ref is ready"
 }
 
 func BeReady(repo apiv1.GitHubRepository, branch, sha string) types.GomegaMatcher {
-	return &matchState{
+	return &GitHubRepositoryRefReadyMatcher{
 		repo:   repo,
 		branch: branch,
 		sha:    sha,

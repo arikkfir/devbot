@@ -11,12 +11,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gbytes"
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -30,43 +27,43 @@ const (
 )
 
 var (
-	k8sServiceAccountKind = reflect.TypeOf(corev1.ServiceAccount{}).Name()
-	k8sClusterRoleKind    = reflect.TypeOf(rbacv1.ClusterRole{}).Name()
-	smeeTunnelRE          = regexp.MustCompile("\nConnected (https://smee.io/[a-zA-Z0-9]+)\n")
+	smeeTunnelRE = regexp.MustCompile("\nConnected (https://smee.io/[a-zA-Z0-9]+)\n")
 )
 
-func CreateGitHubClient(ctx context.Context, gh **github.Client, gitHubToken *string) {
-	token := os.Getenv("GITHUB_TOKEN")
-	Expect(token).ToNot(BeEmpty())
+type GitHub struct {
+	Token        string
+	Repositories map[string]*GitHubRepositoryInfo
 
-	ghc := github.NewClient(nil).WithAuthToken(token)
-	req, err := ghc.NewRequest("GET", "user", nil)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(req).ToNot(BeNil())
-	_, err = ghc.Do(ctx, req, nil)
-	Expect(err).ToNot(HaveOccurred())
-
-	*gh = ghc
-	*gitHubToken = token
-	DeferCleanup(func() { *gh = nil })
+	client *github.Client
 }
 
-func CreateGitHubRepository(ctx context.Context, gh *github.Client, embeddedPath string, owner, repoName, mainSHA *string) {
+func NewGitHub(ctx context.Context) *GitHub {
 	token := os.Getenv("GITHUB_TOKEN")
 	Expect(token).ToNot(BeEmpty())
 
-	*owner = GitHubOwner
-	*repoName = stringsutil.Name()
+	c := github.NewClient(nil).WithAuthToken(token)
+	req, err := c.NewRequest("GET", "user", nil)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(req).ToNot(BeNil())
+	Expect(c.Do(ctx, req, nil)).Error().NotTo(HaveOccurred())
 
+	return &GitHub{
+		Token:        token,
+		Repositories: make(map[string]*GitHubRepositoryInfo),
+		client:       c,
+	}
+}
+
+func (gh *GitHub) CreateRepository(ctx context.Context, embeddedPath string) *GitHubRepositoryInfo {
 	// Create the repository
-	ghRepo, _, err := gh.Repositories.Create(ctx, *owner, &github.Repository{
-		Name:          &[]string{*repoName}[0],
+	ghRepo, _, err := gh.client.Repositories.Create(ctx, GitHubOwner, &github.Repository{
+		Name:          &[]string{stringsutil.Name()}[0],
 		DefaultBranch: github.String("main"),
 		Visibility:    &[]string{"public"}[0],
 	})
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(func(ctx context.Context) {
-		Expect(gh.Repositories.Delete(ctx, *owner, *repoName)).Error().NotTo(HaveOccurred())
+		Expect(gh.client.Repositories.Delete(ctx, ghRepo.Owner.GetName(), ghRepo.GetName())).Error().NotTo(HaveOccurred())
 	})
 
 	// Create the repository contents locally
@@ -78,7 +75,7 @@ func CreateGitHubRepository(ctx context.Context, gh *github.Client, embeddedPath
 
 	// Populate the new local repository & commit the changes to HEAD
 	worktree, err := localRepo.Worktree()
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 	Expect(traverseEmbeddedPath(embeddedPath, func(p string, data []byte) error {
 		f := filepath.Join(path, p)
 		dir := filepath.Dir(f)
@@ -94,7 +91,7 @@ func CreateGitHubRepository(ctx context.Context, gh *github.Client, embeddedPath
 	// - git branch -m main
 	// - git remote add origin https://github.com/devbot-testing/REPOSITORY_NAME.git
 	headRef, err := localRepo.Head()
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 	Expect(localRepo.Storer.SetReference(plumbing.NewHashReference("refs/heads/main", headRef.Hash()))).To(Succeed())
 	Expect(localRepo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{ghRepo.GetCloneURL()}})).Error().NotTo(HaveOccurred())
 
@@ -104,17 +101,33 @@ func CreateGitHubRepository(ctx context.Context, gh *github.Client, embeddedPath
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{"refs/heads/main:refs/heads/main"},
 		Progress:   GinkgoWriter,
-		Auth:       &http.BasicAuth{Username: "anything", Password: token},
+		Auth:       &http.BasicAuth{Username: "anything", Password: gh.Token},
 	})).To(Succeed())
 
-	// Wait until GitHub acknowledges the branch & commit
-	GetGitHubBranchCommitSHA(ctx, gh, *owner, *repoName, "main", mainSHA)
+	repoInfo := &GitHubRepositoryInfo{
+		Owner: ghRepo.Owner.GetLogin(),
+		Name:  ghRepo.GetName(),
+		gh:    gh,
+	}
+	gh.Repositories[ghRepo.GetFullName()] = repoInfo
+	DeferCleanup(func() { delete(gh.Repositories, ghRepo.GetFullName()) })
+
+	return repoInfo
 }
 
-func CreateGitHubRepositoryWithWebhook(ctx context.Context, gh *github.Client, embeddedPath string, owner, repoName, mainSHA *string, webhookSecret *string) {
-	CreateGitHubRepository(ctx, gh, embeddedPath, owner, repoName, mainSHA)
+type GitHubRepositoryInfo struct {
+	Owner         string
+	Name          string
+	WebhookSecret string
+	gh            *GitHub
+}
 
-	*webhookSecret = stringsutil.RandomHash(16)
+func (r *GitHubRepositoryInfo) SetupWebhook(ctx context.Context) {
+	if r.WebhookSecret != "" {
+		return
+	}
+
+	webhookSecret := stringsutil.RandomHash(16)
 
 	var smeeCommand *exec.Cmd
 	smeeOutput := NewBuffer()
@@ -126,60 +139,64 @@ func CreateGitHubRepositoryWithWebhook(ctx context.Context, gh *github.Client, e
 
 	Eventually(smeeCommand.Stdout).Within(10 * time.Second).Should(Say(smeeTunnelRE.String()))
 	webHookURL := strings.TrimSpace(smeeTunnelRE.FindStringSubmatch(string(smeeOutput.Contents()))[1])
-	_, _, err := (*gh).Repositories.CreateHook(ctx, *owner, *repoName, &github.Hook{
-		Name:   &[]string{"web"}[0],
-		Active: &[]bool{true}[0],
+
+	hook, _, err := r.gh.client.Repositories.CreateHook(ctx, r.Owner, r.Name, &github.Hook{
+		Name:   github.String("web"),
+		Active: github.Bool(true),
 		Events: []string{"push"},
 		Config: map[string]interface{}{
 			"url":          webHookURL,
 			"content_type": "json",
-			"secret":       *webhookSecret,
+			"secret":       webhookSecret,
 			"insecure_ssl": "0",
 		},
 	})
 	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(func(ctx context.Context) {
+		Expect(r.gh.client.Repositories.DeleteHook(ctx, r.Owner, r.Name, hook.GetID())).Error().NotTo(HaveOccurred())
+	})
+
+	r.WebhookSecret = webhookSecret
 }
 
-func CreateGitHubBranch(ctx context.Context, gh *github.Client, owner, repoName, branch string, sha *string) {
-	mainRef, _, err := gh.Git.GetRef(ctx, owner, repoName, "heads/main")
-	Expect(err).ToNot(HaveOccurred())
+func (r *GitHubRepositoryInfo) CreateBranch(ctx context.Context, branch string) string {
+	mainRef, _, err := r.gh.client.Git.GetRef(ctx, r.Owner, r.Name, "heads/main")
+	Expect(err).NotTo(HaveOccurred())
 	Expect(mainRef).ToNot(BeNil())
-	Expect(gh.Git.CreateRef(ctx, owner, repoName, &github.Reference{
-		Ref:    &[]string{"refs/heads/" + branch}[0],
+	Expect(r.gh.client.Git.CreateRef(ctx, r.Owner, r.Name, &github.Reference{
+		Ref:    github.String("refs/heads/" + branch),
 		Object: mainRef.Object,
 	})).Error().NotTo(HaveOccurred())
-	GetGitHubBranchCommitSHA(ctx, gh, owner, repoName, branch, sha)
+	return r.GetBranchSHA(ctx, branch)
 }
 
-func GetGitHubBranchCommitSHA(ctx context.Context, gh *github.Client, owner, repoName, branch string, sha *string) {
+func (r *GitHubRepositoryInfo) GetBranchSHA(ctx context.Context, branch string) string {
+	var sha string
 	Eventually(func(o Gomega) {
-		branchRef, _, err := gh.Git.GetRef(ctx, owner, repoName, "heads/"+branch)
-		o.Expect(err).ToNot(HaveOccurred())
+		branchRef, _, err := r.gh.client.Git.GetRef(ctx, r.Owner, r.Name, "heads/"+branch)
+		o.Expect(err).NotTo(HaveOccurred())
 		o.Expect(branchRef).ToNot(BeNil())
-		if sha != nil {
-			*sha = branchRef.GetObject().GetSHA()
-			Expect(*sha).ToNot(BeEmpty())
-		}
+		sha = branchRef.GetObject().GetSHA()
+		Expect(sha).ToNot(BeEmpty())
 	}, 30*time.Second).Should(Succeed())
-	DeferCleanup(func() { *sha = "" })
+	return sha
 }
 
-func CreateGitHubFile(ctx context.Context, gh *github.Client, owner, repoName, branch string, sha *string) {
-	branchRef, _, err := gh.Repositories.GetBranch(ctx, owner, repoName, branch, 0)
-	Expect(err).ToNot(HaveOccurred())
+func (r *GitHubRepositoryInfo) CreateFile(ctx context.Context, branch string) string {
+	branchRef, _, err := r.gh.client.Repositories.GetBranch(ctx, r.Owner, r.Name, branch, 0)
+	Expect(err).NotTo(HaveOccurred())
 	Expect(branchRef).ToNot(BeNil())
 
-	cr, _, err := gh.Repositories.CreateFile(ctx, owner, repoName, stringsutil.RandomHash(7)+".txt", &github.RepositoryContentFileOptions{
-		Message: &[]string{stringsutil.RandomHash(32)}[0],
+	file := stringsutil.RandomHash(7) + ".txt"
+	cr, _, err := r.gh.client.Repositories.CreateFile(ctx, r.Owner, r.Name, file, &github.RepositoryContentFileOptions{
+		Message: github.String(stringsutil.RandomHash(32)),
 		Content: []byte(stringsutil.RandomHash(32)),
 		Branch:  &branch,
 	})
-	Expect(err).ToNot(HaveOccurred())
-
-	*sha = cr.GetSHA()
+	Expect(err).NotTo(HaveOccurred())
+	return cr.GetSHA()
 }
 
-func DeleteGitHubBranch(ctx context.Context, gh *github.Client, owner, repoName, branch string) {
-	_, err := gh.Git.DeleteRef(ctx, owner, repoName, "heads/"+branch)
-	Expect(err).ToNot(HaveOccurred())
+func (r *GitHubRepositoryInfo) DeleteBranch(ctx context.Context, branch string) {
+	Expect(r.gh.client.Git.DeleteRef(ctx, r.Owner, r.Name, "heads/"+branch)).Error().NotTo(HaveOccurred())
 }

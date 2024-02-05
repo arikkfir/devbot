@@ -6,7 +6,6 @@ import (
 	. "github.com/arikkfir/devbot/backend/e2e"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
-	"github.com/google/go-github/v56/github"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,33 +16,27 @@ import (
 var _ = Describe("GitHub Branch Tracking", func() {
 
 	When("github repository object is created", func() {
-		var gh *github.Client
-		var ghAuthToken, ghOwner, ghRepoName, mainSHA string
+		var gh *GitHub
+		var repo *GitHubRepositoryInfo
+		var mainSHA string
 		BeforeEach(func(ctx context.Context) {
-			CreateGitHubClient(ctx, &gh, &ghAuthToken)
-			CreateGitHubRepository(ctx, gh, "bare", &ghOwner, &ghRepoName, &mainSHA)
+			gh = NewGitHub(ctx)
+			repo = gh.CreateRepository(ctx, "bare")
+			mainSHA = repo.GetBranchSHA(ctx, "main")
 		})
 
 		var k client.Client
-		BeforeEach(func(ctx context.Context) { CreateKubernetesClient(ctx, scheme, &k) })
-
-		var namespace string
-		BeforeEach(func(ctx context.Context) { CreateKubernetesNamespace(ctx, k, &namespace) })
-
-		var ghAuthSecretName, ghAuthSecretKeyName string
+		var namespace, ghAuthSecretName, ghAuthSecretKeyName, repoObjName string
 		BeforeEach(func(ctx context.Context) {
-			CreateGitHubSecretForDevbot(ctx, k, namespace, ghAuthToken, &ghAuthSecretName, &ghAuthSecretKeyName)
-		})
-
-		var repoObjName string
-		BeforeEach(func(ctx context.Context) { repoObjName = stringsutil.RandomHash(7) })
-
-		BeforeEach(func(ctx context.Context) {
+			CreateKubernetesClient(ctx, scheme, &k)
+			CreateKubernetesNamespace(ctx, k, &namespace)
+			CreateGitHubSecretForDevbot(ctx, k, namespace, gh.Token, &ghAuthSecretName, &ghAuthSecretKeyName)
+			repoObjName = stringsutil.RandomHash(7)
 			r := &apiv1.GitHubRepository{
 				ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: repoObjName},
 				Spec: apiv1.GitHubRepositorySpec{
-					Owner: ghOwner,
-					Name:  ghRepoName,
+					Owner: repo.Owner,
+					Name:  repo.Name,
 					Auth: apiv1.GitHubRepositoryAuth{
 						PersonalAccessToken: &apiv1.GitHubRepositoryAuthPersonalAccessToken{
 							Secret: apiv1.SecretReferenceWithOptionalNamespace{
@@ -53,7 +46,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 							Key: ghAuthSecretKeyName,
 						},
 					},
-					RefreshInterval: "60s",
+					RefreshInterval: "10s",
 				},
 			}
 			Expect(k.Create(ctx, r)).To(Succeed())
@@ -61,6 +54,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 		})
 
 		It("should sync github repository object and default branch", func(ctx context.Context) {
+
 			Eventually(func(o Gomega) {
 				r := &apiv1.GitHubRepository{}
 				o.Expect(k.Get(ctx, client.ObjectKey{Namespace: namespace, Name: repoObjName}, r)).To(Succeed())
@@ -74,6 +68,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 				o.Expect(k.List(ctx, refs, client.InNamespace(namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
 				o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
 			}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+
 		})
 
 		When("a new branch is created", func() {
@@ -81,7 +76,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 			var newBranchSHA, newBranchName string
 			BeforeEach(func(ctx context.Context) {
 				newBranchName = "z" + stringsutil.RandomHash(7) // adding "z" prefix to make sure new branch is last on sort
-				CreateGitHubBranch(ctx, gh, ghOwner, ghRepoName, newBranchName, &newBranchSHA)
+				newBranchSHA = repo.CreateBranch(ctx, newBranchName)
 			})
 
 			It("should create github repository ref object", func(ctx context.Context) {
@@ -99,10 +94,9 @@ var _ = Describe("GitHub Branch Tracking", func() {
 			})
 
 			When("the new branch is updated", func() {
+
 				var updatedBranchSHA string
-				BeforeEach(func(ctx context.Context) {
-					CreateGitHubFile(ctx, gh, ghOwner, ghRepoName, newBranchName, &updatedBranchSHA)
-				})
+				BeforeEach(func(ctx context.Context) { updatedBranchSHA = repo.CreateFile(ctx, newBranchName) })
 
 				It("should sync github repository ref object", func(ctx context.Context) {
 					Eventually(func(o Gomega) {
@@ -121,9 +115,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 
 			When("branch is subsequently removed", func() {
 
-				BeforeEach(func(ctx context.Context) {
-					DeleteGitHubBranch(ctx, gh, ghOwner, ghRepoName, newBranchName)
-				})
+				BeforeEach(func(ctx context.Context) { repo.DeleteBranch(ctx, newBranchName) })
 
 				It("should delete github repository ref object", func(ctx context.Context) {
 					Eventually(func(o Gomega) {
@@ -136,6 +128,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 					}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 				})
 			})
+
 		})
 	})
 })
