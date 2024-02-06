@@ -63,7 +63,7 @@ func (gh *GitHub) CreateRepository(ctx context.Context, embeddedPath string) *Gi
 	})
 	Expect(err).NotTo(HaveOccurred())
 	DeferCleanup(func(ctx context.Context) {
-		Expect(gh.client.Repositories.Delete(ctx, ghRepo.Owner.GetName(), ghRepo.GetName())).Error().NotTo(HaveOccurred())
+		Expect(gh.client.Repositories.Delete(ctx, ghRepo.Owner.GetLogin(), ghRepo.GetName())).Error().NotTo(HaveOccurred())
 	})
 
 	// Create the repository contents locally
