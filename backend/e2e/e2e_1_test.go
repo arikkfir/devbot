@@ -25,15 +25,16 @@ var _ = Describe("GitHub Branch Tracking", func() {
 			mainSHA = repo.GetBranchSHA(ctx, "main")
 		})
 
-		var k client.Client
-		var namespace, ghAuthSecretName, ghAuthSecretKeyName, repoObjName string
+		var k *Kubernetes
+		var ns *Namespace
+		var ghAuthSecretName, ghAuthSecretKeyName, repoObjName string
 		BeforeEach(func(ctx context.Context) {
-			CreateKubernetesClient(ctx, scheme, &k)
-			CreateKubernetesNamespace(ctx, k, &namespace)
-			CreateGitHubSecretForDevbot(ctx, k, namespace, gh.Token, &ghAuthSecretName, &ghAuthSecretKeyName)
+			k = NewKubernetes(ctx)
+			ns = k.CreateNamespace(ctx)
+			ghAuthSecretName, ghAuthSecretKeyName = ns.CreateGitHubAuthSecret(ctx, gh.Token)
 			repoObjName = stringsutil.RandomHash(7)
 			r := &apiv1.GitHubRepository{
-				ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: repoObjName},
+				ObjectMeta: metav1.ObjectMeta{Namespace: ns.Name, Name: repoObjName},
 				Spec: apiv1.GitHubRepositorySpec{
 					Owner: repo.Owner,
 					Name:  repo.Name,
@@ -41,7 +42,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 						PersonalAccessToken: &apiv1.GitHubRepositoryAuthPersonalAccessToken{
 							Secret: apiv1.SecretReferenceWithOptionalNamespace{
 								Name:      ghAuthSecretName,
-								Namespace: namespace,
+								Namespace: ns.Name,
 							},
 							Key: ghAuthSecretKeyName,
 						},
@@ -49,15 +50,15 @@ var _ = Describe("GitHub Branch Tracking", func() {
 					RefreshInterval: "10s",
 				},
 			}
-			Expect(k.Create(ctx, r)).To(Succeed())
-			DeferCleanup(func(ctx context.Context) { Expect(k.Delete(ctx, r)).To(Succeed()) })
+			Expect(k.Client.Create(ctx, r)).Error().NotTo(HaveOccurred())
+			DeferCleanup(func(ctx context.Context) { Expect(k.Client.Delete(ctx, r)).Error().NotTo(HaveOccurred()) })
 		})
 
 		It("should sync github repository object and default branch", func(ctx context.Context) {
 
 			Eventually(func(o Gomega) {
 				r := &apiv1.GitHubRepository{}
-				o.Expect(k.Get(ctx, client.ObjectKey{Namespace: namespace, Name: repoObjName}, r)).To(Succeed())
+				o.Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, r)).Error().NotTo(HaveOccurred())
 				o.Expect(r.Status.GetFailedToInitializeCondition()).To(BeNil())
 				o.Expect(r.Status.GetFinalizingCondition()).To(BeNil())
 				o.Expect(r.Status.GetInvalidCondition()).To(BeNil())
@@ -65,7 +66,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 				o.Expect(r.Status.GetUnauthenticatedCondition()).To(BeNil())
 
 				refs := &apiv1.GitHubRepositoryRefList{}
-				o.Expect(k.List(ctx, refs, client.InNamespace(namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
+				o.Expect(k.Client.List(ctx, refs, client.InNamespace(ns.Name), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
 				o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
 			}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 
@@ -82,10 +83,10 @@ var _ = Describe("GitHub Branch Tracking", func() {
 			It("should create github repository ref object", func(ctx context.Context) {
 				Eventually(func(o Gomega) {
 					r := &apiv1.GitHubRepository{}
-					o.Expect(k.Get(ctx, client.ObjectKey{Namespace: namespace, Name: repoObjName}, r)).To(Succeed())
+					o.Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, r)).Error().NotTo(HaveOccurred())
 
 					refs := &apiv1.GitHubRepositoryRefList{}
-					o.Expect(k.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
+					o.Expect(k.Client.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
 					o.Expect(refs.Items).To(ConsistOf(
 						BeReady(*r, "main", mainSHA),
 						BeReady(*r, newBranchName, newBranchSHA),
@@ -101,10 +102,10 @@ var _ = Describe("GitHub Branch Tracking", func() {
 				It("should sync github repository ref object", func(ctx context.Context) {
 					Eventually(func(o Gomega) {
 						r := &apiv1.GitHubRepository{}
-						o.Expect(k.Get(ctx, client.ObjectKey{Namespace: namespace, Name: repoObjName}, r)).To(Succeed())
+						o.Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, r)).Error().NotTo(HaveOccurred())
 
 						refs := &apiv1.GitHubRepositoryRefList{}
-						o.Expect(k.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
+						o.Expect(k.Client.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
 						o.Expect(refs.Items).To(ConsistOf(
 							BeReady(*r, "main", mainSHA),
 							BeReady(*r, newBranchName, updatedBranchSHA),
@@ -120,10 +121,10 @@ var _ = Describe("GitHub Branch Tracking", func() {
 				It("should delete github repository ref object", func(ctx context.Context) {
 					Eventually(func(o Gomega) {
 						r := &apiv1.GitHubRepository{}
-						o.Expect(k.Get(ctx, client.ObjectKey{Namespace: namespace, Name: repoObjName}, r)).To(Succeed())
+						o.Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, r)).Error().NotTo(HaveOccurred())
 
 						refs := &apiv1.GitHubRepositoryRefList{}
-						o.Expect(k.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(scheme, r))).To(Succeed())
+						o.Expect(k.Client.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
 						o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
 					}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 				})

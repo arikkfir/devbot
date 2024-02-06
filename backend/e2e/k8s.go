@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"path/filepath"
@@ -26,7 +25,11 @@ var (
 	k8sClusterRoleKind    = reflect.TypeOf(rbacv1.ClusterRole{}).Name()
 )
 
-func CreateKubernetesClient(_ context.Context, scheme *runtime.Scheme, Client *client.Client) {
+type Kubernetes struct {
+	Client client.Client
+}
+
+func NewKubernetes(_ context.Context) *Kubernetes {
 	userHomeDir, err := os.UserHomeDir()
 	Expect(err).NotTo(HaveOccurred())
 
@@ -45,9 +48,9 @@ func CreateKubernetesClient(_ context.Context, scheme *runtime.Scheme, Client *c
 		PprofBindAddress:       "0",
 	})
 	Expect(err).NotTo(HaveOccurred())
-	Expect(k8s.AddOwnershipIndex(mgrContext, mgr.GetFieldIndexer(), &apiv1.GitHubRepositoryRef{})).To(Succeed())
-	Expect(k8s.AddOwnershipIndex(mgrContext, mgr.GetFieldIndexer(), &apiv1.Deployment{})).To(Succeed())
-	Expect(k8s.AddOwnershipIndex(mgrContext, mgr.GetFieldIndexer(), &apiv1.Environment{})).To(Succeed())
+	Expect(k8s.AddOwnershipIndex(mgrContext, mgr.GetFieldIndexer(), &apiv1.GitHubRepositoryRef{})).Error().NotTo(HaveOccurred())
+	Expect(k8s.AddOwnershipIndex(mgrContext, mgr.GetFieldIndexer(), &apiv1.Deployment{})).Error().NotTo(HaveOccurred())
+	Expect(k8s.AddOwnershipIndex(mgrContext, mgr.GetFieldIndexer(), &apiv1.Environment{})).Error().NotTo(HaveOccurred())
 
 	go func(ctx context.Context) {
 		if err := mgr.Start(ctx); err != nil {
@@ -57,26 +60,32 @@ func CreateKubernetesClient(_ context.Context, scheme *runtime.Scheme, Client *c
 		}
 	}(mgrContext)
 
-	*Client = mgr.GetClient()
-	DeferCleanup(func() { *Client = nil })
+	return &Kubernetes{Client: mgr.GetClient()}
 }
 
-func CreateKubernetesNamespace(ctx context.Context, k client.Client, namespaceName *string) {
+func (k *Kubernetes) CreateNamespace(ctx context.Context) *Namespace {
 	r := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: strings.RandomHash(7)}}
-	Expect(k.Create(ctx, r)).To(Succeed())
-	DeferCleanup(func(ctx context.Context) { Expect(k.Delete(ctx, r)).To(Succeed()) })
-	*namespaceName = r.Name
+	Expect(k.Client.Create(ctx, r)).Error().NotTo(HaveOccurred())
+	DeferCleanup(func(ctx context.Context) { Expect(k.Client.Delete(ctx, r)).Error().NotTo(HaveOccurred()) })
+	return &Namespace{Name: r.Name, k8s: k}
 }
 
-func CreateGitHubSecretForDevbot(ctx context.Context, k client.Client, namespace, token string, secretName, key *string) {
+type Namespace struct {
+	Name string
+	k8s  *Kubernetes
+}
+
+func (n *Namespace) CreateGitHubAuthSecret(ctx context.Context, token string) (secretName, key string) {
+	key = strings.RandomHash(7)
+	secretName = strings.RandomHash(7)
+
 	// Create a specific secret with the GitHub token
-	*key = strings.RandomHash(7)
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: strings.RandomHash(7)},
-		Data:       map[string][]byte{*key: []byte(token)},
+		ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: secretName},
+		Data:       map[string][]byte{key: []byte(token)},
 	}
-	Expect(k.Create(ctx, secret)).To(Succeed())
-	DeferCleanup(func(ctx context.Context) { Expect(k.Delete(ctx, secret)).To(Succeed()) })
+	Expect(n.k8s.Client.Create(ctx, secret)).Error().NotTo(HaveOccurred())
+	DeferCleanup(func(ctx context.Context) { Expect(n.k8s.Client.Delete(ctx, secret)).Error().NotTo(HaveOccurred()) })
 
 	// Create the cluster role that grants access to our specific secret
 	clusterRole := &rbacv1.ClusterRole{
@@ -90,8 +99,8 @@ func CreateGitHubSecretForDevbot(ctx context.Context, k client.Client, namespace
 			},
 		},
 	}
-	Expect(k.Create(ctx, clusterRole)).To(Succeed())
-	DeferCleanup(func(ctx context.Context) { Expect(k.Delete(ctx, clusterRole)).To(Succeed()) })
+	Expect(n.k8s.Client.Create(ctx, clusterRole)).Error().NotTo(HaveOccurred())
+	DeferCleanup(func(ctx context.Context) { Expect(n.k8s.Client.Delete(ctx, clusterRole)).Error().NotTo(HaveOccurred()) })
 
 	// Bind the cluster role to the devbot controllers, thus allowing them access to the specific secret
 	roleBinding := &rbacv1.RoleBinding{
@@ -102,8 +111,7 @@ func CreateGitHubSecretForDevbot(ctx context.Context, k client.Client, namespace
 			{Kind: k8sServiceAccountKind, Name: DevbotGitHubRefControllerServiceAccountName, Namespace: DevbotNamespace},
 		},
 	}
-	Expect(k.Create(ctx, roleBinding)).To(Succeed())
-	DeferCleanup(func(ctx context.Context) { Expect(k.Delete(ctx, roleBinding)).To(Succeed()) })
-
-	*secretName = secret.Name
+	Expect(n.k8s.Client.Create(ctx, roleBinding)).Error().NotTo(HaveOccurred())
+	DeferCleanup(func(ctx context.Context) { Expect(n.k8s.Client.Delete(ctx, roleBinding)).Error().NotTo(HaveOccurred()) })
+	return
 }

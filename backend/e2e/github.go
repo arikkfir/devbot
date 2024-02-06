@@ -71,7 +71,7 @@ func (gh *GitHub) CreateRepository(ctx context.Context, embeddedPath string) *Gi
 	path := filepath.Join(os.TempDir(), stringsutil.RandomHash(7))
 	localRepo, err := git.PlainInit(path, false)
 	Expect(err).NotTo(HaveOccurred())
-	DeferCleanup(func() { Expect(os.RemoveAll(path)).To(Succeed()) })
+	DeferCleanup(func() { Expect(os.RemoveAll(path)).Error().NotTo(HaveOccurred()) })
 
 	// Populate the new local repository & commit the changes to HEAD
 	worktree, err := localRepo.Worktree()
@@ -79,8 +79,8 @@ func (gh *GitHub) CreateRepository(ctx context.Context, embeddedPath string) *Gi
 	Expect(traverseEmbeddedPath(embeddedPath, func(p string, data []byte) error {
 		f := filepath.Join(path, p)
 		dir := filepath.Dir(f)
-		Expect(os.MkdirAll(dir, 0755)).To(Succeed())
-		Expect(os.WriteFile(f, data, 0644)).To(Succeed())
+		Expect(os.MkdirAll(dir, 0755)).Error().NotTo(HaveOccurred())
+		Expect(os.WriteFile(f, data, 0644)).Error().NotTo(HaveOccurred())
 		Expect(worktree.Add(p)).Error().NotTo(HaveOccurred())
 		return nil
 	})).To(Succeed())
@@ -92,7 +92,7 @@ func (gh *GitHub) CreateRepository(ctx context.Context, embeddedPath string) *Gi
 	// - git remote add origin https://github.com/devbot-testing/REPOSITORY_NAME.git
 	headRef, err := localRepo.Head()
 	Expect(err).NotTo(HaveOccurred())
-	Expect(localRepo.Storer.SetReference(plumbing.NewHashReference("refs/heads/main", headRef.Hash()))).To(Succeed())
+	Expect(localRepo.Storer.SetReference(plumbing.NewHashReference("refs/heads/main", headRef.Hash()))).Error().NotTo(HaveOccurred())
 	Expect(localRepo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{ghRepo.GetCloneURL()}})).Error().NotTo(HaveOccurred())
 
 	// Push changes to the repository
@@ -134,7 +134,7 @@ func (r *GitHubRepositoryInfo) SetupWebhook(ctx context.Context) {
 	smeeCommand = exec.Command("smee", "--port", "8080", "--path", "/github/webhook")
 	smeeCommand.Stdout = smeeOutput
 	smeeCommand.Stderr = os.Stderr
-	Expect(smeeCommand.Start()).To(Succeed())
+	Expect(smeeCommand.Start()).Error().NotTo(HaveOccurred())
 	DeferCleanup(func() error { return smeeCommand.Process.Signal(os.Interrupt) })
 
 	Eventually(smeeCommand.Stdout).Within(10 * time.Second).Should(Say(smeeTunnelRE.String()))
