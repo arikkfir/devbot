@@ -41,12 +41,10 @@ spec:
                   properties:
                     apiVersion:
                       minLength: 1
-                      pattern: ^[a-z0-9]+(\.[a-z0-9]+)*$
                       type: string
                     kind:
                       maxLength: 63
                       minLength: 1
-                      pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                       type: string
                     missingBranchStrategy:
                       default: UseDefaultBranch

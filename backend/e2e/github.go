@@ -183,18 +183,23 @@ func (r *GitHubRepositoryInfo) GetBranchSHA(ctx context.Context, branch string) 
 }
 
 func (r *GitHubRepositoryInfo) CreateFile(ctx context.Context, branch string) string {
-	branchRef, _, err := r.gh.client.Repositories.GetBranch(ctx, r.Owner, r.Name, branch, 0)
-	Expect(err).NotTo(HaveOccurred())
-	Expect(branchRef).ToNot(BeNil())
+	var sha string
+	Eventually(func(o Gomega) {
+		branchRef, _, err := r.gh.client.Repositories.GetBranch(ctx, r.Owner, r.Name, branch, 0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(branchRef).ToNot(BeNil())
 
-	file := stringsutil.RandomHash(7) + ".txt"
-	cr, _, err := r.gh.client.Repositories.CreateFile(ctx, r.Owner, r.Name, file, &github.RepositoryContentFileOptions{
-		Message: github.String(stringsutil.RandomHash(32)),
-		Content: []byte(stringsutil.RandomHash(32)),
-		Branch:  &branch,
-	})
-	Expect(err).NotTo(HaveOccurred())
-	return cr.GetSHA()
+		file := stringsutil.RandomHash(7) + ".txt"
+		cr, _, err := r.gh.client.Repositories.CreateFile(ctx, r.Owner, r.Name, file, &github.RepositoryContentFileOptions{
+			Message: github.String(stringsutil.RandomHash(32)),
+			Content: []byte(stringsutil.RandomHash(32)),
+			Branch:  &branch,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		sha = cr.GetSHA()
+		Expect(sha).ToNot(BeEmpty())
+	}, 30*time.Second).Should(Succeed())
+	return sha
 }
 
 func (r *GitHubRepositoryInfo) DeleteBranch(ctx context.Context, branch string) {

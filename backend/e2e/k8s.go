@@ -115,3 +115,17 @@ func (n *Namespace) CreateGitHubAuthSecret(ctx context.Context, token string) (s
 	DeferCleanup(func(ctx context.Context) { Expect(n.k8s.Client.Delete(ctx, roleBinding)).Error().NotTo(HaveOccurred()) })
 	return
 }
+
+func (n *Namespace) CreateGitHubRepository(ctx context.Context, name *string, spec apiv1.GitHubRepositorySpec) {
+	*name = strings.RandomHash(7)
+	r := &apiv1.GitHubRepository{ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: *name}, Spec: spec}
+	Expect(n.k8s.Client.Create(ctx, r)).Error().NotTo(HaveOccurred())
+	DeferCleanup(func(ctx context.Context) { Expect(n.k8s.Client.Delete(ctx, r)).Error().NotTo(HaveOccurred()) })
+}
+
+func (n *Namespace) CreateApplication(ctx context.Context, name *string, spec apiv1.ApplicationSpec) {
+	*name = strings.RandomHash(7)
+	r := &apiv1.Application{ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: *name}, Spec: spec}
+	Expect(n.k8s.Client.Create(ctx, r)).Error().NotTo(HaveOccurred())
+	DeferCleanup(func(ctx context.Context) { Expect(n.k8s.Client.Delete(ctx, r)).Error().NotTo(HaveOccurred()) })
+}

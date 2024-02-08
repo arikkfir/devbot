@@ -8,7 +8,6 @@ import (
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
 )
@@ -27,31 +26,25 @@ var _ = Describe("GitHub Branch Tracking", func() {
 
 		var k *Kubernetes
 		var ns *Namespace
-		var ghAuthSecretName, ghAuthSecretKeyName, repoObjName string
+		var repoObjName string
 		BeforeEach(func(ctx context.Context) {
 			k = NewKubernetes(ctx)
 			ns = k.CreateNamespace(ctx)
-			ghAuthSecretName, ghAuthSecretKeyName = ns.CreateGitHubAuthSecret(ctx, gh.Token)
-			repoObjName = stringsutil.RandomHash(7)
-			r := &apiv1.GitHubRepository{
-				ObjectMeta: metav1.ObjectMeta{Namespace: ns.Name, Name: repoObjName},
-				Spec: apiv1.GitHubRepositorySpec{
-					Owner: repo.Owner,
-					Name:  repo.Name,
-					Auth: apiv1.GitHubRepositoryAuth{
-						PersonalAccessToken: &apiv1.GitHubRepositoryAuthPersonalAccessToken{
-							Secret: apiv1.SecretReferenceWithOptionalNamespace{
-								Name:      ghAuthSecretName,
-								Namespace: ns.Name,
-							},
-							Key: ghAuthSecretKeyName,
+			ghAuthSecretName, ghAuthSecretKeyName := ns.CreateGitHubAuthSecret(ctx, gh.Token)
+			ns.CreateGitHubRepository(ctx, &repoObjName, apiv1.GitHubRepositorySpec{
+				Owner: repo.Owner,
+				Name:  repo.Name,
+				Auth: apiv1.GitHubRepositoryAuth{
+					PersonalAccessToken: &apiv1.GitHubRepositoryAuthPersonalAccessToken{
+						Secret: apiv1.SecretReferenceWithOptionalNamespace{
+							Name:      ghAuthSecretName,
+							Namespace: ns.Name,
 						},
+						Key: ghAuthSecretKeyName,
 					},
-					RefreshInterval: "10s",
 				},
-			}
-			Expect(k.Client.Create(ctx, r)).Error().NotTo(HaveOccurred())
-			DeferCleanup(func(ctx context.Context) { Expect(k.Client.Delete(ctx, r)).Error().NotTo(HaveOccurred()) })
+				RefreshInterval: "10s",
+			})
 		})
 
 		It("should sync github repository object and default branch", func(ctx context.Context) {

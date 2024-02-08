@@ -23,6 +23,8 @@ const (
 	ControllerReferenceMissing = "ControllerReferenceMissing"
 	DefaultBranchOutOfSync     = "DefaultBranchOutOfSync"
 	DeploymentBranchOutOfSync  = "DeploymentBranchOutOfSync"
+	DeploymentsAreStale        = "DeploymentsAreStale"
+	EnvironmentsAreStale       = "EnvironmentsAreStale"
 	FailedToInitialize         = "FailedToInitialize"
 	FinalizationFailed         = "FinalizationFailed"
 	FinalizerRemovalFailed     = "FinalizerRemovalFailed"

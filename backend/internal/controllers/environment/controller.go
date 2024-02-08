@@ -188,13 +188,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 				if result := rec.UpdateStatus(); result != nil {
 					return result.ToResultAndError()
 				}
-				return k8s.Requeue().ToResultAndError()
 			}
+			return k8s.Requeue().ToResultAndError()
 		}
 	}
 
 	// Remove stale condition if we got here
 	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.RepositoryNotReady, apiv1.UnsupportedBranchStrategy, apiv1.RepositoryNotSupported, apiv1.DeploymentBranchOutOfSync)
+	if result := rec.UpdateStatus(); result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Mark as stale if any deployment is stale; current otherwise
+	rec.Object.Status.SetCurrent()
+	for _, deployment := range depList.Items {
+		if deployment.Status.IsStale() {
+			rec.Object.Status.SetStaleDueToDeploymentsAreStale("One or more deployments are stale")
+			break
+		}
+	}
 	if result := rec.UpdateStatus(); result != nil {
 		return result.ToResultAndError()
 	}
@@ -221,6 +233,14 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 				requests = append(requests, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&env)})
 			}
 			return requests
+		})).
+		Watches(&apiv1.Deployment{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+			deployment := obj.(*apiv1.Deployment)
+			envRef := metav1.GetControllerOf(deployment)
+			if envRef == nil {
+				return nil
+			}
+			return []reconcile.Request{{NamespacedName: client.ObjectKey{Namespace: deployment.Namespace, Name: envRef.Name}}}
 		})).
 		Watches(&apiv1.GitHubRepository{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
 			ghRepo := obj.(*apiv1.GitHubRepository)

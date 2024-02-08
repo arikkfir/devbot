@@ -12,7 +12,7 @@ const (
 // Application is the Schema for the applications API.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Current,Stale:InternalError,Invalid,RepositoryNotAccessible,RepositoryNotFound
+// +condition:Current,Stale:EnvironmentsAreStale,InternalError,Invalid,RepositoryNotAccessible,RepositoryNotFound
 // +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
 // +condition:Initialized,FailedToInitialize:InternalError
 // +condition:Valid,Invalid:RepositoryNotSupported

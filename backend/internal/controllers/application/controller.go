@@ -148,8 +148,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	// Reset conditions to valid state since all has passed successfully
-	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.Invalid)
 	rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNotSupported)
+	if result := rec.UpdateStatus(); result != nil {
+		return result.ToResultAndError()
+	}
+
+	// Mark as stale if any deployment is stale; current otherwise
+	rec.Object.Status.SetCurrent()
+	for _, environment := range envsList.Items {
+		if environment.Status.IsStale() {
+			rec.Object.Status.SetStaleDueToEnvironmentsAreStale("One or more environments are stale")
+		}
+	}
 	if result := rec.UpdateStatus(); result != nil {
 		return result.ToResultAndError()
 	}
@@ -162,6 +172,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Application{}).
+		Watches(&apiv1.Environment{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
+			environment := obj.(*apiv1.Environment)
+			appRef := metav1.GetControllerOf(environment)
+			if appRef == nil {
+				return nil
+			}
+			return []reconcile.Request{{NamespacedName: client.ObjectKey{Namespace: environment.Namespace, Name: appRef.Name}}}
+		})).
 		Watches(&apiv1.GitHubRepository{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []ctrl.Request {
 			ghRepo := obj.(*apiv1.GitHubRepository)
 			ghRepoKey := client.ObjectKeyFromObject(ghRepo)

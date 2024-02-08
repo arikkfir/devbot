@@ -59,6 +59,54 @@ func (s *EnvironmentStatus) SetMaybeStaleDueToDeploymentBranchOutOfSync(message 
 	return true
 }
 
+func (s *EnvironmentStatus) SetStaleDueToDeploymentsAreStale(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != DeploymentsAreStale || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = DeploymentsAreStale
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  DeploymentsAreStale,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *EnvironmentStatus) SetMaybeStaleDueToDeploymentsAreStale(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != DeploymentsAreStale || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = DeploymentsAreStale
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  DeploymentsAreStale,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
 func (s *EnvironmentStatus) SetStaleDueToInternalError(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {

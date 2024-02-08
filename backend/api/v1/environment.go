@@ -7,7 +7,7 @@ import (
 // Environment is the Schema for the environments API.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Current,Stale:InternalError,RepositoryNotAccessible,RepositoryNotFound,RepositoryNotReady,RepositoryNotSupported,DeploymentBranchOutOfSync,UnsupportedBranchStrategy
+// +condition:Current,Stale:DeploymentsAreStale,InternalError,RepositoryNotAccessible,RepositoryNotFound,RepositoryNotReady,RepositoryNotSupported,DeploymentBranchOutOfSync,UnsupportedBranchStrategy
 // +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
 // +condition:Initialized,FailedToInitialize:InternalError
 // +condition:Valid,Invalid:ControllerNotAccessible,ControllerNotFound,ControllerReferenceMissing,InternalError

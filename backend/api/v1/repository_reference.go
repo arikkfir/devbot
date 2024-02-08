@@ -9,13 +9,11 @@ import (
 
 type RepositoryReferenceWithOptionalNamespace struct {
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\.[a-z0-9]+)*$
 	// +kubebuilder:validation:Required
 	APIVersion string `json:"apiVersion,omitempty"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
 	// +kubebuilder:validation:Required
 	Kind string `json:"kind,omitempty"`
 
@@ -72,13 +70,11 @@ func (in *RepositoryReferenceWithOptionalNamespace) ToNamespacedRepositoryRefere
 
 type NamespacedRepositoryReference struct {
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\.[a-z0-9]+)*$
 	// +kubebuilder:validation:Required
 	APIVersion string `json:"apiVersion,omitempty"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
 	// +kubebuilder:validation:Required
 	Kind string `json:"kind,omitempty"`
 
