@@ -38,14 +38,16 @@ var _ = Describe("Application Deployment", func() {
 			},
 		}
 		ns.CreateGitHubRepository(ctx, &commonRepoObjName, apiv1.GitHubRepositorySpec{
-			Owner: commonRepo.Owner,
-			Name:  commonRepo.Name,
-			Auth:  auth,
+			Owner:           commonRepo.Owner,
+			Name:            commonRepo.Name,
+			Auth:            auth,
+			RefreshInterval: "10s",
 		})
 		ns.CreateGitHubRepository(ctx, &serverRepoObjName, apiv1.GitHubRepositorySpec{
-			Owner: serverRepo.Owner,
-			Name:  serverRepo.Name,
-			Auth:  auth,
+			Owner:           serverRepo.Owner,
+			Name:            serverRepo.Name,
+			Auth:            auth,
+			RefreshInterval: "10s",
 		})
 	})
 
