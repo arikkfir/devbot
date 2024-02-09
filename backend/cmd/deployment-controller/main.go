@@ -62,19 +62,6 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	//if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Environment{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.Deployment{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := reconciler.AddOwnershipIndex(context.TODO(), mgr, &apiv1.GitHubRepositoryRef{}); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to create index")
-	//}
-	//if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &apiv1.GitHubRepositoryRef{}, "spec.ref", indexGitHubRepositoryRefSpecRef); err != nil {
-	//	log.Fatal().Err(err).Msg("Failed to index 'spec.ref' of 'GitHubRepositoryRef' objects")
-	//}
-
 	deploymentReconciler := &deployment.Reconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := deploymentReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application environment controller")
