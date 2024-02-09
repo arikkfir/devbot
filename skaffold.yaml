@@ -38,6 +38,8 @@ build:
 
   local:
     useBuildkit: true
+    concurrency: 0
+    push: false
 manifests:
   kustomize:
     paths:
