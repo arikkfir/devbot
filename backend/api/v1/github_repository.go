@@ -4,10 +4,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	MinimumRefreshIntervalSeconds = 5
-)
-
 // GitHubRepository is the Schema for the githubrepositories API.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

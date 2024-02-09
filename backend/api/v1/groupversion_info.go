@@ -9,11 +9,13 @@ package v1
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
+	"time"
 )
 
 const (
-	Domain  = "devbot.kfirs.com"
-	Version = "v1"
+	Domain                             = "devbot.kfirs.com"
+	Version                            = "v1"
+	MinGitHubRepositoryRefreshInterval = 5 * time.Second
 )
 
 var (

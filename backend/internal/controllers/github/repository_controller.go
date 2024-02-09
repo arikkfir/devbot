@@ -43,7 +43,7 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	// Parse refresh interval
 	var refreshInterval time.Duration
-	if interval, err := lang.ParseDuration(apiv1.MinimumRefreshIntervalSeconds, rec.Object.Spec.RefreshInterval); err != nil {
+	if interval, err := lang.ParseDuration(apiv1.MinGitHubRepositoryRefreshInterval, rec.Object.Spec.RefreshInterval); err != nil {
 		rec.Object.Status.SetInvalidDueToInvalidRefreshInterval(err.Error())
 		rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
 		if result := rec.UpdateStatus(); result != nil {
@@ -145,7 +145,7 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 
 	// Done
-	return k8s.RequeueAfter(refreshInterval).ToResultAndError()
+	return k8s.DoNotRequeue().ToResultAndError()
 }
 
 // SetupWithManager sets up the controller with the Manager.

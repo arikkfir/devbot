@@ -50,7 +50,7 @@ func (r *RefReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	// Parse refresh interval
 	var refreshInterval time.Duration
-	if interval, err := lang.ParseDuration(apiv1.MinimumRefreshIntervalSeconds, repo.Spec.RefreshInterval); err != nil {
+	if interval, err := lang.ParseDuration(apiv1.MinGitHubRepositoryRefreshInterval, repo.Spec.RefreshInterval); err != nil {
 		rec.Object.Status.SetInvalidDueToInvalidRefreshInterval(err.Error())
 		rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
 		if result := rec.UpdateStatus(); result != nil {
