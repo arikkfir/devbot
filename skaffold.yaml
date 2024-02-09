@@ -1,4 +1,5 @@
 # nonk8s
+# $schema: https://raw.githubusercontent.com/GoogleContainerTools/skaffold/main/docs-v2/content/en/schemas/v3.json
 apiVersion: skaffold/v4beta8
 kind: Config
 metadata:
