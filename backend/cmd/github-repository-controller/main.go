@@ -83,6 +83,10 @@ func main() {
 		log.Fatal().Err(err).Msg("Unable to add runnable")
 	}
 
+	if err := mgr.Add(github.NewRepositoryPoller(mgr)); err != nil {
+		log.Fatal().Err(err).Msg("Unable to add repository poller runnable")
+	}
+
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to run manager")
 	}

@@ -67,6 +67,58 @@ var _ = Describe("GitHub Branch Tracking", func() {
 
 		})
 
+		It("should sync according to refresh interval", func(ctx context.Context) {
+
+			// Wait until initial reconciliation finished
+			Eventually(func(o Gomega) {
+				r := &apiv1.GitHubRepository{}
+				o.Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, r)).Error().NotTo(HaveOccurred())
+				o.Expect(r.Status.GetFailedToInitializeCondition()).To(BeNil())
+				o.Expect(r.Status.GetFinalizingCondition()).To(BeNil())
+				o.Expect(r.Status.GetInvalidCondition()).To(BeNil())
+				o.Expect(r.Status.GetStaleCondition()).To(BeNil())
+				o.Expect(r.Status.GetUnauthenticatedCondition()).To(BeNil())
+
+				refs := &apiv1.GitHubRepositoryRefList{}
+				o.Expect(k.Client.List(ctx, refs, client.InNamespace(ns.Name), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
+				o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
+			}).WithContext(ctx).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+
+			// Double the refresh interval
+			r := &apiv1.GitHubRepository{}
+			Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, r)).Error().NotTo(HaveOccurred())
+			r.Spec.RefreshInterval = (refreshInterval * 3).String()
+			Expect(k.Client.Update(ctx, r)).Error().NotTo(HaveOccurred())
+
+			// Wait for half of the new refresh interval
+			time.Sleep(refreshInterval / 2)
+
+			// Create a new branch
+			newBranchName := "b1"
+			newBranchSHA := repo.CreateBranch(ctx, "b1")
+
+			// The double refresh interval should not have passed yet - we should be on a single branch still
+			rr := &apiv1.GitHubRepository{}
+			Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, rr)).Error().NotTo(HaveOccurred())
+			refs := &apiv1.GitHubRepositoryRefList{}
+			Expect(k.Client.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
+			Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
+
+			// Now wait until the refresh interval does pass, and the 2nd branch is synced
+			Eventually(func(o Gomega) {
+				r := &apiv1.GitHubRepository{}
+				o.Expect(k.Client.Get(ctx, client.ObjectKey{Namespace: ns.Name, Name: repoObjName}, r)).Error().NotTo(HaveOccurred())
+
+				refs := &apiv1.GitHubRepositoryRefList{}
+				o.Expect(k.Client.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
+				o.Expect(refs.Items).To(ConsistOf(
+					BeReady(*r, "main", mainSHA),
+					BeReady(*r, newBranchName, newBranchSHA),
+				))
+			}).WithContext(ctx).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+
+		})
+
 		When("a new branch is created", func() {
 
 			var newBranchSHA, newBranchName string
