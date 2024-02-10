@@ -68,7 +68,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// Clone repository
 	var gitURL string
 	var ghRepo *git.Repository
-	if result := r.clone(rec, &gitURL, &ghRepo); result != nil {
+	if result := r.clone(rec, app, env, &gitURL, &ghRepo); result != nil {
 		return result.ToResultAndError()
 	}
 
@@ -141,7 +141,7 @@ func (r *Reconciler) getApplicationController(rec *k8s.Reconciliation[*apiv1.Dep
 	return k8s.Continue()
 }
 
-func (r *Reconciler) clone(rec *k8s.Reconciliation[*apiv1.Deployment], gitURL *string, ghRepo **git.Repository) *k8s.Result {
+func (r *Reconciler) clone(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, gitURL *string, ghRepo **git.Repository) *k8s.Result {
 	// Get the repository
 	var url string
 	if rec.Object.Spec.Repository.IsGitHubRepository() {
@@ -189,9 +189,18 @@ func (r *Reconciler) clone(rec *k8s.Reconciliation[*apiv1.Deployment], gitURL *s
 			return result
 		}
 
-		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s", rec.Object.Spec.Repository.Namespace, rec.Object.Spec.Repository.Name, stringsutil.RandomHash(7))
+		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s/%s", app.Name, env.Name, rec.Object.Spec.Repository.Namespace, rec.Object.Spec.Repository.Name)
 		if result := rec.UpdateStatus(); result != nil {
 			return result
+		}
+
+		parentDir := filepath.Dir(rec.Object.Status.ClonePath)
+		if err := os.MkdirAll(parentDir, 0755); err != nil {
+			rec.Object.Status.SetMaybeStaleDueToInternalError("Failed creating directory '%s': %+v", parentDir, err)
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.Requeue()
 		}
 
 		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.CloneMissing)
@@ -261,6 +270,7 @@ func (r *Reconciler) clone(rec *k8s.Reconciliation[*apiv1.Deployment], gitURL *s
 	}
 
 	// Ensure we're on the correct branch
+	// TODO: we should be checking out a specific SHA based on the repository's branch's status, not pull latest changes of the branch
 	refName := plumbing.NewBranchReferenceName(rec.Object.Spec.Branch)
 	if err := worktree.Checkout(&git.CheckoutOptions{Branch: refName}); err != nil {
 		// TODO: consider auto-healing by deleting the whole directory

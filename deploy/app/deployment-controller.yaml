@@ -91,5 +91,21 @@ spec:
             requests:
               cpu: 50m
               memory: 32Mi
+          volumeMounts:
+            - mountPath: /data
+              name: git-workspace
       enableServiceLinks: false
       serviceAccountName: deployment-controller
+      volumes:
+        - name: git-workspace
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 5Gi
+                  limits:
+                    storage: 20Gi
+                volumeMode: Filesystem
