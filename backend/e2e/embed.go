@@ -4,11 +4,10 @@ import (
 	"embed"
 	_ "embed"
 	"github.com/secureworks/errors"
-	"strings"
 )
 
 var (
-	//go:embed embed/*
+	//go:embed all:embed/*
 	embeddedFS embed.FS
 )
 
@@ -26,7 +25,7 @@ func traverseEmbeddedPath(path string, handler func(path string, data []byte) er
 			}
 		} else if data, err := embeddedFS.ReadFile("embed/" + entryPath); err != nil {
 			return errors.New("failed to read embedded file '%s': %w", entryPath, err)
-		} else if err := handler(strings.TrimPrefix(entryPath, path+"/"), data); err != nil {
+		} else if err := handler(entryPath, data); err != nil {
 			return errors.New("failed to process embedded file '%s': %w", entryPath, err)
 		}
 	}

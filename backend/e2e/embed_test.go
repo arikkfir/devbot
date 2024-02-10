@@ -17,7 +17,7 @@ func Test_traverseEmbeddedPath(t *testing.T) {
 			name: "path is not part of handler path parameter",
 			path: "bare",
 			handler: func(path string, data []byte) error {
-				validPaths := []string{"README.md"}
+				validPaths := []string{"bare/README.md", "bare/.test/test.yaml"}
 				if slices.Contains(validPaths, path) {
 					return nil
 				} else {

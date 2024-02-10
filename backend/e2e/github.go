@@ -77,6 +77,7 @@ func (gh *GitHub) CreateRepository(ctx context.Context, embeddedPath string) *Gi
 	worktree, err := localRepo.Worktree()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(traverseEmbeddedPath(embeddedPath, func(p string, data []byte) error {
+		p = strings.TrimPrefix(p, embeddedPath+"/")
 		f := filepath.Join(path, p)
 		dir := filepath.Dir(f)
 		Expect(os.MkdirAll(dir, 0755)).Error().NotTo(HaveOccurred())
