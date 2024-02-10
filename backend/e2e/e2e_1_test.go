@@ -61,7 +61,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 				refs := &apiv1.GitHubRepositoryRefList{}
 				o.Expect(k.Client.List(ctx, refs, client.InNamespace(ns.Name), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
 				o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
-			}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+			}).WithContext(ctx).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 
 		})
 
@@ -84,7 +84,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 						BeReady(*r, "main", mainSHA),
 						BeReady(*r, newBranchName, newBranchSHA),
 					))
-				}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+				}).WithContext(ctx).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 			})
 
 			When("the new branch is updated", func() {
@@ -103,7 +103,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 							BeReady(*r, "main", mainSHA),
 							BeReady(*r, newBranchName, updatedBranchSHA),
 						))
-					}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+					}).WithContext(ctx).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 				})
 			})
 
@@ -119,7 +119,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 						refs := &apiv1.GitHubRepositoryRefList{}
 						o.Expect(k.Client.List(ctx, refs, client.InNamespace(r.Namespace), k8s.OwnedBy(k.Client.Scheme(), r))).Error().NotTo(HaveOccurred())
 						o.Expect(refs.Items).To(ConsistOf(BeReady(*r, "main", mainSHA)))
-					}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+					}).WithContext(ctx).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 				})
 			})
 
