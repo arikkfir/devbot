@@ -27,10 +27,12 @@ var _ = Describe("GitHub Branch Tracking", func() {
 		var k *Kubernetes
 		var ns *Namespace
 		var repoObjName string
+		var refreshInterval time.Duration
 		BeforeEach(func(ctx context.Context) {
 			k = NewKubernetes(ctx)
 			ns = k.CreateNamespace(ctx)
 			ghAuthSecretName, ghAuthSecretKeyName := ns.CreateGitHubAuthSecret(ctx, gh.Token)
+			refreshInterval = 5 * time.Second
 			ns.CreateGitHubRepository(ctx, &repoObjName, apiv1.GitHubRepositorySpec{
 				Owner: repo.Owner,
 				Name:  repo.Name,
@@ -43,7 +45,7 @@ var _ = Describe("GitHub Branch Tracking", func() {
 						Key: ghAuthSecretKeyName,
 					},
 				},
-				RefreshInterval: "10s",
+				RefreshInterval: refreshInterval.String(),
 			})
 		})
 
