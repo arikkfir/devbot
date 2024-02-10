@@ -92,7 +92,7 @@ var _ = Describe("Application Deployment", func() {
 				o.Expect(envsList.Items[0].Status.GetFinalizingCondition()).To(BeNil())
 				o.Expect(envsList.Items[0].Status.GetInvalidCondition()).To(BeNil())
 				o.Expect(envsList.Items[0].Status.GetStaleCondition()).To(BeNil())
-			}).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+			}).WithContext(ctx).Within(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 
 			time.Sleep(5 * time.Minute)
 		})
