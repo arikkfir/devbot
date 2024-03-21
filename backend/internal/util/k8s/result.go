@@ -12,7 +12,9 @@ type Result struct {
 }
 
 func (r *Result) ToResultAndError() (ctrl.Result, error) {
-	if r.Error != nil {
+	if r == nil {
+		return ctrl.Result{}, nil
+	} else if r.Error != nil {
 		return ctrl.Result{}, r.Error
 	} else if r.RequeueAfter != nil {
 		return ctrl.Result{RequeueAfter: *r.RequeueAfter}, nil

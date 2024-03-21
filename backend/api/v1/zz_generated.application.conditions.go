@@ -11,6 +11,16 @@ import (
 	"slices"
 )
 
+func (s *ApplicationStatus) GetCondition(conditionType string) *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == conditionType {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
 func (s *ApplicationStatus) SetStaleDueToEnvironmentsAreStale(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
@@ -102,54 +112,6 @@ func (s *ApplicationStatus) SetMaybeStaleDueToInternalError(message string, args
 		Type:    Stale,
 		Status:  v1.ConditionUnknown,
 		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *ApplicationStatus) SetStaleDueToInvalid(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != Invalid || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = Invalid
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  Invalid,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *ApplicationStatus) SetMaybeStaleDueToInvalid(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != Invalid || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = Invalid
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  Invalid,
 		Message: fmt.Sprintf(message, args...),
 	})
 	return true
@@ -280,7 +242,7 @@ func (s *ApplicationStatus) SetCurrent() {
 func (s *ApplicationStatus) IsCurrent() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Stale {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -506,7 +468,7 @@ func (s *ApplicationStatus) SetFinalized() {
 func (s *ApplicationStatus) IsFinalized() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Finalizing {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -636,7 +598,7 @@ func (s *ApplicationStatus) SetInitialized() {
 func (s *ApplicationStatus) IsInitialized() bool {
 	for _, c := range s.Conditions {
 		if c.Type == FailedToInitialize {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -683,136 +645,6 @@ func (s *ApplicationStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
 func (s *ApplicationStatus) GetFailedToInitializeMessage() string {
 	for _, c := range s.Conditions {
 		if c.Type == FailedToInitialize {
-			return c.Message
-		}
-	}
-	return ""
-}
-
-func (s *ApplicationStatus) SetInvalidDueToRepositoryNotSupported(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotSupported || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = RepositoryNotSupported
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryNotSupported,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *ApplicationStatus) SetMaybeInvalidDueToRepositoryNotSupported(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotSupported || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = RepositoryNotSupported
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryNotSupported,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *ApplicationStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
-	changed := false
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || !slices.Contains(reasons, c.Reason) {
-			newConditions = append(newConditions, c)
-		} else {
-			changed = true
-		}
-	}
-	if changed {
-		s.Conditions = newConditions
-	}
-	return changed
-}
-
-func (s *ApplicationStatus) SetValid() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *ApplicationStatus) IsValid() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Status != v1.ConditionTrue
-		}
-	}
-	return true
-}
-
-func (s *ApplicationStatus) IsInvalid() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
-		}
-	}
-	return false
-}
-
-func (s *ApplicationStatus) GetInvalidCondition() *v1.Condition {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			lc := c
-			return &lc
-		}
-	}
-	return nil
-}
-
-func (s *ApplicationStatus) GetInvalidReason() string {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Reason
-		}
-	}
-	return ""
-}
-
-func (s *ApplicationStatus) GetInvalidStatus() *v1.ConditionStatus {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			status := c.Status
-			return &status
-		}
-	}
-	return nil
-}
-
-func (s *ApplicationStatus) GetInvalidMessage() string {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
 			return c.Message
 		}
 	}

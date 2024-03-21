@@ -9,13 +9,13 @@ const (
 	MissingBranchStrategyIgnore           = "Ignore"
 )
 
-// Application is the Schema for the applications API.
+// Application represents a single application, optionally spanning multiple repositories (or a single one) and manages
+// multiple deployment environments, as deducted from the different branches in said repositories.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +condition:Current,Stale:EnvironmentsAreStale,InternalError,Invalid,RepositoryNotAccessible,RepositoryNotFound
+// +condition:Current,Stale:EnvironmentsAreStale,InternalError,RepositoryNotAccessible,RepositoryNotFound
 // +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
 // +condition:Initialized,FailedToInitialize:InternalError
-// +condition:Valid,Invalid:RepositoryNotSupported
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -38,7 +38,17 @@ type ApplicationSpec struct {
 }
 
 type ApplicationSpecRepository struct {
-	RepositoryReferenceWithOptionalNamespace `json:",inline"`
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
+	// +kubebuilder:validation:Required
+	Name string `json:"name,omitempty"`
+
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
+	Namespace string `json:"namespace,omitempty"`
 
 	// MissingBranchStrategy defines what to do when the desired branch of an environment is missing in this repository.
 	// If "UseDefaultBranch" is set, then instead of the desired branch the default branch of the repository is used.

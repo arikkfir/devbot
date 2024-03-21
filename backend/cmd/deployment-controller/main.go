@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/arikkfir/devbot/backend/internal/controllers"
 	"github.com/arikkfir/devbot/backend/internal/controllers/deployment"
 	"github.com/arikkfir/devbot/backend/internal/util/configuration"
@@ -78,10 +77,4 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to run manager")
 	}
-}
-
-func indexGitHubRepositoryRefSpecRef(o client.Object) []string {
-	ghRepoRef := o.(*apiv1.GitHubRepositoryRef)
-	index := fmt.Sprintf("%s/%s:%s", ghRepoRef.Status.RepositoryOwner, ghRepoRef.Status.RepositoryName, ghRepoRef.Spec.Ref)
-	return []string{index}
 }

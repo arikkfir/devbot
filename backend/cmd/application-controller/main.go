@@ -8,11 +8,8 @@ import (
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	"github.com/rs/zerolog/log"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -40,16 +37,7 @@ func init() {
 
 func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		Client: client.Options{
-			Cache: &client.CacheOptions{
-				DisableFor: []client.Object{
-					// disable caching of secrets, as we might not get a "list" permission for them, and the default
-					// cache tries to list objects for caching...
-					&v1.Secret{},
-				},
-			},
-		},
+		Scheme:                        scheme,
 		Metrics:                       metricsserver.Options{BindAddress: cfg.MetricsAddr},
 		HealthProbeBindAddress:        cfg.HealthProbeAddr,
 		LeaderElection:                cfg.EnableLeaderElection,
@@ -64,9 +52,6 @@ func main() {
 	mgrClient := mgr.GetClient()
 
 	if err := k8s.AddOwnershipIndex(context.Background(), mgr.GetFieldIndexer(), &apiv1.Environment{}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to create index")
-	}
-	if err := k8s.AddOwnershipIndex(context.Background(), mgr.GetFieldIndexer(), &apiv1.GitHubRepositoryRef{}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to create index")
 	}
 
@@ -86,8 +71,4 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to run manager")
 	}
-}
-
-func indexGitHubRepositoryRefSpecRef(o client.Object) []string {
-	return []string{o.(*apiv1.GitHubRepositoryRef).Spec.Ref}
 }

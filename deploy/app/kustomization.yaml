@@ -9,13 +9,11 @@ resources:
   - crd/devbot.kfirs.com_applications.yaml
   - crd/devbot.kfirs.com_deployments.yaml
   - crd/devbot.kfirs.com_environments.yaml
-  - crd/devbot.kfirs.com_githubrepositories.yaml
-  - crd/devbot.kfirs.com_githubrepositoryrefs.yaml
+  - crd/devbot.kfirs.com_repositories.yaml
   - namespace.yaml
   - application-controller.yaml
   - deployment-controller.yaml
   - environment-controller.yaml
-  - github-ref-controller.yaml
-  - github-repository-controller.yaml
+  - repository-controller.yaml
   - webhook-github.yaml
   - leader-election.yaml

@@ -17,7 +17,9 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: Application is the Schema for the applications API.
+        description: Application represents a single application, optionally spanning
+          multiple repositories (or a single one) and manages multiple deployment
+          environments, as deducted from the different branches in said repositories.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -39,13 +41,6 @@ spec:
                   as part of this application.
                 items:
                   properties:
-                    apiVersion:
-                      minLength: 1
-                      type: string
-                    kind:
-                      maxLength: 63
-                      minLength: 1
-                      type: string
                     missingBranchStrategy:
                       default: UseDefaultBranch
                       description: MissingBranchStrategy defines what to do when the

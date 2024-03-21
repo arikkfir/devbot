@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/arikkfir/devbot/backend/internal/controllers"
 	"github.com/arikkfir/devbot/backend/internal/controllers/environment"
 	"github.com/arikkfir/devbot/backend/internal/util/configuration"
@@ -70,12 +69,6 @@ func main() {
 	if err := k8s.AddOwnershipIndex(context.Background(), mgr.GetFieldIndexer(), &apiv1.Deployment{}); err != nil {
 		log.Fatal().Err(err).Msg("Failed to create index")
 	}
-	if err := k8s.AddOwnershipIndex(context.Background(), mgr.GetFieldIndexer(), &apiv1.GitHubRepositoryRef{}); err != nil {
-		log.Fatal().Err(err).Msg("Failed to create index")
-	}
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &apiv1.GitHubRepositoryRef{}, "spec.ref", indexGitHubRepositoryRefSpecRef); err != nil {
-		log.Fatal().Err(err).Msg("Failed to index 'spec.ref' of 'GitHubRepositoryRef' objects")
-	}
 
 	envReconciler := &environment.Reconciler{Client: mgrClient, Scheme: mgrScheme}
 	if err := envReconciler.SetupWithManager(mgr); err != nil {
@@ -93,10 +86,4 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to run manager")
 	}
-}
-
-func indexGitHubRepositoryRefSpecRef(o client.Object) []string {
-	ghRepoRef := o.(*apiv1.GitHubRepositoryRef)
-	index := fmt.Sprintf("%s/%s:%s", ghRepoRef.Status.RepositoryOwner, ghRepoRef.Status.RepositoryName, ghRepoRef.Spec.Ref)
-	return []string{index}
 }

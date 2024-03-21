@@ -11,6 +11,16 @@ import (
 	"slices"
 )
 
+func (s *ObjectWithoutCommonConditionsStatus) GetCondition(conditionType string) *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == conditionType {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
 func (s *ObjectWithoutCommonConditionsStatus) SetInvalidDueToC1(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Invalid {
@@ -136,7 +146,7 @@ func (s *ObjectWithoutCommonConditionsStatus) SetValid() {
 func (s *ObjectWithoutCommonConditionsStatus) IsValid() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Invalid {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true

@@ -8,6 +8,7 @@ require (
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-logr/logr v1.4.1
 	github.com/go-playground/webhooks/v6 v6.3.0
+	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v56 v56.0.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/lucasepe/codename v0.2.0
@@ -15,6 +16,7 @@ require (
 	github.com/onsi/gomega v1.31.1
 	github.com/rs/zerolog v1.31.0
 	github.com/secureworks/errors v0.1.2
+	github.com/smartystreets/goconvey v1.8.1
 	k8s.io/api v0.29.1
 	k8s.io/apimachinery v0.29.1
 	k8s.io/client-go v0.29.1
@@ -45,15 +47,16 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20240125082051-42cd04596328 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gopherjs/gopherjs v1.17.2 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
@@ -69,6 +72,7 @@ require (
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
 	github.com/skeema/knownhosts v1.2.1 // indirect
+	github.com/smarty/assertions v1.15.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/crypto v0.19.0 // indirect

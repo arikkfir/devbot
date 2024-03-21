@@ -13,10 +13,10 @@ rules:
     resources: [environments]
     verbs: [create, delete, get, list, patch, update, watch]
   - apiGroups: [devbot.kfirs.com]
-    resources: [githubrepositories, githubrepositoryrefs]
+    resources: [repositories]
     verbs: [get, list, watch]
   - apiGroups: [devbot.kfirs.com]
-    resources: [githubrepositories/status, githubrepositoryrefs/status]
+    resources: [repositories/status]
     verbs: [get]
 ---
 apiVersion: v1

@@ -72,7 +72,7 @@ func (ph *PushHandler) HandleWebhookRequest(w http.ResponseWriter, r *http.Reque
 		log.Error().Err(err).Msg("Failed looking up GitHubRepository object")
 		w.WriteHeader(http.StatusOK)
 	} else if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		repo := &apiv1.GitHubRepository{}
+		repo := &apiv1.Repository{}
 		if err := ph.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, repo); err != nil {
 			return err
 		}
@@ -90,14 +90,16 @@ func (ph *PushHandler) HandleWebhookRequest(w http.ResponseWriter, r *http.Reque
 }
 
 func (ph *PushHandler) findRepoForPayload(ctx context.Context, repoOwner, repoName string) (namespace string, name string, err error) {
-	repositories := apiv1.GitHubRepositoryList{}
+	repositories := apiv1.RepositoryList{}
 	if err := ph.List(ctx, &repositories); err != nil {
 		return "", "", errors.New("failed to list GitHub repositories", err)
 	}
 
 	for _, r := range repositories.Items {
-		if r.Spec.Owner == repoOwner && r.Spec.Name == repoName {
-			return r.Namespace, r.Name, nil
+		if r.Spec.GitHub != nil {
+			if r.Spec.GitHub.Owner == repoOwner && r.Spec.GitHub.Name == repoName {
+				return r.Namespace, r.Name, nil
+			}
 		}
 	}
 

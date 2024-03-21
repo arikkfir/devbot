@@ -12,16 +12,29 @@ COPY go.sum go.sum
 RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
-COPY cmd/environment-controller cmd/environment-controller/
-COPY internal/config internal/config/
+COPY cmd/environment-controller/main.go cmd/environment-controller/
+COPY internal/config/base.go internal/config/
 COPY internal/controllers/config.go internal/controllers/
-COPY internal/controllers/environment/*.go internal/controllers/environment/
-COPY internal/util internal/util/
+COPY internal/controllers/environment/controller.go internal/controllers/environment/
+COPY internal/util/configuration/parse.go internal/util/configuration/
+COPY internal/util/k8s/owned_by.go internal/util/k8s/
+COPY internal/util/k8s/reconciliation.go internal/util/k8s/
+COPY internal/util/k8s/result.go internal/util/k8s/
+COPY internal/util/k8s/scheme.go internal/util/k8s/
+COPY internal/util/k8s/status.go internal/util/k8s/
+COPY internal/util/lang/duration.go internal/util/lang/
+COPY internal/util/lang/pointers.go internal/util/lang/
+COPY internal/util/logging/initialization.go internal/util/logging/
+COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
+COPY internal/util/strings/buffer_async_lines_extractor.go internal/util/strings/
+COPY internal/util/strings/hash.go internal/util/strings/
+COPY internal/util/strings/names.go internal/util/strings/
+COPY internal/util/strings/slug.go internal/util/strings/
 RUN --mount=type=cache,target=/go/pkg CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -gcflags="${SKAFFOLD_GO_GCFLAGS}" -a -o environment-controller cmd/environment-controller/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/environment-controller ./
+COPY --from=builder /workspace/environment-controller /usr/local/bin/
 USER 65532:65532
 ENV GOTRACEBACK=single
-ENTRYPOINT ["/environment-controller"]
+ENTRYPOINT ["/usr/local/bin/environment-controller"]

@@ -11,6 +11,16 @@ import (
 	"slices"
 )
 
+func (s *ObjectWithCommonConditionsStatus) GetCondition(conditionType string) *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == conditionType {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
 func (s *ObjectWithCommonConditionsStatus) SetUncontrolledDueToControllerCannotBeFetched(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Uncontrolled {
@@ -232,7 +242,7 @@ func (s *ObjectWithCommonConditionsStatus) SetControlled() {
 func (s *ObjectWithCommonConditionsStatus) IsControlled() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Uncontrolled {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -458,7 +468,7 @@ func (s *ObjectWithCommonConditionsStatus) SetFinalized() {
 func (s *ObjectWithCommonConditionsStatus) IsFinalized() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Finalizing {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -588,7 +598,7 @@ func (s *ObjectWithCommonConditionsStatus) SetInitialized() {
 func (s *ObjectWithCommonConditionsStatus) IsInitialized() bool {
 	for _, c := range s.Conditions {
 		if c.Type == FailedToInitialize {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true

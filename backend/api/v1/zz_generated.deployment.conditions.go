@@ -11,6 +11,16 @@ import (
 	"slices"
 )
 
+func (s *DeploymentStatus) GetCondition(conditionType string) *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == conditionType {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
 func (s *DeploymentStatus) SetStaleDueToApplyFailed(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
@@ -107,6 +117,54 @@ func (s *DeploymentStatus) SetMaybeStaleDueToApplying(message string, args ...in
 	return true
 }
 
+func (s *DeploymentStatus) SetStaleDueToBaking(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != Baking || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = Baking
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  Baking,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToBaking(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != Baking || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = Baking
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  Baking,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
 func (s *DeploymentStatus) SetStaleDueToBakingFailed(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
@@ -150,6 +208,54 @@ func (s *DeploymentStatus) SetMaybeStaleDueToBakingFailed(message string, args .
 		Type:    Stale,
 		Status:  v1.ConditionUnknown,
 		Reason:  BakingFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetStaleDueToBranchNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != BranchNotFound || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = BranchNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  BranchNotFound,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToBranchNotFound(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != BranchNotFound || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = BranchNotFound
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  BranchNotFound,
 		Message: fmt.Sprintf(message, args...),
 	})
 	return true
@@ -299,6 +405,54 @@ func (s *DeploymentStatus) SetMaybeStaleDueToCloneMissing(message string, args .
 	return true
 }
 
+func (s *DeploymentStatus) SetStaleDueToCloneOpenFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != CloneOpenFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = CloneOpenFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  CloneOpenFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToCloneOpenFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != CloneOpenFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = CloneOpenFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  CloneOpenFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
 func (s *DeploymentStatus) SetStaleDueToCloning(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
@@ -342,6 +496,54 @@ func (s *DeploymentStatus) SetMaybeStaleDueToCloning(message string, args ...int
 		Type:    Stale,
 		Status:  v1.ConditionUnknown,
 		Reason:  Cloning,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetStaleDueToFetchFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != FetchFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = FetchFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  FetchFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToFetchFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != FetchFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = FetchFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  FetchFailed,
 		Message: fmt.Sprintf(message, args...),
 	})
 	return true
@@ -438,102 +640,6 @@ func (s *DeploymentStatus) SetMaybeStaleDueToInvalid(message string, args ...int
 		Type:    Stale,
 		Status:  v1.ConditionUnknown,
 		Reason:  Invalid,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToPullFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != PullFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = PullFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  PullFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToPullFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != PullFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = PullFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  PullFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToPulling(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != Pulling || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = Pulling
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  Pulling,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToPulling(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != Pulling || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = Pulling
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  Pulling,
 		Message: fmt.Sprintf(message, args...),
 	})
 	return true
@@ -664,7 +770,7 @@ func (s *DeploymentStatus) SetCurrent() {
 func (s *DeploymentStatus) IsCurrent() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Stale {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -890,7 +996,7 @@ func (s *DeploymentStatus) SetFinalized() {
 func (s *DeploymentStatus) IsFinalized() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Finalizing {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -1020,7 +1126,7 @@ func (s *DeploymentStatus) SetInitialized() {
 func (s *DeploymentStatus) IsInitialized() bool {
 	for _, c := range s.Conditions {
 		if c.Type == FailedToInitialize {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true
@@ -1342,7 +1448,7 @@ func (s *DeploymentStatus) SetValid() {
 func (s *DeploymentStatus) IsValid() bool {
 	for _, c := range s.Conditions {
 		if c.Type == Invalid {
-			return c.Status != v1.ConditionTrue
+			return c.Status == v1.ConditionFalse
 		}
 	}
 	return true

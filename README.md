@@ -21,3 +21,4 @@ Alpha. Do not use.
 - [ ] Review all calls to `Requeue` - many of those are failures that cannot be recovered from; something like "lastAttemptedCommitSHA" is needed in their place
 - [x] Recreate the e2e tests to test drive the system
 - [ ] Recreate the unit tests
+- [ ] Support remote clusters

@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	Domain                             = "devbot.kfirs.com"
-	Version                            = "v1"
-	MinGitHubRepositoryRefreshInterval = 5 * time.Second
+	Domain                       = "devbot.kfirs.com"
+	Version                      = "v1"
+	MinRepositoryRefreshInterval = 5 * time.Second
 )
 
 var (
@@ -30,8 +30,7 @@ var (
 )
 
 var (
-	ApplicationGVK         = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Application"}
-	EnvironmentGVK         = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Environment"}
-	GitHubRepositoryGVK    = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "GitHubRepository"}
-	GitHubRepositoryRefGVK = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "GitHubRepositoryRef"}
+	ApplicationGVK = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Application"}
+	EnvironmentGVK = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Environment"}
+	RepositoryGVK  = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Repository"}
 )

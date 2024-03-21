@@ -6,7 +6,7 @@ metadata:
   name: github-webhook
 rules:
   - apiGroups: [devbot.kfirs.com]
-    resources: [githubrepositories, githubrepositories/status]
+    resources: [repositories]
     verbs: [get, list, patch, update, watch]
 ---
 apiVersion: v1

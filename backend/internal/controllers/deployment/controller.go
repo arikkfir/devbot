@@ -1,31 +1,23 @@
 package deployment
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/controllers/deployment/applier"
+	"github.com/arikkfir/devbot/backend/internal/controllers/deployment/baker"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
-	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/secureworks/errors"
-	"io"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
-	"os/exec"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-const (
-	kustomizeBinaryFilePath = "/usr/local/bin/kustomize"
-	yqBinaryFilePath        = "/usr/local/bin/yq"
-	kubectlBinaryFilePath   = "/usr/local/bin/kubectl"
 )
 
 var (
@@ -35,70 +27,267 @@ var (
 type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	baker  *baker.Baker
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	return r.executeReconciliation(ctx, req).ToResultAndError()
+}
+
+func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
 	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Deployment{}, Finalizer, nil)
 	if result != nil {
-		return result.ToResultAndError()
+		return result
 	}
 
 	// Finalize object if deleted
 	if result := rec.FinalizeObjectIfDeleted(); result != nil {
-		return result.ToResultAndError()
+		return result
 	}
 
 	// Initialize object if not initialized
 	if result := rec.InitializeObject(); result != nil {
-		return result.ToResultAndError()
+		return result
+	}
+
+	// Fetch source repository
+	repoKey := rec.Object.Spec.Repository.GetObjectKey()
+	repo := &apiv1.Repository{}
+	if err := r.Client.Get(rec.Ctx, repoKey, repo); err != nil {
+		if apierrors.IsNotFound(err) {
+			rec.Object.Status.SetMaybeStaleDueToRepositoryNotFound("Repository '%s' could not be found", repoKey)
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.Requeue()
+		} else if apierrors.IsForbidden(err) {
+			rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("Repository '%s' is not accessible: %+v", repoKey, err)
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.Requeue()
+		} else {
+			rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up repository '%s': %+v", repoKey, err)
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.Requeue()
+		}
 	}
 
 	// Get controlling environment
 	env := &apiv1.Environment{}
 	if result := rec.GetRequiredController(env); result != nil {
-		return result.ToResultAndError()
+		return result
 	}
 
 	// Get controlling application
 	var app *apiv1.Application
-	if result := r.getApplicationController(rec, env, &app); result != nil {
-		return result.ToResultAndError()
+	if result := r.getApplication(rec, env, &app); result != nil {
+		return result
 	}
 
-	// Clone repository
-	var gitURL string
-	var ghRepo *git.Repository
-	if result := r.clone(rec, app, env, &gitURL, &ghRepo); result != nil {
-		return result.ToResultAndError()
+	// Infer clone path and store it in the status object
+	if rec.Object.Status.ClonePath == "" {
+		rec.Object.Status.SetStaleDueToCloneMissing("Clone path not set yet")
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+
+		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s/%s/%s", app.Namespace, app.Name, env.Name, repo.Namespace, repo.Name)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+	}
+
+	// Make sure the parent directory of the target clone path exists
+	parentDir := filepath.Dir(rec.Object.Status.ClonePath)
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		rec.Object.Status.SetMaybeStaleDueToCloneMissing("Failed creating directory '%s': %+v", parentDir, err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	} else {
+		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.CloneMissing)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+	}
+
+	// Calculate Git URL from repository
+	if _, err := os.Stat(rec.Object.Status.ClonePath); errors.Is(err, os.ErrNotExist) {
+
+		// Clone path does not exist - calculate Git URL based on repository type, and clone it
+		var url string
+		if repo.Spec.GitHub != nil {
+			url = fmt.Sprintf("https://github.com/%s/%s", repo.Spec.GitHub.Owner, repo.Spec.GitHub.Name)
+		} else {
+			rec.Object.Status.SetInvalidDueToRepositoryNotSupported("Unsupported repository")
+			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.DoNotRequeue()
+		}
+
+		// Set cloning status
+		rec.Object.Status.SetMaybeStaleDueToCloning("Cloning repository")
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+
+		// Clone
+		cloneOptions := &git.CloneOptions{
+			URL:      url,
+			Progress: os.Stdout, // TODO: represent progress in status object
+		}
+		if _, err := git.PlainClone(rec.Object.Status.ClonePath, false, cloneOptions); err != nil {
+			rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed cloning repository: %+v", err)
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			if err := os.RemoveAll(rec.Object.Status.ClonePath); err != nil {
+				return k8s.RequeueDueToError(errors.New("failed removing clone directory after failed clone: %w", err))
+			} else {
+				return k8s.Requeue()
+			}
+		}
+
+	} else if err != nil {
+		rec.Object.Status.SetStaleDueToInternalError("Failed inspecting target clone directory '%s': %+v", rec.Object.Status.ClonePath, err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
+
+	// Open the cloned repository
+	gitRepo, err := git.PlainOpen(rec.Object.Status.ClonePath)
+	if err != nil {
+		rec.Object.Status.SetMaybeStaleDueToCloneOpenFailed("Failed opening cloned repository: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
+
+	// Infer the branch to deploy
+	var sha, branch string
+	if revision, ok := repo.Status.Revisions[env.Spec.PreferredBranch]; ok {
+		branch = env.Spec.PreferredBranch
+		sha = revision
+	} else if revision, ok := repo.Status.Revisions[repo.Status.DefaultBranch]; ok {
+		branch = repo.Status.DefaultBranch
+		sha = revision
+	} else {
+		rec.Object.Status.SetMaybeStaleDueToBranchNotFound("Neither branch '%s' nor '%s' found in repository '%s'", env.Spec.PreferredBranch, repo.Status.DefaultBranch, client.ObjectKeyFromObject(repo))
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
+
+	// Update last-attempted revision
+	rec.Object.Status.LastAttemptedRevision = sha
+	if result := rec.UpdateStatus(); result != nil {
+		return result
+	}
+
+	// Fetch our branch
+	localBranchRefName := plumbing.NewBranchReferenceName(branch)
+	remoteBranchRefName := plumbing.NewRemoteReferenceName("origin", branch)
+	refSpec := fmt.Sprintf("%s:%s", localBranchRefName, remoteBranchRefName)
+	fetchOptions := git.FetchOptions{
+		RemoteName: "origin",
+		RefSpecs:   []config.RefSpec{config.RefSpec(refSpec)},
+		Progress:   os.Stdout,
+	}
+	if err := gitRepo.FetchContext(rec.Ctx, &fetchOptions); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+		rec.Object.Status.SetMaybeStaleDueToFetchFailed("Failed fetching branch '%s': %+v", branch, err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
+
+	// Attempt to open the worktree
+	worktree, err := gitRepo.Worktree()
+	if err != nil {
+		rec.Object.Status.SetMaybeStaleDueToCloneOpenFailed("Failed opening repository worktree: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
+
+	// Checkout the exact revision listed in the repository
+	if err := worktree.Checkout(&git.CheckoutOptions{Hash: plumbing.NewHash(sha)}); err != nil {
+		rec.Object.Status.SetMaybeStaleDueToCheckoutFailed("Failed checking out revision '%s' of branch '%s': %+v", sha, branch, err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
+
+	// Signal we're baking
+	rec.Object.Status.SetMaybeStaleDueToBaking("Baking resources")
+	if result := rec.UpdateStatus(); result != nil {
+		return result
 	}
 
 	// Bake resources manifest
-	var commitSHA, resourcesFile string
-	if result := r.bake(rec, app, env, ghRepo, &commitSHA, &resourcesFile); result != nil {
-		return result.ToResultAndError()
+	b := baker.NewDefaultBaker()
+	manifestFile, err := b.GenerateManifest(rec.Ctx, rec.Object.Status.ClonePath, app.Name, env.Spec.PreferredBranch, branch, sha)
+	if err != nil {
+		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed baking resources: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	} else if resourcesManifest, err := os.ReadFile(manifestFile); err != nil {
+		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed reading generated resources manifest: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	} else {
+		rec.Object.Status.ResourcesManifest = string(resourcesManifest)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
 	}
 
-	// Apply resources manifest
-	if result := r.apply(rec, resourcesFile); result != nil {
-		return result.ToResultAndError()
-	}
-
-	// Update last-applied commit SHA
-	rec.Object.Status.LastAppliedCommitSHA = commitSHA
+	// Signal we're applying manifest
+	rec.Object.Status.SetMaybeStaleDueToApplying("Applying manifest")
 	if result := rec.UpdateStatus(); result != nil {
-		return result.ToResultAndError()
+		return result
 	}
 
-	return k8s.DoNotRequeue().ToResultAndError()
+	// Apply resources
+	a := applier.NewDefaultApplier()
+	if err := a.Apply(rec.Ctx, manifestFile); err != nil {
+		rec.Object.Status.SetMaybeStaleDueToApplyFailed("Failed applying resources manifest: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
+
+	// Update last-applied revision
+	rec.Object.Status.SetCurrent()
+	rec.Object.Status.LastAppliedRevision = sha
+	if result := rec.UpdateStatus(); result != nil {
+		return result
+	}
+
+	return k8s.DoNotRequeue()
 }
 
-// TODO: review all Requeue results and consider replacing with DoNotRequeue (thus rely on next polling event)
-//       also review error states - on many cases we probably should re-clone the repository
-
-func (r *Reconciler) getApplicationController(rec *k8s.Reconciliation[*apiv1.Deployment], env *apiv1.Environment, appTarget **apiv1.Application) *k8s.Result {
-	appControllerRef := metav1.GetControllerOf(env)
-	if appControllerRef == nil {
-		rec.Object.Status.SetInvalidDueToInternalError("Could not find application controller reference in parent environment")
+func (r *Reconciler) getApplication(rec *k8s.Reconciliation[*apiv1.Deployment], env *apiv1.Environment, appTarget **apiv1.Application) *k8s.Result {
+	appRef := metav1.GetControllerOf(env)
+	if appRef == nil {
+		rec.Object.Status.SetInvalidDueToInternalError("Could not find application controller for parent environment '%s/%s'", env.Namespace, env.Name)
 		rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
 		if result := rec.UpdateStatus(); result != nil {
 			return result
@@ -107,7 +296,7 @@ func (r *Reconciler) getApplicationController(rec *k8s.Reconciliation[*apiv1.Dep
 	}
 
 	app := &apiv1.Application{}
-	if err := r.Client.Get(rec.Ctx, client.ObjectKey{Name: appControllerRef.Name, Namespace: env.Namespace}, app); err != nil {
+	if err := r.Client.Get(rec.Ctx, client.ObjectKey{Name: appRef.Name, Namespace: env.Namespace}, app); err != nil {
 		if apierrors.IsNotFound(err) {
 			rec.Object.Status.SetInvalidDueToControllerNotFound("Could not find application controller of parent environment: %+v", err)
 			rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
@@ -141,355 +330,9 @@ func (r *Reconciler) getApplicationController(rec *k8s.Reconciliation[*apiv1.Dep
 	return k8s.Continue()
 }
 
-func (r *Reconciler) clone(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, gitURL *string, ghRepo **git.Repository) *k8s.Result {
-	// Get the repository
-	var url string
-	if rec.Object.Spec.Repository.IsGitHubRepository() {
-		repo := &apiv1.GitHubRepository{}
-		repoKey := rec.Object.Spec.Repository.GetObjectKey()
-		if err := r.Get(rec.Ctx, repoKey, repo); err != nil {
-			if apierrors.IsNotFound(err) {
-				rec.Object.Status.SetMaybeStaleDueToRepositoryNotFound("Repository '%s' could not be found", repoKey)
-				if result := rec.UpdateStatus(); result != nil {
-					return result
-				}
-				return k8s.Requeue()
-			} else if apierrors.IsForbidden(err) {
-				rec.Object.Status.SetMaybeStaleDueToRepositoryNotAccessible("Repository '%s' is not accessible: %+v", repoKey, err)
-				if result := rec.UpdateStatus(); result != nil {
-					return result
-				}
-				return k8s.Requeue()
-			} else {
-				rec.Object.Status.SetMaybeStaleDueToInternalError("Failed looking up repository '%s': %+v", repoKey, err)
-				if result := rec.UpdateStatus(); result != nil {
-					return result
-				}
-				return k8s.Requeue()
-			}
-		}
-		url = fmt.Sprintf("https://github.com/%s/%s", repo.Spec.Owner, repo.Spec.Name)
-		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-	} else {
-		rec.Object.Status.SetInvalidDueToRepositoryNotSupported("Unsupported repository type '%s.%s' specified", rec.Object.Spec.Repository.Kind, rec.Object.Spec.Repository.APIVersion)
-		rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.DoNotRequeue()
-	}
-
-	// Decide on a clone path and save it in the object
-	if rec.Object.Status.ClonePath == "" {
-		rec.Object.Status.SetStaleDueToCloneMissing("Clone path not set yet")
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-
-		rec.Object.Status.ClonePath = fmt.Sprintf("/data/%s/%s/%s/%s", app.Name, env.Name, rec.Object.Spec.Repository.Namespace, rec.Object.Spec.Repository.Name)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-
-		parentDir := filepath.Dir(rec.Object.Status.ClonePath)
-		if err := os.MkdirAll(parentDir, 0755); err != nil {
-			rec.Object.Status.SetMaybeStaleDueToInternalError("Failed creating directory '%s': %+v", parentDir, err)
-			if result := rec.UpdateStatus(); result != nil {
-				return result
-			}
-			return k8s.Requeue()
-		}
-
-		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.CloneMissing)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-	}
-
-	// Inspect the clone path; if it does not exist, clone the repository
-	if _, err := os.Stat(rec.Object.Status.ClonePath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-
-			rec.Object.Status.SetMaybeStaleDueToCloning("Cloning repository")
-			if result := rec.UpdateStatus(); result != nil {
-				return result
-			}
-
-			cloneOptions := &git.CloneOptions{
-				URL:      url,
-				Progress: os.Stdout, // TODO: represent progress in status object
-				Depth:    1,
-			}
-			if _, err := git.PlainClone(rec.Object.Status.ClonePath, false, cloneOptions); err != nil {
-				rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed cloning repository: %+v", err)
-				if result := rec.UpdateStatus(); result != nil {
-					return result
-				}
-				return k8s.Requeue()
-			}
-
-		} else {
-			// TODO: consider auto-healing by deleting the whole directory
-			rec.Object.Status.SetMaybeStaleDueToInternalError("Failed to stat local clone dir at '%s': %+v", rec.Object.Status.ClonePath, err)
-			if result := rec.UpdateStatus(); result != nil {
-				return result
-			}
-			return k8s.Requeue()
-		}
-	}
-
-	// Attempt to open the cloned repository
-	repo, err := git.PlainOpen(rec.Object.Status.ClonePath)
-	if err != nil {
-		// TODO: consider auto-healing by deleting the whole directory
-		rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed opening cloned repository: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	// Attempt to open the worktree
-	worktree, err := repo.Worktree()
-	if err != nil {
-		// TODO: consider auto-healing by deleting the whole directory
-		rec.Object.Status.SetMaybeStaleDueToCloneFailed("Failed opening repository worktree: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	// Set status to pulling
-	rec.Object.Status.SetMaybeStaleDueToPulling("Pulling updates")
-	if result := rec.UpdateStatus(); result != nil {
-		return result
-	}
-
-	// Ensure we're on the correct branch
-	// TODO: we should be checking out a specific SHA based on the repository's branch's status, not pull latest changes of the branch
-	refName := plumbing.NewBranchReferenceName(rec.Object.Spec.Branch)
-	if err := worktree.Checkout(&git.CheckoutOptions{Branch: refName}); err != nil {
-		// TODO: consider auto-healing by deleting the whole directory
-		rec.Object.Status.SetMaybeStaleDueToCheckoutFailed("Failed checking out branch '%s': %+v", rec.Object.Spec.Branch, err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	// Ensure we're up-to-date
-	if err := worktree.PullContext(rec.Ctx, &git.PullOptions{SingleBranch: true, ReferenceName: refName}); err != nil {
-		if !errors.Is(err, git.NoErrAlreadyUpToDate) {
-			// TODO: consider auto-healing by deleting the whole directory
-			rec.Object.Status.SetMaybeStaleDueToPullFailed("Failed pulling changes: %+v", err)
-			if result := rec.UpdateStatus(); result != nil {
-				return result
-			}
-			return k8s.Requeue()
-		}
-	}
-
-	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.RepositoryNotAccessible, apiv1.InternalError, apiv1.CloneMissing, apiv1.Cloning, apiv1.CloneFailed, apiv1.CheckoutFailed, apiv1.Pulling, apiv1.PullFailed)
-	if result := rec.UpdateStatus(); result != nil {
-		return result
-	}
-
-	*gitURL = url
-	*ghRepo = repo
-	return k8s.Continue()
-}
-
-func (r *Reconciler) bake(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, ghRepo *git.Repository, commitSHA, targetResourcesFile *string) *k8s.Result {
-	reference, err := ghRepo.Head()
-	if err != nil {
-		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed getting Git HEAD revision: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	// Find the kustomization
-	root := rec.Object.Status.ClonePath
-	possibleKustomizationFilePaths := []string{
-		filepath.Join(root, ".devbot", app.Name, stringsutil.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
-		filepath.Join(root, ".devbot", app.Name, stringsutil.Slugify(rec.Object.Spec.Branch), "kustomization.yaml"),
-		filepath.Join(root, ".devbot", stringsutil.Slugify(rec.Object.Spec.Branch), "kustomization.yaml"),
-		filepath.Join(root, ".devbot", stringsutil.Slugify(env.Spec.PreferredBranch), "kustomization.yaml"),
-	}
-	var kustomizationFilePath string
-	for _, path := range possibleKustomizationFilePaths {
-		if info, err := os.Stat(path); err != nil {
-			if !os.IsNotExist(err) {
-				rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed checking if kustomization file exists at '%s': %+v", path, err)
-				if result := rec.UpdateStatus(); result != nil {
-					return result
-				}
-				return k8s.Requeue()
-			}
-		} else if info.IsDir() {
-			// TODO: for current SHA we've basically failed; we should not requeue until new SHA is available
-			rec.Object.Status.SetMaybeStaleDueToBakingFailed("Kustomization file at '%s' is a directory", path)
-			if result := rec.UpdateStatus(); result != nil {
-				return result
-			}
-			return k8s.Requeue()
-		} else {
-			kustomizationFilePath = path
-			break
-		}
-	}
-	if kustomizationFilePath == "" {
-		// TODO: for current SHA we've basically failed; we should not requeue until new SHA is available
-		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed locating kustomization file in '%s'", root)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	// Signal we're building manifests
-	rec.Object.Status.SetMaybeStaleDueToBakingFailed("Building resources manifest from kustomization at: %s", kustomizationFilePath)
-	if result := rec.UpdateStatus(); result != nil {
-		return result
-	}
-
-	// Create target resources file
-	resourcesFile, err := os.Create(filepath.Dir(kustomizationFilePath) + "/.devbot.output.resources.yaml")
-	if err != nil {
-		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed creating resources file: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-	defer resourcesFile.Close()
-
-	// Create a pipe that connects stdout of the "kustomize build" command to the "kustomize fn" command
-	pipeReader, pipeWriter := io.Pipe()
-
-	// This command produces resources from the kustomization file and outputs them to stdout
-	kustomizeBuildCmd := exec.CommandContext(rec.Ctx, kustomizeBinaryFilePath, "build", filepath.Dir(kustomizationFilePath))
-	kustomizeBuildCmd.Dir = filepath.Dir(kustomizationFilePath)
-	kustomizeBuildCmd.Stderr = &bytes.Buffer{}
-	kustomizeBuildCmd.Stdout = pipeWriter
-
-	// This command accepts resources via stdin, processes them via the bash function script, and outputs to stdout
-	yqCmd := exec.CommandContext(rec.Ctx, yqBinaryFilePath, `(.. | select(tag == "!!str")) |= envsubst`)
-	yqCmd.Env = append(os.Environ(),
-		"APPLICATION="+stringsutil.Slugify(app.Name),
-		"BRANCH="+stringsutil.Slugify(rec.Object.Spec.Branch),
-		"COMMIT_SHA="+reference.Hash().String(),
-		"ENVIRONMENT="+stringsutil.Slugify(env.Spec.PreferredBranch),
-	)
-	yqCmd.Dir = filepath.Dir(kustomizationFilePath)
-	yqCmd.Stderr = &bytes.Buffer{}
-	yqCmd.Stdin = pipeReader
-	yqCmd.Stdout = resourcesFile
-
-	// Execute kustomize build
-	if err := kustomizeBuildCmd.Start(); err != nil {
-		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed starting kustomize command: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-	defer kustomizeBuildCmd.Process.Kill()
-
-	// Execute kustomize fn
-	if err := yqCmd.Start(); err != nil {
-		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed starting kustomize fn: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-	defer yqCmd.Process.Kill()
-
-	// Wait for both commands to finish
-	if err := kustomizeBuildCmd.Wait(); err != nil {
-		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed executing kustomize build: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	} else if err := yqCmd.Wait(); err != nil {
-		rec.Object.Status.SetMaybeStaleDueToBakingFailed("Failed executing kustomize fn: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	// If kustomize failed, set condition and exit
-	if kustomizeBuildCmd.ProcessState.ExitCode()+yqCmd.ProcessState.ExitCode() > 0 {
-		stderr := bytes.Buffer{}
-		stderr.WriteString("--[kustomize build stderr:]--------------------------------------------------\n")
-		stderr.Write(kustomizeBuildCmd.Stderr.(*bytes.Buffer).Bytes())
-		stderr.WriteString("\n--[yq stderr:]---------------------------------------------------------------\n")
-		stderr.Write(yqCmd.Stderr.(*bytes.Buffer).Bytes())
-		rec.Object.Status.SetStaleDueToBakingFailed("Manifest baking failed:\n%s", stderr.String())
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	// Signal we're baked
-	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.BakingFailed)
-	if result := rec.UpdateStatus(); result != nil {
-		return result
-	}
-
-	*targetResourcesFile = resourcesFile.Name()
-	*commitSHA = reference.Hash().String()
-	return k8s.Continue()
-}
-
-func (r *Reconciler) apply(rec *k8s.Reconciliation[*apiv1.Deployment], resourcesFile string) *k8s.Result {
-	// TODO: support remote clusters
-
-	// Signal we're applying manifest
-	rec.Object.Status.SetMaybeStaleDueToApplying("Applying manifest")
-	if result := rec.UpdateStatus(); result != nil {
-		return result
-	}
-
-	// Apply resources
-	stdout := bytes.Buffer{}
-	stderr := bytes.Buffer{}
-	kubectlCmd := exec.CommandContext(rec.Ctx,
-		kubectlBinaryFilePath,
-		"apply",
-		fmt.Sprintf("--filename=%s", resourcesFile),
-		fmt.Sprintf("--dry-run='%s'", "server"),
-		fmt.Sprintf("--server-side=%v", true),
-	)
-	kubectlCmd.Dir = filepath.Dir(resourcesFile)
-	kubectlCmd.Stderr = &stderr
-	kubectlCmd.Stdout = &stdout
-	if err := kubectlCmd.Run(); err != nil {
-		rec.Object.Status.SetMaybeStaleDueToApplyFailed("Failed applying resources: %+v", err)
-		if result := rec.UpdateStatus(); result != nil {
-			return result
-		}
-		return k8s.Requeue()
-	}
-
-	log.FromContext(rec.Ctx).Info("kubectl apply", "stdout", stdout.String(), "stderr", stderr.String())
-
-	// TODO: infer inventory list from kubectl output (for potential pruning/health checks)
-
-	return k8s.Continue()
-}
-
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.baker = baker.NewDefaultBaker()
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Deployment{}).
 		Complete(r)
@@ -552,7 +395,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 					}
 				}
 			} else {
-				_, err := dynamicClient.Resource(gvr).Namespace(ns).Update(context.TODO(), unstructuredObj, metav1.UpdateOptions{})
+				_, err := dynamicClient.Resource(gvr).Namespace(ns).Update(context.Background(), unstructuredObj, metav1.UpdateOptions{})
 				if err != nil {
 					log.Fatalf("Failed to update: %v", err)
 				}
