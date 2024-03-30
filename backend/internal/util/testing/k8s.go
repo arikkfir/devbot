@@ -87,9 +87,31 @@ func NewKubernetes(t JustT) *KClient {
 }
 
 func (k *KClient) CreateNamespace(t JustT, ctx context.Context) *KNamespace {
+	devbotGitOpsName := "devbot-gitops"
+
 	r := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: strings.RandomHash(7)}}
 	For(t).Expect(k.Client.Create(ctx, r)).Will(Succeed())
 	t.Cleanup(func() { For(t).Expect(k.Client.Delete(ctx, r)).Will(Succeed()) })
+
+	sa := &corev1.ServiceAccount{ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name}}
+	For(t).Expect(k.Client.Create(ctx, sa)).Will(Succeed())
+	t.Cleanup(func() { For(t).Expect(k.Client.Delete(ctx, sa)).Will(Succeed()) })
+
+	role := &rbacv1.Role{
+		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
+		Rules:      []rbacv1.PolicyRule{{APIGroups: []string{"*"}, Resources: []string{"*"}, Verbs: []string{"*"}}},
+	}
+	For(t).Expect(k.Client.Create(ctx, role)).Will(Succeed())
+	t.Cleanup(func() { For(t).Expect(k.Client.Delete(ctx, role)).Will(Succeed()) })
+
+	rb := &rbacv1.RoleBinding{
+		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
+		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "Role", Name: devbotGitOpsName},
+		Subjects:   []rbacv1.Subject{{Kind: rbacv1.ServiceAccountKind, Name: devbotGitOpsName}},
+	}
+	For(t).Expect(k.Client.Create(ctx, rb)).Will(Succeed())
+	t.Cleanup(func() { For(t).Expect(k.Client.Delete(ctx, rb)).Will(Succeed()) })
+
 	return &KNamespace{Name: r.Name, k: k}
 }
 

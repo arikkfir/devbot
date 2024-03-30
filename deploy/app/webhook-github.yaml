@@ -5,6 +5,9 @@ metadata:
     app.kubernetes.io/component: github-webhook
   name: github-webhook
 rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
   - apiGroups: [devbot.kfirs.com]
     resources: [repositories]
     verbs: [get, list, patch, update, watch]
@@ -69,6 +72,15 @@ spec:
     spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/github-webhook
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           name: github-webhook
           ports:
             - containerPort: 8000

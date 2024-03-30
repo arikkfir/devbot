@@ -14,7 +14,23 @@ spec:
     singular: repository
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.refreshInterval
+      name: Refresh Interval
+      type: string
+    - jsonPath: .status.defaultBranch
+      name: Default Branch
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Unauthenticated")].reason
+      name: Unauthenticated
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Invalid")].reason
+      name: Invalid
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Stale")].reason
+      name: Stale
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: Repository represents a single source code repository hosted
@@ -80,8 +96,16 @@ spec:
                             minLength: 1
                             pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                             type: string
+                        required:
+                        - name
                         type: object
+                    required:
+                    - key
+                    - secret
                     type: object
+                required:
+                - name
+                - owner
                 type: object
               refreshInterval:
                 default: 5m
@@ -171,6 +195,11 @@ spec:
                 minLength: 1
                 pattern: ^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$
                 type: string
+              resolvedName:
+                description: ResolvedName is a universal human-readable name of the
+                  repository. The format of this field can vary depending on the type
+                  of repository (e.g. GitHub, GitLab, Bitbucket, etc.).
+                type: string
               revisions:
                 additionalProperties:
                   type: string
@@ -178,6 +207,8 @@ spec:
                   revision.
                 type: object
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

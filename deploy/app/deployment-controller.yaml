@@ -3,33 +3,39 @@ kind: ClusterRole
 metadata:
   name: deployment-controller
 rules:
-  - apiGroups: ["*"]
-    resources: ["*"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
     verbs: [create, delete, get, list, patch, update, watch]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [applications]
-#    verbs: [get, list, watch]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [applications/status]
-#    verbs: [get]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [deployments]
-#    verbs: [get, list, patch, update, watch]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [deployments/status]
-#    verbs: [create, delete, get, patch, update]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [environments]
-#    verbs: [get, list, watch]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [environments/status]
-#    verbs: [get]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [repositories]
-#    verbs: [get, list, watch]
-#  - apiGroups: [devbot.kfirs.com]
-#    resources: [repositories/status]
-#    verbs: [get]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [applications]
+    verbs: [get, list, watch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [applications/status]
+    verbs: [get]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [deployments]
+    verbs: [get, list, patch, update, watch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [deployments/status]
+    verbs: [create, delete, get, patch, update]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [environments]
+    verbs: [get, list, watch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [environments/status]
+    verbs: [get]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [repositories]
+    verbs: [get, list, watch]
+  - apiGroups: [devbot.kfirs.com]
+    resources: [repositories/status]
+    verbs: [get]
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -90,6 +96,15 @@ spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/deployment-controller
           args: []
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           name: deployment-controller
           ports:
             - containerPort: 8000
@@ -103,21 +118,5 @@ spec:
             requests:
               cpu: 50m
               memory: 32Mi
-          volumeMounts:
-            - mountPath: /data
-              name: git-workspace
       enableServiceLinks: false
       serviceAccountName: deployment-controller
-      volumes:
-        - name: git-workspace
-          ephemeral:
-            volumeClaimTemplate:
-              spec:
-                accessModes:
-                  - ReadWriteOnce
-                resources:
-                  requests:
-                    storage: 5Gi
-                  limits:
-                    storage: 20Gi
-                volumeMode: Filesystem

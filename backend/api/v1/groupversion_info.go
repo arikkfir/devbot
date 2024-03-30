@@ -32,5 +32,6 @@ var (
 var (
 	ApplicationGVK = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Application"}
 	EnvironmentGVK = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Environment"}
+	DeploymentGVK  = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Deployment"}
 	RepositoryGVK  = schema.GroupVersionKind{Group: Domain, Version: Version, Kind: "Repository"}
 )

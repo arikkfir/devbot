@@ -22,7 +22,7 @@ $ npm install -g smee-client                                          # used by 
 
 ```bash
 $ brew install kind               # install the "kind" local cluster
-$ kind create cluster -n devbot   # create a local cluster for development
+$ ./deploy/kind/setup-cluster.sh  # create a local cluster for development with necessary dependencies (e.g. CSI)
 ```
 
 ### Developing

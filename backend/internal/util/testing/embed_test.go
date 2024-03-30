@@ -1,9 +1,17 @@
-package testing
+package testing_test
 
 import (
+	"embed"
+	_ "embed"
+	internaltesting "github.com/arikkfir/devbot/backend/internal/util/testing"
 	"github.com/secureworks/errors"
 	"slices"
 	"testing"
+)
+
+var (
+	//go:embed all:embed/*
+	embeddedFS embed.FS
 )
 
 func TestTraverseEmbeddedPath(t *testing.T) {
@@ -15,9 +23,9 @@ func TestTraverseEmbeddedPath(t *testing.T) {
 	}{
 		{
 			name: "path is not part of handler path parameter",
-			path: "bare",
+			path: "embed/bare",
 			handler: func(path string, data []byte) error {
-				validPaths := []string{"bare/README.md", "bare/.test/test.yaml"}
+				validPaths := []string{"embed/bare/README.md", "embed/bare/.test/test.yaml"}
 				if slices.Contains(validPaths, path) {
 					return nil
 				} else {
@@ -30,7 +38,7 @@ func TestTraverseEmbeddedPath(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := TraverseEmbeddedPath(tt.path, tt.handler); (err != nil) != tt.wantErr {
+			if err := internaltesting.TraverseEmbeddedPath(embeddedFS, tt.path, tt.handler); (err != nil) != tt.wantErr {
 				t.Errorf("TraverseEmbeddedPath() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

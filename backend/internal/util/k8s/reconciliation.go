@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	v1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/config"
 	"github.com/secureworks/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,13 +40,14 @@ type ControlleeObjectStatus interface {
 
 type Reconciliation[O client.Object] struct {
 	Ctx            context.Context
+	Config         config.CommandConfig
 	Client         client.Client
 	Object         O
 	finalizerValue string
 	finalizerFunc  func(context.Context, client.Client, O) error
 }
 
-func NewReconciliation[O client.Object](ctx context.Context, c client.Client, req ctrl.Request, object O, finalizerValue string, finalizerFunc func(context.Context, client.Client, O) error) (*Reconciliation[O], *Result) {
+func NewReconciliation[O client.Object](ctx context.Context, cfg config.CommandConfig, c client.Client, req ctrl.Request, object O, finalizerValue string, finalizerFunc func(context.Context, client.Client, O) error) (*Reconciliation[O], *Result) {
 	if err := c.Get(ctx, req.NamespacedName, object); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil, DoNotRequeue()
@@ -55,6 +57,7 @@ func NewReconciliation[O client.Object](ctx context.Context, c client.Client, re
 	}
 	return &Reconciliation[O]{
 		Ctx:            ctx,
+		Config:         cfg,
 		Client:         c,
 		Object:         object,
 		finalizerValue: finalizerValue,

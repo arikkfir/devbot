@@ -3,6 +3,7 @@ package testing
 import (
 	"bytes"
 	"context"
+	"embed"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
 	"github.com/go-git/go-git/v5"
@@ -55,7 +56,7 @@ func NewGitHub(t JustT, ctx context.Context) *GitHub {
 	}
 }
 
-func (gh *GitHub) CreateRepository(t JustT, ctx context.Context, embeddedPath string) *GitHubRepositoryInfo {
+func (gh *GitHub) CreateRepository(t JustT, ctx context.Context, fs embed.FS, embeddedPath string) *GitHubRepositoryInfo {
 	// Create the repository
 	ghRepo, _, err := gh.client.Repositories.Create(ctx, GitHubOwner, &github.Repository{
 		Name:          &[]string{stringsutil.Name()}[0],
@@ -79,7 +80,7 @@ func (gh *GitHub) CreateRepository(t JustT, ctx context.Context, embeddedPath st
 	// Populate the new local repository & commit the changes to HEAD
 	worktree, err := localRepo.Worktree()
 	For(t).Expect(err).Will(BeNil())
-	For(t).Expect(TraverseEmbeddedPath(embeddedPath, func(p string, data []byte) error {
+	For(t).Expect(TraverseEmbeddedPath(fs, embeddedPath, func(p string, data []byte) error {
 		p = strings.TrimPrefix(p, embeddedPath+"/")
 		f := filepath.Join(path, p)
 		dir := filepath.Dir(f)

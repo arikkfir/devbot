@@ -7,7 +7,7 @@ type SecretReferenceWithOptionalNamespace struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
 	// +kubebuilder:validation:Required
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1

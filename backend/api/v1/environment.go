@@ -7,8 +7,10 @@ import (
 // Environment is the Schema for the environments API.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Preferred Branch",type=string,JSONPath=`.spec.branch`
+// +kubebuilder:printcolumn:name="Invalid",type=string,JSONPath=`.status.conditions[?(@.type=="Invalid")].reason`
+// +kubebuilder:printcolumn:name="Stale",type=string,JSONPath=`.status.conditions[?(@.type=="Stale")].reason`
 // +condition:Current,Stale:DeploymentsAreStale,FailedCreatingDeployment,FailedDeletingDeployment,InternalError
-// +condition2:Current,Stale:,RepositoryNotAccessible,RepositoryNotFound,RepositoryNotReady,RepositoryNotSupported,DeploymentBranchOutOfSync,UnsupportedBranchStrategy
 // +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
 // +condition:Initialized,FailedToInitialize:InternalError
 // +condition:Valid,Invalid:ControllerNotAccessible,ControllerNotFound,ControllerReferenceMissing,InternalError
@@ -18,7 +20,7 @@ type Environment struct {
 
 	// Spec is the desired state of the Environment.
 	// +kubebuilder:validation:Required
-	Spec EnvironmentSpec `json:"spec,omitempty"`
+	Spec EnvironmentSpec `json:"spec"`
 
 	// Status is the observed state of the Environment.
 	// +kubebuilder:validation:Optional
@@ -30,7 +32,7 @@ type EnvironmentSpec struct {
 	// that lack this branch may opt to deploy their default branch instead (see [ApplicationSpecRepository.MissingBranchStrategy]).
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	PreferredBranch string `json:"branch,omitempty"`
+	PreferredBranch string `json:"branch"`
 }
 
 type EnvironmentStatus struct {

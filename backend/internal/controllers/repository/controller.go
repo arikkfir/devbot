@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/config"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/lang"
 	"github.com/google/go-github/v56/github"
@@ -21,6 +22,7 @@ var (
 
 type Reconciler struct {
 	client.Client
+	Config config.CommandConfig
 	Scheme *runtime.Scheme
 }
 
@@ -29,7 +31,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
-	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Repository{}, Finalizer, nil)
+	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Repository{}, Finalizer, nil)
 	if result != nil {
 		return result
 	}
@@ -84,6 +86,7 @@ func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Re
 
 	// Validate GitHub owner & name
 	if rec.Object.Spec.GitHub.Owner == "" {
+		status.ResolvedName = ""
 		status.SetInvalidDueToRepositoryOwnerMissing("Repository owner is empty")
 		status.SetUnauthenticatedDueToInvalid(status.GetInvalidMessage())
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
@@ -92,6 +95,7 @@ func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Re
 		}
 		return k8s.DoNotRequeue()
 	} else if rec.Object.Spec.GitHub.Name == "" {
+		status.ResolvedName = ""
 		status.SetInvalidDueToRepositoryNameMissing("Repository name is empty")
 		status.SetUnauthenticatedDueToInvalid(status.GetInvalidMessage())
 		status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
@@ -102,6 +106,7 @@ func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Re
 	}
 
 	// Revert invalid status if owner & name are valid
+	status.ResolvedName = rec.Object.Spec.GitHub.Owner + "/" + rec.Object.Spec.GitHub.Name
 	status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNameMissing, apiv1.RepositoryOwnerMissing)
 	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.Invalid)
 	status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated)

@@ -7,6 +7,11 @@ import (
 // Repository represents a single source code repository hosted remotely (e.g. on GitHub).
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Refresh Interval",type=string,JSONPath=`.spec.refreshInterval`
+// +kubebuilder:printcolumn:name="Default Branch",type=string,JSONPath=`.status.defaultBranch`
+// +kubebuilder:printcolumn:name="Unauthenticated",type=string,JSONPath=`.status.conditions[?(@.type=="Unauthenticated")].reason`
+// +kubebuilder:printcolumn:name="Invalid",type=string,JSONPath=`.status.conditions[?(@.type=="Invalid")].reason`
+// +kubebuilder:printcolumn:name="Stale",type=string,JSONPath=`.status.conditions[?(@.type=="Stale")].reason`
 // +condition:Authenticated,Unauthenticated:AuthenticationFailed,AuthSecretForbidden,AuthSecretKeyNotFound,AuthSecretNotFound,AuthTokenEmpty,InternalError,Invalid
 // +condition:Current,Stale:BranchesOutOfSync,DefaultBranchOutOfSync,InternalError,Invalid,RepositoryNotFound,Unauthenticated
 // +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
@@ -18,7 +23,7 @@ type Repository struct {
 
 	// Spec is the desired state of the repository.
 	// +kubebuilder:validation:Required
-	Spec RepositorySpec `json:"spec,omitempty"`
+	Spec RepositorySpec `json:"spec"`
 
 	// Status is the observed state of the repository.
 	// +kubebuilder:validation:Optional
@@ -49,14 +54,14 @@ type GitHubRepositorySpec struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9][a-zA-Z0-9-_]*[a-zA-Z0-9_]$
 	// +kubebuilder:validation:Required
-	Owner string `json:"owner,omitempty"`
+	Owner string `json:"owner"`
 
 	// Name is the name of the repository.
 	// +kubebuilder:validation:MaxLength=100
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9_][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
 	// +kubebuilder:validation:Required
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// PersonalAccessToken signals that we should use a GitHub personal access token (PAT) when accessing the repository
 	// and specifies the Kubernetes secret & key that house the token (namespace is optional and will default to the
@@ -71,14 +76,14 @@ type GitHubRepositoryPersonalAccessToken struct {
 
 	// Secret is the reference to the secret containing the GitHub personal access token.
 	// +kubebuilder:validation:Required
-	Secret SecretReferenceWithOptionalNamespace `json:"secret,omitempty"`
+	Secret SecretReferenceWithOptionalNamespace `json:"secret"`
 
 	// Key is the key in the secret containing the GitHub personal access token.
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
 	// +kubebuilder:validation:Required
-	Key string `json:"key,omitempty"`
+	Key string `json:"key"`
 }
 
 // RepositoryStatus represents the observed state of the Repository.
@@ -94,6 +99,11 @@ type RepositoryStatus struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$
 	DefaultBranch string `json:"defaultBranch,omitempty"`
+
+	// ResolvedName is a universal human-readable name of the repository. The format of this field can vary depending on
+	// the type of repository (e.g. GitHub, GitLab, Bitbucket, etc.).
+	// +kubebuilder:validation:Optional
+	ResolvedName string `json:"resolvedName,omitempty"`
 
 	// Revisions is a map of branch names to their last detected revision.
 	// +kubebuilder:validation:Optional

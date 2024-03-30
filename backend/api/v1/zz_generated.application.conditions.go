@@ -651,6 +651,136 @@ func (s *ApplicationStatus) GetFailedToInitializeMessage() string {
 	return ""
 }
 
+func (s *ApplicationStatus) SetInvalidDueToInvalidBranchSpecification(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != InvalidBranchSpecification || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = InvalidBranchSpecification
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  InvalidBranchSpecification,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ApplicationStatus) SetMaybeInvalidDueToInvalidBranchSpecification(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != InvalidBranchSpecification || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = InvalidBranchSpecification
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  InvalidBranchSpecification,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *ApplicationStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
+	changed := false
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Invalid || !slices.Contains(reasons, c.Reason) {
+			newConditions = append(newConditions, c)
+		} else {
+			changed = true
+		}
+	}
+	if changed {
+		s.Conditions = newConditions
+	}
+	return changed
+}
+
+func (s *ApplicationStatus) SetValid() {
+	var newConditions []v1.Condition
+	for _, c := range s.Conditions {
+		if c.Type != Invalid {
+			newConditions = append(newConditions, c)
+		}
+	}
+	s.Conditions = newConditions
+}
+
+func (s *ApplicationStatus) IsValid() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Invalid {
+			return c.Status == v1.ConditionFalse
+		}
+	}
+	return true
+}
+
+func (s *ApplicationStatus) IsInvalid() bool {
+	for _, c := range s.Conditions {
+		if c.Type == Invalid {
+			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
+		}
+	}
+	return false
+}
+
+func (s *ApplicationStatus) GetInvalidCondition() *v1.Condition {
+	for _, c := range s.Conditions {
+		if c.Type == Invalid {
+			lc := c
+			return &lc
+		}
+	}
+	return nil
+}
+
+func (s *ApplicationStatus) GetInvalidReason() string {
+	for _, c := range s.Conditions {
+		if c.Type == Invalid {
+			return c.Reason
+		}
+	}
+	return ""
+}
+
+func (s *ApplicationStatus) GetInvalidStatus() *v1.ConditionStatus {
+	for _, c := range s.Conditions {
+		if c.Type == Invalid {
+			status := c.Status
+			return &status
+		}
+	}
+	return nil
+}
+
+func (s *ApplicationStatus) GetInvalidMessage() string {
+	for _, c := range s.Conditions {
+		if c.Type == Invalid {
+			return c.Message
+		}
+	}
+	return ""
+}
+
 func (s *ApplicationStatus) GetConditions() []v1.Condition {
 	return s.Conditions
 }

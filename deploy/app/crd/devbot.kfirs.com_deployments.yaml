@@ -14,7 +14,29 @@ spec:
     singular: deployment
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.resolvedRepository
+      name: Repository
+      type: string
+    - jsonPath: .status.branch
+      name: Branch
+      type: string
+    - jsonPath: .status.persistentVolumeNameClaim
+      name: Persistent Volume Claim
+      type: string
+    - jsonPath: .status.lastAttemptedRevision
+      name: Last Attempted Revision
+      type: string
+    - jsonPath: .status.lastAppliedRevision
+      name: Last Applied Revision
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Invalid")].reason
+      name: Invalid
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Stale")].reason
+      name: Stale
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: Deployment represents a deployment of a repository into an environment.
@@ -40,13 +62,6 @@ spec:
                   based on existence of the parent environment's preferred branch
                   and the repository's default branch.
                 properties:
-                  apiVersion:
-                    minLength: 1
-                    type: string
-                  kind:
-                    maxLength: 63
-                    minLength: 1
-                    type: string
                   name:
                     maxLength: 63
                     minLength: 1
@@ -57,7 +72,11 @@ spec:
                     minLength: 1
                     pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                     type: string
+                required:
+                - name
                 type: object
+            required:
+            - repository
             type: object
           status:
             description: Status is the observed state of the Deployment.
@@ -66,11 +85,6 @@ spec:
                 description: Branch is the actual branch being deployed from the repository.
                   This may be the preferred branch from the parent environment, or
                   the repository's default branch if the preferred branch is not available.
-                minLength: 1
-                type: string
-              clonePath:
-                description: ClonePath is the local path in the controller to the
-                  cloned repository.
                 minLength: 1
                 type: string
               conditions:
@@ -157,10 +171,22 @@ spec:
                 minLength: 40
                 pattern: ^[a-f0-9]+$
                 type: string
-              resourcesManifest:
-                description: Generates manifest of resources from the repository.
+              persistentVolumeNameClaim:
+                description: PersistentVolumeClaimName points to the name of the [k8s.io/api/core/v1.PersistentVolumeClaim]
+                  used for hosting the cloned Git repository that this deployment
+                  will apply. The volume will be mounted to the various jobs this
+                  deployment will create & run over its lifetime.
+                maxLength: 63
+                minLength: 1
+                pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
+                type: string
+              resolvedRepository:
+                description: The fully qualified (namespace + name) of the repository
+                  this deployment applies.
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

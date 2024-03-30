@@ -10,18 +10,18 @@ import (
 type OptionallyNamespacedReference struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	APIVersion string `json:"apiVersion,omitempty"`
+	APIVersion string `json:"apiVersion"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	Kind string `json:"kind,omitempty"`
+	Kind string `json:"kind"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
 	// +kubebuilder:validation:Required
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
@@ -67,24 +67,24 @@ func (in *OptionallyNamespacedReference) ToNamespacedRepositoryReference(default
 type NamespacedReference struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	APIVersion string `json:"apiVersion,omitempty"`
+	APIVersion string `json:"apiVersion"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
-	Kind string `json:"kind,omitempty"`
+	Kind string `json:"kind"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
 	// +kubebuilder:validation:Required
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern=^[a-z0-9]+(\-[a-z0-9]+)*$
-	Namespace string `json:"namespace,omitempty"`
+	Namespace string `json:"namespace"`
 }
 
 func (in *NamespacedReference) GetObjectKey() client.ObjectKey {

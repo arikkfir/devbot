@@ -2,14 +2,19 @@ package logging
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/arikkfir/devbot/backend/internal/config"
+	"github.com/distribution/reference"
 	"github.com/go-logr/logr"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
 	"io"
+	corev1 "k8s.io/api/core/v1"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"strings"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func ErrorStackMarshaler(err error) interface{} {
@@ -52,11 +57,34 @@ func Configure(w io.Writer, devMode bool, logLevel string) {
 	if level, err := zerolog.ParseLevel(logLevel); err != nil {
 		log.Fatal().Err(err).Msg("Failed to parse config")
 	} else {
-		log.Info().Msgf("Configured log level to %s", strings.ToUpper(level.String()))
 		zerolog.SetGlobalLevel(level)
 	}
 
 	zerolog.DefaultContextLogger = &log.Logger
+
+	config.PodName = os.Getenv("POD_NAME")
+	config.PodNamespace = os.Getenv("POD_NAMESPACE")
+	if config.PodName != "" && config.PodNamespace != "" {
+		c, err := client.New(ctrl.GetConfigOrDie(), client.Options{})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to create in-cluster Kubernetes client")
+		}
+		pod := &corev1.Pod{}
+		podObjectKey := client.ObjectKey{Namespace: config.PodNamespace, Name: config.PodName}
+		if err := c.Get(context.Background(), podObjectKey, pod); err != nil {
+			log.Fatal().Err(err).Msg("Failed to get pod")
+		}
+		config.Image = pod.Spec.Containers[0].Image
+		r, err := reference.Parse(pod.Spec.Containers[0].Image)
+		if tagged, ok := r.(reference.Tagged); ok {
+			config.Version = tagged.Tag()
+		} else {
+			log.Info().Msg("Version could not be auto-configured (pod image is not tagged)")
+		}
+	} else {
+		log.Info().Msg("Version could not be auto-configured (POD_NAME or POD_NAMESPACE not set)")
+	}
+	log.Logger = log.With().Str("version", config.Version).Logger()
 
 	logrLogger := logr.New(&zeroLogLogrAdapter{}).V(0)
 	ctrl.SetLogger(logrLogger)

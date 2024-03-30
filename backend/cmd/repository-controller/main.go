@@ -60,7 +60,7 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	reconciler := &repository.Reconciler{Client: mgrClient, Scheme: mgrScheme}
+	reconciler := &repository.Reconciler{Client: mgrClient, Config: cfg.CommandConfig, Scheme: mgrScheme}
 	if err := reconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create GitHub repository controller")
 	}

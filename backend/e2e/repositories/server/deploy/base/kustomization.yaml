@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namePrefix: "${ENVIRONMENT}-"
+labels:
+
+  # Add application, environment, component & version labels to all resources metadata, as well as to pod templates in
+  # Deployment and StatefulSet resources. This will be useful to allow us to know which version a pod belongs to.
+  - pairs:
+      app.kubernetes.io/name: "${APPLICATION}"
+      app.kubernetes.io/instance: "${ENVIRONMENT}"
+      app.kubernetes.io/component: server
+      app.kubernetes.io/version: "${COMMIT_SHA}"
+    fields:
+      - path: metadata/labels
+        create: true
+      - group: apps
+        version: v1
+        kind: Deployment
+        path: spec/template/metadata/labels
+        create: true
+      - group: apps
+        version: v1
+        kind: StatefulSet
+        path: spec/template/metadata/labels
+        create: true
+
+  # Pod selectors (such as ones in Service, Deployment, StatefulSet) should not match on COMMIT_SHA since during
+  # rollout, there can be a mix of pods with different commit SHAs, and the selectors should match all of them (previous
+  # and new SHAs)
+  - pairs:
+      app.kubernetes.io/name: "${APPLICATION}"
+      app.kubernetes.io/instance: "${ENVIRONMENT}"
+      app.kubernetes.io/component: server
+    fields:
+      - group: ""
+        version: v1
+        kind: Service
+        path: spec/selector
+        create: true
+      - group: apps
+        version: v1
+        kind: Deployment
+        path: spec/selector/matchLabels
+        create: true
+      - group: apps
+        version: v1
+        kind: StatefulSet
+        path: spec/selector/matchLabels
+        create: true
+
+resources:
+  - workload.yaml

@@ -3,6 +3,9 @@ kind: ClusterRole
 metadata:
   name: application-controller
 rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
   - apiGroups: [devbot.kfirs.com]
     resources: [applications]
     verbs: [get, list, patch, update, watch]
@@ -78,6 +81,15 @@ spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/application-controller
           args: []
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           name: application-controller
           ports:
             - containerPort: 8000

@@ -70,7 +70,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to create index")
 	}
 
-	envReconciler := &environment.Reconciler{Client: mgrClient, Scheme: mgrScheme}
+	envReconciler := &environment.Reconciler{Client: mgrClient, Config: cfg.CommandConfig, Scheme: mgrScheme}
 	if err := envReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application environment controller")
 	}

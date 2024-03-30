@@ -3,6 +3,7 @@ package environment
 import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/config"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +29,7 @@ type (
 
 	Reconciler struct {
 		client.Client
+		Config config.CommandConfig
 		Scheme *runtime.Scheme
 	}
 )
@@ -37,7 +39,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 }
 
 func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
-	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Environment{}, Finalizer, nil)
+	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Environment{}, Finalizer, nil)
 	if result != nil {
 		return result
 	}
@@ -71,16 +73,10 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 	// For each participating repository, verify that there's a corresponding Deployment object
 	for _, repoRef := range app.Spec.Repositories {
 		repoKey := repoRef.GetObjectKey(app.Namespace)
-		nsRepoRef := apiv1.NamespacedReference{
-			APIVersion: apiv1.RepositoryGVK.GroupVersion().String(),
-			Kind:       apiv1.RepositoryGVK.Kind,
-			Name:       repoKey.Name,
-			Namespace:  repoKey.Namespace,
-		}
 
 		found := false
 		for _, d := range deployments.Items {
-			if d.Spec.Repository == nsRepoRef {
+			if d.Spec.Repository.GetObjectKey(d.Namespace) == repoKey {
 				found = true
 				break
 			}
@@ -95,10 +91,13 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 						*metav1.NewControllerRef(rec.Object, apiv1.EnvironmentGVK),
 					},
 				},
-				Spec: apiv1.DeploymentSpec{Repository: nsRepoRef},
+				Spec: apiv1.DeploymentSpec{Repository: apiv1.DeploymentRepositoryReference{
+					Name:      repoKey.Name,
+					Namespace: repoKey.Namespace,
+				}},
 			}
 			if err := r.Create(rec.Ctx, d); err != nil {
-				rec.Object.Status.SetStaleDueToFailedCreatingDeployment("Failed to create deployment for repository '%s': %+v", nsRepoRef.GetObjectKey(), err)
+				rec.Object.Status.SetStaleDueToFailedCreatingDeployment("Failed to create deployment for repository '%s': %+v", repoKey, err)
 				if result := rec.UpdateStatus(); result != nil {
 					return result
 				}
@@ -113,13 +112,7 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 		found := false
 		for _, appRepoRef := range app.Spec.Repositories {
 			appRepoKey := appRepoRef.GetObjectKey(app.Namespace)
-			appRepoNamespacedRef := apiv1.NamespacedReference{
-				APIVersion: apiv1.RepositoryGVK.GroupVersion().String(),
-				Kind:       apiv1.RepositoryGVK.Kind,
-				Name:       appRepoKey.Name,
-				Namespace:  appRepoKey.Namespace,
-			}
-			if d.Spec.Repository == appRepoNamespacedRef {
+			if d.Spec.Repository.GetObjectKey(d.Namespace) == appRepoKey {
 				found = true
 				break
 			}
@@ -157,6 +150,12 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 			}
 			return k8s.RequeueAfter(30 * time.Second)
 		}
+	}
+
+	// Mark as current if we got this far
+	rec.Object.Status.SetCurrent()
+	if result := rec.UpdateStatus(); result != nil {
+		return result
 	}
 
 	// Done

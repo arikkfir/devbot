@@ -14,7 +14,17 @@ spec:
     singular: environment
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.branch
+      name: Preferred Branch
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Invalid")].reason
+      name: Invalid
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Stale")].reason
+      name: Stale
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: Environment is the Schema for the environments API.
@@ -41,6 +51,8 @@ spec:
                   [ApplicationSpecRepository.MissingBranchStrategy]).
                 minLength: 1
                 type: string
+            required:
+            - branch
             type: object
           status:
             description: Status is the observed state of the Environment.
@@ -116,6 +128,8 @@ spec:
                   type: object
                 type: array
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

@@ -55,7 +55,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to create index")
 	}
 
-	applicationReconciler := &application.Reconciler{Client: mgrClient, Scheme: mgrScheme}
+	applicationReconciler := &application.Reconciler{Client: mgrClient, Config: cfg.CommandConfig, Scheme: mgrScheme}
 	if err := applicationReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application controller")
 	}

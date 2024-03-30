@@ -645,6 +645,102 @@ func (s *DeploymentStatus) SetMaybeStaleDueToInvalid(message string, args ...int
 	return true
 }
 
+func (s *DeploymentStatus) SetStaleDueToPersistentVolumeCreationFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != PersistentVolumeCreationFailed || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = PersistentVolumeCreationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  PersistentVolumeCreationFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToPersistentVolumeCreationFailed(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != PersistentVolumeCreationFailed || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = PersistentVolumeCreationFailed
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  PersistentVolumeCreationFailed,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetStaleDueToPersistentVolumeMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != PersistentVolumeMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = PersistentVolumeMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionTrue,
+		Reason:  PersistentVolumeMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToPersistentVolumeMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Stale {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != PersistentVolumeMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = PersistentVolumeMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Stale,
+		Status:  v1.ConditionUnknown,
+		Reason:  PersistentVolumeMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
 func (s *DeploymentStatus) SetStaleDueToRepositoryNotAccessible(message string, args ...interface{}) bool {
 	for i, c := range s.Conditions {
 		if c.Type == Stale {
@@ -1366,6 +1462,54 @@ func (s *DeploymentStatus) SetMaybeInvalidDueToInternalError(message string, arg
 		Type:    Invalid,
 		Status:  v1.ConditionUnknown,
 		Reason:  InternalError,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetInvalidDueToJobMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionTrue || c.Reason != JobMissing || c.Message != msg {
+				c.Status = v1.ConditionTrue
+				c.Reason = JobMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionTrue,
+		Reason:  JobMissing,
+		Message: fmt.Sprintf(message, args...),
+	})
+	return true
+}
+
+func (s *DeploymentStatus) SetMaybeInvalidDueToJobMissing(message string, args ...interface{}) bool {
+	for i, c := range s.Conditions {
+		if c.Type == Invalid {
+			msg := fmt.Sprintf(message, args...)
+			if c.Status != v1.ConditionUnknown || c.Reason != JobMissing || c.Message != msg {
+				c.Status = v1.ConditionUnknown
+				c.Reason = JobMissing
+				c.Message = msg
+				s.Conditions[i] = c
+				return true
+			} else {
+				return false
+			}
+		}
+	}
+	s.Conditions = append(s.Conditions, v1.Condition{
+		Type:    Invalid,
+		Status:  v1.ConditionUnknown,
+		Reason:  JobMissing,
 		Message: fmt.Sprintf(message, args...),
 	})
 	return true

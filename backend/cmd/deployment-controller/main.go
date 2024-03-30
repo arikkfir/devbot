@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"github.com/arikkfir/devbot/backend/internal/controllers"
 	"github.com/arikkfir/devbot/backend/internal/controllers/deployment"
 	"github.com/arikkfir/devbot/backend/internal/util/configuration"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	"github.com/rs/zerolog/log"
-	v1 "k8s.io/api/core/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +47,7 @@ func main() {
 				DisableFor: []client.Object{
 					// disable caching of secrets, as we might not get a "list" permission for them, and the default
 					// cache tries to list objects for caching...
-					&v1.Secret{},
+					&corev1.Secret{},
 				},
 			},
 		},
@@ -61,7 +64,11 @@ func main() {
 	mgrScheme := mgr.GetScheme()
 	mgrClient := mgr.GetClient()
 
-	deploymentReconciler := &deployment.Reconciler{Client: mgrClient, Scheme: mgrScheme}
+	if err := k8s.AddOwnershipIndex(context.Background(), mgr.GetFieldIndexer(), &batchv1.Job{}); err != nil {
+		log.Fatal().Err(err).Msg("Failed to create index")
+	}
+
+	deploymentReconciler := &deployment.Reconciler{Client: mgrClient, Config: cfg.CommandConfig, Scheme: mgrScheme}
 	if err := deploymentReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create application environment controller")
 	}
