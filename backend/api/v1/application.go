@@ -54,6 +54,8 @@ type ApplicationSpec struct {
 	// tracked.
 	// +kubebuilder:validation:Optional
 	Branches []string `json:"branches,omitempty"`
+
+	// TODO: Add environment expiry support, comprised of a default expiry time, a per-environment override & stickiness
 }
 
 type ApplicationSpecRepository struct {
