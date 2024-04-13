@@ -2,98 +2,57 @@ package justest_test
 
 import (
 	"fmt"
+	"github.com/arikkfir/devbot/backend/internal/util/lang"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	"github.com/google/go-cmp/cmp"
 	"testing"
 )
 
 func TestSucceed(t *testing.T) {
-	cases := []struct {
-		name                string
-		positiveExpectation bool
-		actuals             []any
-		wantErr             bool
-	}{
-		{
-			name:                "NoActualsWillSucceed_Matches",
-			positiveExpectation: true,
-			actuals:             []any{},
-			wantErr:             false,
+	type testCase struct {
+		expectFailurePattern *string
+		expectPanicPattern   *string
+		actualsGenerator     func(t TT, tc *testCase) []any
+		expectedResults      *[]any
+	}
+	testCases := map[string]testCase{
+		"Succeeds if no actuals": {
+			actualsGenerator: func(t TT, tc *testCase) []any { return []any{} },
+			expectedResults:  lang.Ptr([]any{}),
 		},
-		{
-			name:                "NoActualsWillNotSucceed_Mismatches",
-			positiveExpectation: false,
-			actuals:             []any{},
-			wantErr:             true,
+		"Succeeds if last actual is nil and returns without last item": {
+			actualsGenerator: func(t TT, tc *testCase) []any { return []any{1, 2, 3} },
+			expectedResults:  lang.Ptr([]any{1, 2}),
 		},
-		{
-			name:                "SingleNonErrorActualWillSucceed_Matches",
-			positiveExpectation: true,
-			actuals:             []any{"abc"},
-			wantErr:             false,
+		"Fails if last actual is an error": {
+			expectFailurePattern: lang.Ptr[string]("Error occurred: expected error"),
+			actualsGenerator:     func(t TT, tc *testCase) []any { return []any{"abc", fmt.Errorf("expected error")} },
 		},
-		{
-			name:                "SingleNonErrorActualWillNotSucceed_Mismatches",
-			positiveExpectation: false,
-			actuals:             []any{"abc"},
-			wantErr:             true,
-		},
-		{
-			name:                "SingleNilErrorActualWillSucceed_Matches",
-			positiveExpectation: true,
-			actuals:             []any{error(nil)},
-			wantErr:             false,
-		},
-		{
-			name:                "SingleNilErrorActualWillNotSucceed_Mismatches",
-			positiveExpectation: false,
-			actuals:             []any{"abc"},
-			wantErr:             true,
-		},
-		{
-			name:                "SingleNonNilErrorActualWillSucceed_Mismatches",
-			positiveExpectation: true,
-			actuals:             []any{fmt.Errorf("failed")},
-			wantErr:             true,
-		},
-		{
-			name:                "SingleNonNilErrorActualWillNotSucceed_Matches",
-			positiveExpectation: false,
-			actuals:             []any{fmt.Errorf("failed")},
-			wantErr:             false,
-		},
-		{
-			name:                "MultipleActualsWithNilErrorWillSucceed_Matches",
-			positiveExpectation: true,
-			actuals:             []any{1, 2, error(nil)},
-			wantErr:             false,
-		},
-		{
-			name:                "MultipleActualsWithNilErrorWillNotSucceed_Mismatches",
-			positiveExpectation: false,
-			actuals:             []any{1, 2, error(nil)},
-			wantErr:             true,
-		},
-		{
-			name:                "MultipleActualsWithErrorWillSucceed_Mismatches",
-			positiveExpectation: true,
-			actuals:             []any{1, 2, fmt.Errorf("failed")},
-			wantErr:             true,
-		},
-		{
-			name:                "MultipleActualsWithErrorWillNotSucceed_Matches",
-			positiveExpectation: false,
-			actuals:             []any{1, 2, fmt.Errorf("failed")},
-			wantErr:             false,
+		"Succeeds if last actual is not an error and returns without last item": {
+			actualsGenerator: func(t TT, tc *testCase) []any { return []any{"abc", "def"} },
+			expectedResults:  lang.Ptr([]any{"abc"}),
 		},
 	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			mt := &MockT{parent: t}
-			defer verifyTestCaseError(t, mt, tc.wantErr)
-			if tc.positiveExpectation {
-				For(mt).Expect(tc.actuals...).Will(Succeed())
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			mt := &MockT{Parent: NewTT(t)}
+			if tc.expectFailurePattern != nil {
+				if tc.expectPanicPattern != nil {
+					t.Fatalf("Invalid test - cannot specify both expected panic and expected failure")
+				}
+				defer expectFailure(t, mt, *tc.expectFailurePattern)
+			} else if tc.expectPanicPattern != nil {
+				defer expectPanic(t, *tc.expectPanicPattern)
 			} else {
-				For(mt).Expect(tc.actuals...).WillNot(Succeed())
+				defer expectNoFailure(t, mt)
+			}
+			actuals := tc.actualsGenerator(mt, &tc)
+			result := For(mt).Expect(actuals...).Will(Succeed()).Result()
+			if tc.expectedResults != nil {
+				if !cmp.Equal(result, *tc.expectedResults) {
+					t.Fatalf("expected result %+v, got %+v", *tc.expectedResults, result)
+				}
 			}
 		})
 	}

@@ -6,58 +6,16 @@ import (
 )
 
 func TestBeNil(t *testing.T) {
-	cases := []struct {
-		name                string
-		positiveExpectation bool
-		actuals             []any
-		wantErr             bool
-	}{
-		{
-			name:                "NilWillBeNil_Matches",
-			positiveExpectation: true,
-			actuals:             []any{nil},
-			wantErr:             false,
-		},
-		{
-			name:                "NilWillNotBeNil_Mismatches",
-			positiveExpectation: false,
-			actuals:             []any{nil},
-			wantErr:             true,
-		},
-		{
-			name:                "NonNilWillBeNil_Mismatches",
-			positiveExpectation: true,
-			actuals:             []any{"abc"},
-			wantErr:             true,
-		},
-		{
-			name:                "NonNilWillNotBeNil_Matches",
-			positiveExpectation: false,
-			actuals:             []any{"abc"},
-			wantErr:             false,
-		},
-		{
-			name:                "NoActualsWillBeNil_Matches",
-			positiveExpectation: true,
-			actuals:             []any{},
-			wantErr:             false,
-		},
-		{
-			name:                "NoActualsWillNotBeNil_Matches",
-			positiveExpectation: false,
-			actuals:             []any{},
-			wantErr:             false,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			mt := &MockT{parent: t}
-			defer verifyTestCaseError(t, mt, tc.wantErr)
-			if tc.positiveExpectation {
-				For(mt).Expect(tc.actuals...).Will(BeNil())
-			} else {
-				For(mt).Expect(tc.actuals...).WillNot(BeNil())
-			}
-		})
-	}
+	t.Run("Nil", func(t *testing.T) {
+		t.Parallel()
+		mt := &MockT{Parent: NewTT(t)}
+		defer expectNoFailure(t, mt)
+		For(mt).Expect(nil).Will(BeNil())
+	})
+	t.Run("Not nil", func(t *testing.T) {
+		t.Parallel()
+		mt := &MockT{Parent: NewTT(t)}
+		defer expectFailure(t, mt, `Expected actual to be nil, but it is not: abc`)
+		For(mt).Expect("abc").Will(BeNil())
+	})
 }

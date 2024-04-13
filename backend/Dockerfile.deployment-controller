@@ -18,7 +18,7 @@ WORKDIR /workspace
 RUN apk --no-cache add curl
 RUN curl -sSL -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && chmod +x kubectl
 
-FROM golang:1.21 as builder
+FROM golang:1.22 as builder
 ARG TARGETOS
 # no default value, to default to the environment's architecture (e.g. linux/amd64)
 ARG TARGETARCH

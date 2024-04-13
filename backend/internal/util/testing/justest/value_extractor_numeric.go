@@ -6,10 +6,11 @@ import (
 )
 
 var (
-	numericValueExtractor = newNumericValueExtractor()
+	numericValueExtractor = NewNumericValueExtractor()
 )
 
-func newNumericValueExtractor() ValueExtractor {
+//go:noinline
+func NewNumericValueExtractor() ValueExtractor {
 	sve := NewValueExtractor(ExtractorUnsupported)
 	sve[reflect.Chan] = NewChannelExtractor(sve, true)
 	sve[reflect.Float32] = ExtractSameValue
@@ -31,7 +32,9 @@ func newNumericValueExtractor() ValueExtractor {
 
 // getNumericCompareFuncFor returns a reflection wrapper for the [cmp.Compare] function with the correct generic type
 // for the numeric type provided.
-func getNumericCompareFuncFor(t JustT, v any) reflect.Value {
+//
+//go:noinline
+func getNumericCompareFuncFor(t TT, v any) reflect.Value {
 	GetHelper(t).Helper()
 	switch v.(type) {
 	case int:

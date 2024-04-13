@@ -44,10 +44,10 @@ type Reconciliation[O client.Object] struct {
 	Client         client.Client
 	Object         O
 	finalizerValue string
-	finalizerFunc  func(context.Context, client.Client, O) error
+	finalizerFunc  func(*Reconciliation[O]) error
 }
 
-func NewReconciliation[O client.Object](ctx context.Context, cfg config.CommandConfig, c client.Client, req ctrl.Request, object O, finalizerValue string, finalizerFunc func(context.Context, client.Client, O) error) (*Reconciliation[O], *Result) {
+func NewReconciliation[O client.Object](ctx context.Context, cfg config.CommandConfig, c client.Client, req ctrl.Request, object O, finalizerValue string, finalizerFunc func(*Reconciliation[O]) error) (*Reconciliation[O], *Result) {
 	if err := c.Get(ctx, req.NamespacedName, object); err != nil {
 		if client.IgnoreNotFound(err) == nil {
 			return nil, DoNotRequeue()
@@ -107,7 +107,7 @@ func (r *Reconciliation[O]) FinalizeObjectIfDeleted() *Result {
 			}
 
 			if r.finalizerFunc != nil {
-				if err := r.finalizerFunc(r.Ctx, r.Client, r.Object); err != nil {
+				if err := r.finalizerFunc(r); err != nil {
 					status.SetFinalizingDueToFinalizationFailed("%+v", err)
 					if result := r.UpdateStatus(); result != nil {
 						return result

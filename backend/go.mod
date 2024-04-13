@@ -1,6 +1,6 @@
 module github.com/arikkfir/devbot/backend
 
-go 1.21
+go 1.22
 
 replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
 
@@ -12,6 +12,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v56 v56.0.0
 	github.com/jessevdk/go-flags v1.5.0
+	github.com/kr/text v0.2.0
 	github.com/lucasepe/codename v0.2.0
 	github.com/rs/zerolog v1.31.0
 	github.com/secureworks/errors v0.1.2

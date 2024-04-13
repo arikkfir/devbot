@@ -1,8 +1,6 @@
 package justest
 
 import (
-	"context"
-	"fmt"
 	"github.com/secureworks/errors"
 	"reflect"
 	"time"
@@ -19,90 +17,6 @@ func init() {
 	eventuallyValueExtractor[reflect.Pointer] = NewPointerExtractor(eventuallyValueExtractor, false)
 }
 
-type eventuallyMatcher struct {
-	expectation Matcher
-	timeout     time.Duration
-	interval    time.Duration
-}
-
-func (m *eventuallyMatcher) ExpectMatch(t JustT, actuals ...any) []any {
-	GetHelper(t).Helper()
-
-	timeout := time.NewTimer(m.timeout)
-	defer timeout.Stop()
-
-	ticker := time.NewTicker(m.interval)
-	defer ticker.Stop()
-
-	expired := false
-	for {
-		select {
-		case <-timeout.C:
-			verifyNotInterrupted(t)
-			expired = true
-		case <-ticker.C:
-			verifyNotInterrupted(t)
-			tt := &eventuallyJustT{parent: t, expired: expired}
-			updatedActuals := m.tick(context.Background(), tt, actuals...)
-			if tt.error == nil {
-				return updatedActuals
-			}
-		}
-	}
-}
-
-func (m *eventuallyMatcher) ExpectNoMatch(t JustT, actuals ...any) []any {
-	GetHelper(t).Helper()
-
-	timeout := time.NewTimer(m.timeout)
-	defer timeout.Stop()
-
-	ticker := time.NewTicker(m.interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-timeout.C:
-			verifyNotInterrupted(t)
-			return actuals
-		case <-ticker.C:
-			verifyNotInterrupted(t)
-			tt := &eventuallyJustT{parent: t, expired: false}
-			_ = m.tick(context.Background(), tt, actuals...)
-			if tt.error == nil {
-				t.Fatalf("Expected condition to not be met, but it was eventually met")
-				panic("unreachable")
-			}
-		}
-	}
-}
-
-func (m *eventuallyMatcher) tick(ctx context.Context, t *eventuallyJustT, actuals ...any) []any {
-	GetHelper(t).Helper()
-	if !t.expired {
-		defer func() {
-			if r := recover(); r != nil {
-				if r != t {
-					if err, isErr := r.(error); isErr {
-						panic(errors.New("unexpected panic! recovered: %w", err))
-					} else {
-						panic(errors.New("unexpected panic! recovered: %+v", r))
-					}
-				}
-			}
-		}()
-	}
-
-	defer func() {
-		for i := len(t.cleanup) - 1; i >= 0; i-- {
-			t.cleanup[i]()
-		}
-	}()
-
-	resolvedActuals := eventuallyValueExtractor.ExtractValues(ctx, t, actuals...)
-	return m.expectation.ExpectMatch(t, resolvedActuals...)
-}
-
 type EventuallyBuilder interface {
 	Within(timeout time.Duration) EventuallyBuilderWithTimeout
 }
@@ -117,6 +31,7 @@ type eventuallyBuilder struct {
 	interval    *time.Duration
 }
 
+//go:noinline
 func (b *eventuallyBuilder) Within(timeout time.Duration) EventuallyBuilderWithTimeout {
 	if timeout == 0 {
 		panic("timeout cannot be 0")
@@ -125,6 +40,7 @@ func (b *eventuallyBuilder) Within(timeout time.Duration) EventuallyBuilderWithT
 	return b
 }
 
+//go:noinline
 func (b *eventuallyBuilder) ProbingEvery(interval time.Duration) Matcher {
 	if interval == 0 {
 		panic("interval cannot be 0")
@@ -132,60 +48,89 @@ func (b *eventuallyBuilder) ProbingEvery(interval time.Duration) Matcher {
 		panic("interval cannot be greater than timeout")
 	}
 	b.interval = &interval
-	return &eventuallyMatcher{expectation: b.expectation, timeout: *b.timeout, interval: *b.interval}
+
+	tick := func(t *eventuallyT, actuals ...any) []any {
+		GetHelper(t).Helper()
+
+		defer func() {
+			if r := recover(); r != nil {
+				if r != t {
+					if err, isErr := r.(error); isErr {
+						panic(errors.New("unexpected panic! recovered: %w", err))
+					} else {
+						panic(errors.New("unexpected panic! recovered: %+v", r))
+					}
+				}
+			}
+		}()
+
+		defer func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Logf("Trial %d failed during cleanups: %+v", t.trial, r)
+				}
+			}()
+
+			for i := len(t.cleanup) - 1; i >= 0; i-- {
+				t.cleanup[i]()
+			}
+		}()
+
+		var resolvedActuals []any
+		for _, actual := range actuals {
+			value, found := eventuallyValueExtractor.ExtractValue(t, actual)
+			if found {
+				resolvedActuals = append(resolvedActuals, value)
+			}
+		}
+		return b.expectation(t, resolvedActuals...)
+	}
+
+	return func(t TT, actuals ...any) []any {
+		GetHelper(t).Helper()
+
+		start := time.Now()
+		timeout := time.NewTimer(*b.timeout)
+		defer timeout.Stop()
+
+		ticker := time.NewTicker(*b.interval)
+		defer ticker.Stop()
+
+		// TODO: spawn ticks in goroutines; cancel context & return on when timeout occurs (hopefully goroutines will also exit)
+
+		trial := 0
+		var et *eventuallyT
+		for {
+			select {
+			case <-timeout.C:
+				verifyNotInterrupted(t)
+				if et == nil {
+					t.Fatalf("Eventually matcher timed out before any evaluations could take place")
+					panic("unreachable")
+				} else if et.error == nil {
+					panic("Eventually reached an illegal state where it timed out with failed matchers, yet no error was found. This is a bug and should be reported.")
+				} else {
+					format := "Timed out after %s waiting for expectation to be met: " + et.error.msg
+					args := append([]any{time.Since(start).String()}, et.error.args...)
+					t.Fatalf(format, args...)
+				}
+			case <-ticker.C:
+				verifyNotInterrupted(t)
+				trial = +1
+				et = &eventuallyT{parent: t, trial: trial}
+				updatedActuals := tick(et, actuals...)
+				if et.error == nil {
+					return updatedActuals
+				}
+			}
+		}
+	}
 }
 
+//go:noinline
 func Eventually(expectation Matcher) EventuallyBuilder {
 	if expectation == nil {
 		panic("expectation cannot be nil")
 	}
 	return &eventuallyBuilder{expectation: expectation}
-}
-
-type eventuallyJustT struct {
-	parent  JustT
-	expired bool
-	cleanup []func()
-	error   *struct {
-		msg  string
-		args []any
-	}
-}
-
-func (t *eventuallyJustT) Cleanup(f func()) {
-	GetHelper(t).Helper()
-	t.cleanup = append(t.cleanup, f)
-}
-
-func (t *eventuallyJustT) GetHelper() Helper {
-	if hp, ok := t.parent.(HelperProvider); ok {
-		return hp.GetHelper()
-	} else if h, ok := t.parent.(Helper); ok {
-		return h
-	} else {
-		panic(fmt.Sprintf("could not obtain a HelperProvider instance from the given JustT instance: %+v", t.parent))
-	}
-}
-
-func (t *eventuallyJustT) Log(args ...any) {
-	GetHelper(t).Helper()
-	t.parent.Log(args...)
-}
-
-func (t *eventuallyJustT) Logf(format string, args ...any) {
-	GetHelper(t).Helper()
-	t.parent.Logf(format, args...)
-}
-
-func (t *eventuallyJustT) Fatalf(format string, args ...any) {
-	GetHelper(t).Helper()
-	if t.expired {
-		t.parent.Fatalf(format, args...)
-	} else {
-		t.error = &struct {
-			msg  string
-			args []any
-		}{msg: format, args: args}
-		panic(t)
-	}
 }

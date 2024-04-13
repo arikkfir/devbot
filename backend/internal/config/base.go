@@ -3,7 +3,7 @@ package config
 var (
 	PodName      = "unknown"
 	PodNamespace = "unknown"
-	Version      = "unknown"
+	Version      = "0.0.0-unknown"
 	Image        = "unknown"
 )
 

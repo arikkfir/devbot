@@ -1,6 +1,6 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: "configuration"
+  name: configuration
 data:
-  foo: bar
+  env: "${ENVIRONMENT}"

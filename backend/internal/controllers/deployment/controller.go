@@ -39,8 +39,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return r.executeReconciliation(ctx, req).ToResultAndError()
 }
 
+func (r *Reconciler) finalizeObject(_ *k8s.Reconciliation[*apiv1.Deployment]) error {
+	// TODO: delete all resources created by this deployment
+	return nil
+}
+
 func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
-	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Deployment{}, Finalizer, nil)
+	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Deployment{}, Finalizer, r.finalizeObject)
 	if result != nil {
 		return result
 	}
@@ -158,7 +163,7 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 			}
 		}
 		if branchChanged || revisionChanged {
-			return r.createNewCloneJob(rec, app, env, repo)
+			return r.createNewCloneJob(rec, app, repo)
 		}
 		return k8s.DoNotRequeue()
 	}
@@ -212,7 +217,7 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 				// Job failed - recreate it
 				switch phase {
 				case PhaseClone:
-					return r.createNewCloneJob(rec, app, env, repo)
+					return r.createNewCloneJob(rec, app, repo)
 				case PhaseBake:
 					return r.createNewBakeJob(rec, app, env, repo, *repoSettings)
 				case PhaseApply:
@@ -460,7 +465,7 @@ func (r *Reconciler) createNewJobSpec(rec *k8s.Reconciliation[*apiv1.Deployment]
 	}
 }
 
-func (r *Reconciler) createNewCloneJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, repo *apiv1.Repository) *k8s.Result {
+func (r *Reconciler) createNewCloneJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, repo *apiv1.Repository) *k8s.Result {
 	var url string
 
 	// Calculate Git URL based on repository type

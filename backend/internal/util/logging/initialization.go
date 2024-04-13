@@ -78,11 +78,7 @@ func Configure(w io.Writer, devMode bool, logLevel string) {
 		r, err := reference.Parse(pod.Spec.Containers[0].Image)
 		if tagged, ok := r.(reference.Tagged); ok {
 			config.Version = tagged.Tag()
-		} else {
-			log.Info().Msg("Version could not be auto-configured (pod image is not tagged)")
 		}
-	} else {
-		log.Info().Msg("Version could not be auto-configured (POD_NAME or POD_NAMESPACE not set)")
 	}
 	log.Logger = log.With().Str("version", config.Version).Logger()
 

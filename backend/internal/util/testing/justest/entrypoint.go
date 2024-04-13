@@ -1,109 +1,133 @@
 package justest
 
 import (
+	"context"
 	"fmt"
-	"reflect"
+	"sync"
+	"testing"
 )
 
 var (
-	justTTypePkgPath string
-	justTTypeName    string
+	contextValues = sync.Map{}
 )
 
-func init() {
-	justTType := reflect.TypeOf((*JustT)(nil)).Elem()
-	justTTypePkgPath = justTType.PkgPath()
-	justTTypeName = justTType.Name()
+func getValueForT(t T, key any) any {
+	GetHelper(t).Helper()
+	values, ok := contextValues.Load(t)
+	if !ok {
+		switch tt := t.(type) {
+		case *tImpl:
+			return tt.ctx.Value(key)
+		case *inverseTT:
+			return tt.parent.Value(key)
+		case *eventuallyT:
+			return tt.parent.Value(key)
+		case *MockT:
+			return tt.Parent.Value(key)
+		case *testing.T:
+			return nil
+		default:
+			panic(fmt.Sprintf("unrecognized TT type: %T", t))
+		}
+	}
+	return values.(map[any]any)[key]
 }
 
-type JustT interface {
-	Cleanup(func())
-	Fatalf(format string, args ...any)
-	Log(args ...any)
-	Logf(format string, args ...any)
-}
-
-type Helper interface {
-	Helper()
-}
-
-type HelperProvider interface {
-	GetHelper() Helper
-}
-
-func GetHelper(t JustT) Helper {
-	if hp, ok := t.(HelperProvider); ok {
-		return hp.GetHelper()
-	} else if h, ok := t.(Helper); ok {
-		return h
+func setValueForT(t T, key, value any) {
+	GetHelper(t).Helper()
+	values, _ := contextValues.LoadOrStore(t, make(map[any]any))
+	if value == nil {
+		delete(values.(map[any]any), key)
 	} else {
-		panic(fmt.Sprintf("could not obtain a HelperProvider instance from the given JustT instance: %+v", t))
+		values.(map[any]any)[key] = value
 	}
 }
 
-func For(t JustT) Tester {
+//go:noinline
+func For(t T) Expecter {
 	GetHelper(t).Helper()
-	return &tester{t: t}
+	tt := getValueForT(t, "___TT")
+	if tt == nil {
+		tt = NewTT(t)
+		setValueForT(t, "___TT", tt)
+	}
+	return &expecter{t: tt.(TT)}
 }
 
-type Tester interface {
+type Expecter interface {
+	AddValue(key, value any)
+	Value(key any) any
+	Context() context.Context
 	Expect(actual ...any) Asserter
 }
 
-type tester struct {
-	t JustT
+type expecter struct {
+	t TT
 }
 
-func (t *tester) Expect(actual ...interface{}) Asserter {
-	GetHelper(t.t).Helper()
-	return &asserter{t: t, actual: actual}
+//go:inline
+func (e *expecter) Context() context.Context {
+	GetHelper(e.t).Helper()
+	return e.t.(context.Context)
+}
+
+//go:noinline
+func (e *expecter) AddValue(key, value any) {
+	GetHelper(e.t).Helper()
+	setValueForT(e.t, key, value)
+}
+
+//go:noinline
+func (e *expecter) Value(key any) any {
+	GetHelper(e.t).Helper()
+	return getValueForT(e.t, key)
+}
+
+//go:noinline
+func (e *expecter) Expect(actuals ...any) Asserter {
+	GetHelper(e.t).Helper()
+	return &asserter{t: e, actuals: actuals}
 }
 
 type Asserter interface {
 	Will(Matcher) ContinueAsserter
-	WillNot(Matcher) ContinueAsserter
-	Results() []any
+	Result() []any
 }
 
 type ContinueAsserter interface {
 	AndWill(Matcher) ContinueAsserter
-	AndWillNot(Matcher) ContinueAsserter
-	Results() []any
+	Result() []any
 }
 
 type asserter struct {
-	t      *tester
-	actual []any
+	t       *expecter
+	actuals []any
+	because string
 }
 
-func (a *asserter) Will(m Matcher) ContinueAsserter {
+//go:noinline
+func (a *asserter) Will(matcher Matcher) ContinueAsserter {
 	GetHelper(a.t.t).Helper()
-	newActuals := m.ExpectMatch(a.t.t, a.actual...)
-	return &asserter{t: a.t, actual: newActuals}
+	newActuals := matcher(a.t.t, a.actuals...)
+	return &asserter{t: a.t, actuals: newActuals}
 }
 
-func (a *asserter) WillNot(m Matcher) ContinueAsserter {
+func (a *asserter) Because(format string, args ...any) ContinueAsserter {
 	GetHelper(a.t.t).Helper()
-	newActuals := m.ExpectNoMatch(a.t.t, a.actual...)
-	return &asserter{t: a.t, actual: newActuals}
+	a.because = fmt.Sprintf(format, args...)
+	return a
 }
 
+//go:noinline
 func (a *asserter) AndWill(m Matcher) ContinueAsserter {
 	GetHelper(a.t.t).Helper()
 	return a.Will(m)
 }
 
-func (a *asserter) AndWillNot(m Matcher) ContinueAsserter {
+//go:noinline
+func (a *asserter) Result() []any {
 	GetHelper(a.t.t).Helper()
-	return a.WillNot(m)
+	return a.actuals
 }
 
-func (a *asserter) Results() []any {
-	GetHelper(a.t.t).Helper()
-	return a.actual
-}
-
-type Matcher interface {
-	ExpectMatch(t JustT, actuals ...any) []any
-	ExpectNoMatch(t JustT, actuals ...any) []any
-}
+type Matcher func(TT, ...any) []any

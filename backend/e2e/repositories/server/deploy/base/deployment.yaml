@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+spec:
+  selector:
+    matchLabels: {}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    spec:
+      containers:
+        - args: []
+          env:
+            - name: PORT
+              value: "8000"
+          image: ealen/echo-server:latest
+          name: server
+          ports:
+            - containerPort: 8000
+              name: http
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+      enableServiceLinks: false
+      serviceAccountName: server

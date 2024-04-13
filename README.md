@@ -17,8 +17,29 @@ Please see the [contributing guide](.github/CONTRIBUTING.md) for details.
 
 Alpha. Do not use.
 
-- [x] Simplify status updates to avoid all those "if" statements
 - [ ] Review all calls to `Requeue` - many of those are failures that cannot be recovered from; something like "lastAttemptedCommitSHA" is needed in their place
-- [x] Recreate the e2e tests to test drive the system
 - [ ] Recreate the unit tests
+- [ ] Use slugged branch names as `Environment` and `Deployment` object names
 - [ ] Support remote clusters
+  - Slugging must be intelligent and avoid conflicts when two different branch names would result in the same slug
+- [ ] Refactor conditions
+  - All objects
+    - `Finalizing`: is `True` if the object is being finalized
+    - `FailedToInitialize`: is `True` if object initialization failed
+    - `Invalid`: is `True` if object spec is invalid; for things that CRD cannot validate on its own
+  - `Repository`
+    - `Unauthenticated`: is `True` if authentication to Git provider could not be established
+  - `Application`
+    - `Stale`: is `True` if an environment is missing or redundant or is stale itself
+  - `Environment`
+    - `Stale`: is `True` if an `Deployment` is missing or redundant or is stale itself
+  - `Deployment`
+    - `Cloning`: is `True` if repository is being cloned
+    - `Baking`: is `True` if resources manifest is being prepared
+    - `Applying`: is `True` if resources manifest is being applied to the target cluster
+    - `Stale`: is `True` if last applied commit is not the latest commit in the linked repository
+- [ ] Setup CI
+  - [ ] Linting
+  - [ ] Detect and fail on dead code
+  - [ ] Build & publish Docker images
+  - [ ] Build & publish `devctl`

@@ -9,20 +9,17 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 ### Install required toolchains
 
 ```bash
-$ brew install yq jq                                                  # used occasionally by various scripts
-$ brew install kubebuilder                                            # might be useful, not strictly required currently
-$ brew install kubernetes-cli kustomize skaffold                      # Kubernetes tooling
-$ brew install go                                                     # for backend development
+$ brew install go node                                                # language toolchains
+$ brew install kind kubebuilder kubernetes-cli kustomize skaffold     # Kubernetes development tooling
+$ brew install yq jq                                                  # useful tools often used ad-hoc or by scripts
 $ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0  # used to generate CRDs from controller code
-$ brew install node                                                   # for smee-client
 $ npm install -g smee-client                                          # used by tests to tunnel webhook requests
 ```
 
 ### Create a local Kubernetes cluster
 
 ```bash
-$ brew install kind               # install the "kind" local cluster
-$ ./deploy/kind/setup-cluster.sh  # create a local cluster for development with necessary dependencies (e.g. CSI)
+$ ./hack/bin/setup-cluster.sh
 ```
 
 ### Developing
@@ -38,7 +35,7 @@ This will also allow for local debugging of the code.
 To run the full tests suite locally, you can do the following:
 
 ```bash
-$ skaffold build -q --build-concurrency=0 | skaffold deploy --build-artifacts=- --kube-context=kind-devbot
+$ skaffold build -q | skaffold deploy --build-artifacts=-
 $ (cd backend && go test ./...)   # run backend tests
 $ (cd frontend && npm test)       # run frontend tests (NOT IMPLEMENTED YET)
 $ skaffold delete                 # undeploy from the local cluster

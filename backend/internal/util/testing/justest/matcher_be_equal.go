@@ -1,51 +1,57 @@
 package justest
 
 import (
-	"context"
 	"github.com/google/go-cmp/cmp"
+	"strings"
 )
 
 var (
 	equalValueExtractor = NewValueExtractor(ExtractSameValue)
 )
 
-type beEqualMatcherTo struct {
-	expected []any
-	cmpOpts  []cmp.Option
+type (
+	Comparator func(t TT, expected, actual any) any
+)
+
+//go:noinline
+func BeEqualTo(expected any) Matcher {
+	return CompareTo(expected).Using(GoCmp())
 }
 
-func (m *beEqualMatcherTo) ExpectMatch(t JustT, actuals ...any) []any {
-	GetHelper(t).Helper()
-	resolvedActuals := equalValueExtractor.ExtractValues(context.Background(), t, actuals...)
-	if cmp.Equal(m.expected, resolvedActuals, m.cmpOpts...) {
-		return actuals
-	} else {
-		t.Fatalf("Expected actual values to equal expected values, but they do not:\n%s", cmp.Diff(m.expected, resolvedActuals))
-		panic("unreachable")
+type ComparatorMatcherBuilder interface {
+	Using(Comparator) Matcher
+}
+
+type comparatorMatcherBuilder struct {
+	expected any
+}
+
+//go:noinline
+func (c *comparatorMatcherBuilder) Using(comparator Comparator) Matcher {
+	return func(t TT, actuals ...any) []any {
+		GetHelper(t).Helper()
+		var newActuals []any
+		for _, actual := range actuals {
+			newActuals = append(newActuals, comparator(t, c.expected, equalValueExtractor.MustExtractValue(t, actual)))
+		}
+		return newActuals
 	}
 }
 
-func (m *beEqualMatcherTo) ExpectNoMatch(t JustT, actuals ...any) []any {
-	GetHelper(t).Helper()
-	resolvedActuals := equalValueExtractor.ExtractValues(context.Background(), t, actuals...)
-	if cmp.Equal(m.expected, resolvedActuals, m.cmpOpts...) {
-		t.Fatalf("Expected actual values not to equal expected values, but they do:\n--[ Expected: ]--\n%+v\n--[ Actual: ]--\n%+v", m.expected, resolvedActuals)
-		panic("unreachable")
-	} else {
-		return actuals
-	}
+//go:noinline
+func CompareTo(expected any) ComparatorMatcherBuilder {
+	return &comparatorMatcherBuilder{expected: expected}
 }
 
-func BeEqualTo(expected ...any) Matcher {
-	var cmpOpts []cmp.Option
-	var expectedMinusCmpOpts []any
-	for _, e := range expected {
-		e := e
-		if _, ok := e.(cmp.Option); ok {
-			cmpOpts = append(cmpOpts, e.(cmp.Option))
+//go:noinline
+func GoCmp(opts ...cmp.Option) Comparator {
+	return func(t TT, expected, actual any) any {
+		GetHelper(t).Helper()
+		if cmp.Equal(expected, actual, opts...) {
+			return actual
 		} else {
-			expectedMinusCmpOpts = append(expectedMinusCmpOpts, e)
+			t.Fatalf("Expected & actual value differ:\n%s", strings.TrimSpace(cmp.Diff(expected, actual, opts...)))
+			panic("unreachable")
 		}
 	}
-	return &beEqualMatcherTo{expected: expectedMinusCmpOpts, cmpOpts: cmpOpts}
 }
