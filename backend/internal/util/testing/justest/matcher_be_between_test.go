@@ -109,7 +109,7 @@ func TestBeBetween(t *testing.T) {
 					} else {
 						defer expectNoFailure(t, mt)
 					}
-					For(mt).Expect(tc.actual).Will(BeBetween(tc.min, tc.max))
+					For(mt).Expect(tc.actual).Will(BeBetween(tc.min, tc.max)).OrFail()
 				})
 			}
 		})
@@ -118,12 +118,12 @@ func TestBeBetween(t *testing.T) {
 		t.Parallel()
 		mt := &MockT{Parent: NewTT(t)}
 		defer expectFailure(t, mt, `Expected actual value to be of type 'int64', but it is of type 'int'`)
-		For(mt).Expect(1).Will(BeBetween(0, int64(9)))
+		For(mt).Expect(1).Will(BeBetween(0, int64(9))).OrFail()
 	})
 	t.Run("MinTypeMismatches", func(t *testing.T) {
 		t.Parallel()
 		mt := &MockT{Parent: NewTT(t)}
 		defer expectFailure(t, mt, `Expected actual value to be of type 'int64', but it is of type 'int'`)
-		For(mt).Expect(1).Will(BeBetween(int64(0), 9))
+		For(mt).Expect(1).Will(BeBetween(int64(0), 9)).OrFail()
 	})
 }

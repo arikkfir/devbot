@@ -70,7 +70,7 @@ func (t *tImpl) GetHelper() Helper {
 	} else if h, ok := t.t.(Helper); ok {
 		return h
 	} else {
-		panic(fmt.Sprintf("could not obtain a HelperProvider instance from the given JustT instance: %+v", t.t))
+		panic(fmt.Sprintf("could not obtain a HelperProvider instance from: %+v", t.t))
 	}
 }
 
@@ -98,6 +98,7 @@ func (t *tImpl) Value(key any) interface{} {
 	return getValueForT(t, key)
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func RootOf(t T) *testing.T {
 	switch tt := t.(type) {
 	case *tImpl:

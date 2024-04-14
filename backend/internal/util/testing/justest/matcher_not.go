@@ -47,7 +47,7 @@ func (t *inverseTT) GetHelper() Helper {
 	} else if h, ok := t.parent.(Helper); ok {
 		return h
 	} else {
-		panic(fmt.Sprintf("could not obtain a HelperProvider instance from the given JustT instance: %+v", t.parent))
+		panic(fmt.Sprintf("could not obtain a HelperProvider instance from: %+v", t.parent))
 	}
 }
 

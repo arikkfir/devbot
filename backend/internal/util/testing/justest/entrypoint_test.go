@@ -54,4 +54,16 @@ func TestEntrypoint(t *testing.T) {
 		}
 
 	})
+
+	t.Run("Explained", func(t *testing.T) {
+		matcher := func(t TT, actuals ...any) []any {
+			GetHelper(t).Helper()
+			t.Fatalf("Failed!")
+			panic("unreachable")
+		}
+
+		mt := &MockT{Parent: NewTT(t)}
+		defer expectFailure(t, mt, `^Failed! \(this is just a test\)$`)
+		For(mt).Expect(1).Will(matcher).Because("this is just a %s", "test").OrFail()
+	})
 }

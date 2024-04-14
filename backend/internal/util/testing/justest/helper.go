@@ -17,6 +17,6 @@ func GetHelper(t T) Helper {
 	} else if h, ok := t.(Helper); ok {
 		return h
 	} else {
-		panic(fmt.Sprintf("could not obtain a HelperProvider instance from the given JustT instance: %+v", t))
+		panic(fmt.Sprintf("could not obtain a HelperProvider instance from: %+v", t))
 	}
 }

@@ -24,7 +24,7 @@ func TestBeEqualTo(t *testing.T) {
 			} else {
 				defer expectNoFailure(t, mt)
 			}
-			For(mt).Expect(tc.actual).Will(BeEqualTo(tc.expected))
+			For(mt).Expect(tc.actual).Will(BeEqualTo(tc.expected)).OrFail()
 		})
 	}
 }
@@ -51,7 +51,7 @@ func TestCompareTo(t *testing.T) {
 			t.Fatalf("expected error")
 			panic("unreachable")
 		}
-		For(mt).Expect(1).Will(CompareTo(2).Using(comparator))
+		For(mt).Expect(1).Will(CompareTo(2).Using(comparator)).OrFail()
 	})
 	t.Run("Success propagation", func(t *testing.T) {
 		mt := &MockT{Parent: NewTT(t)}
@@ -61,7 +61,7 @@ func TestCompareTo(t *testing.T) {
 			called = true
 			return actual
 		}
-		For(mt).Expect(1).Will(CompareTo(2).Using(comparator))
+		For(mt).Expect(1).Will(CompareTo(2).Using(comparator)).OrFail()
 		if !called {
 			t.Fatalf("Comparator was not called")
 		}

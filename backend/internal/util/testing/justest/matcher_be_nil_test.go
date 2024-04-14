@@ -16,6 +16,6 @@ func TestBeNil(t *testing.T) {
 		t.Parallel()
 		mt := &MockT{Parent: NewTT(t)}
 		defer expectFailure(t, mt, `Expected actual to be nil, but it is not: abc`)
-		For(mt).Expect("abc").Will(BeNil())
+		For(mt).Expect("abc").Will(BeNil()).OrFail()
 	})
 }

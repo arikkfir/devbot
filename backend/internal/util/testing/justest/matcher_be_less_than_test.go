@@ -87,7 +87,7 @@ func TestBeLessThan(t *testing.T) {
 					} else {
 						defer expectNoFailure(t, mt)
 					}
-					For(mt).Expect(tc.actual).Will(BeLessThan(tc.max))
+					For(mt).Expect(tc.actual).Will(BeLessThan(tc.max)).OrFail()
 				})
 			}
 		})
@@ -96,6 +96,6 @@ func TestBeLessThan(t *testing.T) {
 		t.Parallel()
 		mt := &MockT{Parent: NewTT(t)}
 		defer expectFailure(t, mt, `Expected actual value to be of type 'int64', but it is of type 'int'`)
-		For(mt).Expect(1).Will(BeLessThan(int64(0)))
+		For(mt).Expect(1).Will(BeLessThan(int64(0))).OrFail()
 	})
 }

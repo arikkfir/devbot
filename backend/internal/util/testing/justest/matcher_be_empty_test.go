@@ -48,7 +48,7 @@ func TestBeEmpty(t *testing.T) {
 					} else {
 						defer expectNoFailure(t, mt)
 					}
-					For(mt).Expect(tc.actual).Will(BeEmpty())
+					For(mt).Expect(tc.actual).Will(BeEmpty()).OrFail()
 				})
 			}
 		})
