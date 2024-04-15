@@ -68,9 +68,9 @@ func TestRepositoryReconciliation(t *testing.T) {
 			},
 		}
 		reposList := &apiv1.RepositoryList{}
-		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed())
-		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator))
-	}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(100 * time.Millisecond))
+		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
+	}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(100 * time.Millisecond)).OrFail()
 
 	//// Create new branches
 	//commonRepoFeature1SHA := ghCommonRepo.CreateBranch(t, ctx, "feature1")
