@@ -1,3 +1,7 @@
+.PHONY: debug-print-resources
+debug-print-resources:
+	./hack/bin/debug-deployments.sh
+
 .PHONY: generate
 generate:
 	rm -vrf backend/api/v1/zz_* deploy/app/crd/*.yaml
