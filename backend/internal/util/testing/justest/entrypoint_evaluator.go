@@ -1,8 +1,13 @@
 package justest
 
 import (
+	"bytes"
 	"fmt"
-	"time"
+	"github.com/alecthomas/chroma/v2/quick"
+	"github.com/secureworks/errors"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 type Results interface {
@@ -15,15 +20,67 @@ type Evaluator interface {
 	Because(string, ...any) Results
 }
 
+func newEvaluator(t TT, matcher Matcher, actuals ...any) Evaluator {
+	GetHelper(t).Helper()
+	e := &evaluator{t: t, actuals: actuals, matcher: matcher}
+
+	var location, source string
+	for _, frame := range errors.CallStackAt(0) {
+		function, file, line := frame.Location()
+
+		startsWithAnIgnoredPrefix := false
+		for _, prefix := range ignoredStackTracePrefixes {
+			if strings.HasPrefix(function, prefix) {
+				startsWithAnIgnoredPrefix = true
+				break
+			}
+		}
+
+		if !startsWithAnIgnoredPrefix {
+			location = fmt.Sprintf("%s:%d", filepath.Base(file), line)
+
+			// Try to read the actual statement that fails
+			if b, err := os.ReadFile(file); err == nil {
+				fileContents := string(b)
+				lines := strings.Split(fileContents, "\n")
+				if len(lines) > line {
+					source = strings.TrimSpace(lines[line-1])
+
+					output := bytes.Buffer{}
+					err := quick.Highlight(&output, source, "go", goSourceFormatter, goSourceStyle)
+					if err == nil {
+						source = output.String()
+					}
+				}
+			}
+			break
+		}
+	}
+
+	t.Cleanup(func() {
+		GetHelper(t).Helper()
+		if !e.evaluated {
+			_, _ = fmt.Fprintf(os.Stderr, "\t%s: %s <-- Unevaluated expectation!\n", location, source)
+			//t.Logf("%s: %s <-- Unevaluated expectation!", location, source)
+		}
+		source = location
+	})
+
+	return e
+}
+
 type evaluator struct {
-	t       TT
-	actuals []any
-	matcher Matcher
+	t         TT
+	actuals   []any
+	matcher   Matcher
+	evaluated bool
 }
 
 func (e *evaluator) Because(format string, args ...any) Results {
 	GetHelper(e.t).Helper()
-	e.t = &explainedTT{parent: e.t, format: format, args: args}
+	et := &explainedTT{parent: e.t, format: format, args: args}
+	e.t.Cleanup(et.PerformCleanups)
+	e.t = et
 	return e
 }
 
@@ -34,69 +91,7 @@ func (e *evaluator) OrFail() {
 
 func (e *evaluator) Result() []any {
 	GetHelper(e.t).Helper()
-	return e.matcher(e.t, e.actuals...)
-}
-
-type explainedTT struct {
-	parent TT
-	format string
-	args   []any
-}
-
-func (t *explainedTT) Cleanup(f func()) {
-	GetHelper(t).Helper()
-	t.parent.Cleanup(f)
-}
-
-//go:noinline
-func (t *explainedTT) Fatalf(format string, args ...any) {
-	GetHelper(t).Helper()
-	t.parent.Fatalf(format+" (%s)", append(args, fmt.Sprintf(t.format, t.args...))...)
-}
-
-//go:noinline
-func (t *explainedTT) Log(args ...any) {
-	GetHelper(t).Helper()
-	t.parent.Log(args...)
-}
-
-//go:noinline
-func (t *explainedTT) Logf(format string, args ...any) {
-	GetHelper(t).Helper()
-	t.parent.Logf(format, args...)
-}
-
-//go:noinline
-func (t *explainedTT) GetHelper() Helper {
-	if hp, ok := t.parent.(HelperProvider); ok {
-		return hp.GetHelper()
-	} else if h, ok := t.parent.(Helper); ok {
-		return h
-	} else {
-		panic(fmt.Sprintf("could not obtain a HelperProvider instance from: %+v", t.parent))
-	}
-}
-
-//go:noinline
-func (t *explainedTT) Deadline() (deadline time.Time, ok bool) {
-	GetHelper(t).Helper()
-	return t.parent.Deadline()
-}
-
-//go:noinline
-func (t *explainedTT) Done() <-chan struct{} {
-	GetHelper(t).Helper()
-	return t.parent.Done()
-}
-
-//go:noinline
-func (t *explainedTT) Err() error {
-	GetHelper(t).Helper()
-	return t.parent.Err()
-}
-
-//go:noinline
-func (t *explainedTT) Value(key any) interface{} {
-	GetHelper(t).Helper()
-	return getValueForT(t, key)
+	e.evaluated = true
+	result := e.matcher(e.t, e.actuals...)
+	return result
 }

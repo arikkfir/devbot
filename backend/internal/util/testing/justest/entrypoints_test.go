@@ -29,7 +29,7 @@ func TestEntrypoint(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			if tc.expectFailurePattern != nil {
 				defer expectFailure(t, mt, *tc.expectFailurePattern)
 			} else {
@@ -62,7 +62,7 @@ func TestEntrypoint(t *testing.T) {
 			panic("unreachable")
 		}
 
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectFailure(t, mt, `^Failed! \(this is just a test\)$`)
 		For(mt).Expect(1).Will(matcher).Because("this is just a %s", "test").OrFail()
 	})

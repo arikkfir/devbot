@@ -13,10 +13,11 @@ type asserter struct {
 //go:noinline
 func (a *asserter) Will(matcher Matcher) Evaluator {
 	GetHelper(a.t).Helper()
-	return &evaluator{t: a.t, actuals: a.actuals, matcher: matcher}
+	return newEvaluator(a.t, matcher, a.actuals...)
 }
 
 //go:noinline
 func (a *asserter) WillNot(matcher Matcher) Evaluator {
-	return a.Will(Not(matcher))
+	GetHelper(a.t).Helper()
+	return newEvaluator(a.t, Not(matcher), a.actuals...)
 }
