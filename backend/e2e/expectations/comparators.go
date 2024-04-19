@@ -116,7 +116,7 @@ func RepositoriesComparator(t TT, e, a any) any {
 		found := false
 		for _, a := range actual {
 			if a.Name == e.Name {
-				For(t).Expect(a).WillNot(CompareTo(e).Using(RepositoryComparator)).OrFail()
+				For(t).Expect(a).Will(CompareTo(e).Using(RepositoryComparator)).OrFail()
 				found = true
 				break
 			}
