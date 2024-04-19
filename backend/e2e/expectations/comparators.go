@@ -111,17 +111,17 @@ func DeploymentComparator(t TT, e, a any) any {
 func RepositoriesComparator(t TT, e, a any) any {
 	expected := e.([]RepositoryE)
 	actual := a.([]apiv1.Repository)
-	For(t).Expect(len(actual)).Will(BeEqualTo(len(expected)))
+	For(t).Expect(len(actual)).Will(BeEqualTo(len(expected))).OrFail()
 	for _, e := range expected {
 		found := false
 		for _, a := range actual {
 			if a.Name == e.Name {
-				For(t).Expect(a).Will(CompareTo(e).Using(RepositoryComparator))
+				For(t).Expect(a).WillNot(CompareTo(e).Using(RepositoryComparator)).OrFail()
 				found = true
 				break
 			}
 		}
-		For(t).Expect(found).Will(BeEqualTo(true))
+		For(t).Expect(found).Will(BeEqualTo(true)).OrFail()
 	}
 	return a
 }
@@ -129,9 +129,9 @@ func RepositoriesComparator(t TT, e, a any) any {
 func RepositoryComparator(t TT, e, a any) any {
 	expected := e.(RepositoryE)
 	actual := a.(apiv1.Repository)
-	For(t).Expect(actual.Status.Conditions).Will(CompareTo(expected.Status.Conditions).Using(ConditionsComparator))
-	For(t).Expect(actual.Status.DefaultBranch).Will(BeEqualTo(expected.Status.DefaultBranch))
-	For(t).Expect(actual.Status.Revisions).Will(BeEqualTo(expected.Status.Revisions))
+	For(t).Expect(actual.Status.Conditions).Will(CompareTo(expected.Status.Conditions).Using(ConditionsComparator)).OrFail()
+	For(t).Expect(actual.Status.DefaultBranch).Will(BeEqualTo(expected.Status.DefaultBranch)).OrFail()
+	For(t).Expect(actual.Status.Revisions).Will(BeEqualTo(expected.Status.Revisions)).OrFail()
 	return a
 }
 
@@ -144,14 +144,18 @@ func ConditionsComparator(t TT, e, a any) any {
 		for i, actualCondition := range actualConditions {
 			if actualCondition.Type == expectedConditionType {
 				found = true
-				For(t).Expect(&actualCondition).Will(CompareTo(expectedConditionProperties).Using(ConditionComparator))
+				For(t).Expect(&actualCondition).Will(CompareTo(expectedConditionProperties).Using(ConditionComparator)).OrFail()
 				actualConditions = append(actualConditions[:i], actualConditions[i+1:]...)
 				break
 			}
 		}
-		For(t).Expect(found).Will(BeEqualTo(true))
+		if expectedConditionProperties != nil {
+			For(t).Expect(found).Will(BeEqualTo(true)).Because("Condition '%s' was not found", expectedConditionType).OrFail()
+		} else {
+			For(t).Expect(found).Will(BeEqualTo(false)).Because("Condition '%s' was found", expectedConditionType).OrFail()
+		}
 	}
-	For(t).Expect(len(actualConditions)).Will(BeEqualTo(0))
+	For(t).Expect(len(actualConditions)).Will(BeEqualTo(0)).OrFail()
 	return a
 }
 
@@ -168,16 +172,13 @@ func ConditionComparator(t TT, e, a any) any {
 	}
 
 	if expected.Status != nil {
-		For(t).Expect(actual.Status).Will(BeEqualTo(*expected.Status))
+		For(t).Expect(string(actual.Status)).Will(BeEqualTo(*expected.Status)).OrFail()
 	}
 	if expected.Reason != nil {
-		For(t).Expect(actual.Reason).Will(BeEqualTo(*expected.Reason))
-	}
-	if expected.Reason != nil {
-		For(t).Expect(actual.Reason).Will(Say(expected.Reason))
+		For(t).Expect(actual.Reason).Will(Say(expected.Reason)).OrFail()
 	}
 	if expected.Message != nil {
-		For(t).Expect(actual.Message).Will(Say(expected.Message))
+		For(t).Expect(actual.Message).Will(Say(expected.Message)).Because("Condition message does not match '%s': %s", expected.Message.String(), actual.Message).OrFail()
 	}
 	return actual
 }
