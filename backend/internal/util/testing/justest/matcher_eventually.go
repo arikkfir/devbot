@@ -53,6 +53,7 @@ func (b *eventuallyBuilder) ProbingEvery(interval time.Duration) Matcher {
 		GetHelper(t).Helper()
 
 		defer func() {
+			GetHelper(t).Helper()
 			if r := recover(); r != nil {
 				if r != t {
 					if err, isErr := r.(error); isErr {
@@ -64,17 +65,7 @@ func (b *eventuallyBuilder) ProbingEvery(interval time.Duration) Matcher {
 			}
 		}()
 
-		defer func() {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Logf("Trial %d failed during cleanups: %+v", t.trial, r)
-				}
-			}()
-
-			for i := len(t.cleanup) - 1; i >= 0; i-- {
-				t.cleanup[i]()
-			}
-		}()
+		defer t.PerformCleanups()
 
 		var resolvedActuals []any
 		for _, actual := range actuals {
@@ -110,7 +101,7 @@ func (b *eventuallyBuilder) ProbingEvery(interval time.Duration) Matcher {
 				} else if et.error == nil {
 					panic("Eventually reached an illegal state where it timed out with failed matchers, yet no error was found. This is a bug and should be reported.")
 				} else {
-					format := "Timed out after %s waiting for expectation to be met: " + et.error.msg
+					format := "Timed out after %s waiting for expectation to be met:\n\t" + et.error.msg
 					args := append([]any{time.Since(start).String()}, et.error.args...)
 					t.Fatalf(format, args...)
 				}

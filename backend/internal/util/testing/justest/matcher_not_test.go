@@ -22,10 +22,10 @@ func TestNot(t *testing.T) {
 			matcherGenerator: func(t TT, tc *testCase) (Matcher, Verifier) {
 				return func(t TT, actual ...any) []any { t.Fatalf("failure negated"); panic("unreachable") }, nil
 			},
-			expectedResults: lang.Ptr([]any{nil}),
+			expectedResults: lang.Ptr([]any{"foo-bar"}),
 		},
 		"Successful matcher fails": {
-			expectFailurePattern: lang.Ptr[string]("Expected match failure, which did not occur!"),
+			expectFailurePattern: lang.Ptr[string]("Expected this matcher to fail, but it did not"),
 			actualsGenerator:     func(t TT, tc *testCase) []any { return []any{"foo-bar"} },
 			matcherGenerator: func(t TT, tc *testCase) (Matcher, Verifier) {
 				return func(t TT, actual ...any) []any { return actual }, nil
@@ -42,7 +42,7 @@ func TestNot(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			if tc.expectFailurePattern != nil {
 				if tc.expectPanicPattern != nil {
 					t.Fatalf("Invalid test - cannot specify both expected panic and expected failure")

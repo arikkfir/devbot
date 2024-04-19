@@ -81,7 +81,7 @@ func TestBeGreaterThan(t *testing.T) {
 			for name, tc := range kindTestCases {
 				t.Run(name, func(t *testing.T) {
 					t.Parallel()
-					mt := &MockT{Parent: NewTT(t)}
+					mt := NewMockT(NewTT(t))
 					if tc.expectFailurePattern != nil {
 						defer expectFailure(t, mt, *tc.expectFailurePattern)
 					} else {
@@ -94,7 +94,7 @@ func TestBeGreaterThan(t *testing.T) {
 	}
 	t.Run("MinTypeMismatches", func(t *testing.T) {
 		t.Parallel()
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectFailure(t, mt, `Expected actual value to be of type 'int64', but it is of type 'int'`)
 		For(mt).Expect(1).Will(BeBetween(int64(0), 9)).OrFail()
 	})

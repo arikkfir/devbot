@@ -95,7 +95,7 @@ func TestNumericValueExtractor(t *testing.T) {
 		tc := tc
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			if tc.expectFailurePattern != nil {
 				if tc.expectPanicPattern != nil {
 					t.Fatalf("Cannot expect both failure and panic")

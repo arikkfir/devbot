@@ -18,7 +18,7 @@ func TestBeEqualTo(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			if tc.expectFailurePattern != nil {
 				defer expectFailure(t, mt, *tc.expectFailurePattern)
 			} else {
@@ -31,7 +31,7 @@ func TestBeEqualTo(t *testing.T) {
 
 func TestCompareTo(t *testing.T) {
 	t.Run("Correct values passed", func(t *testing.T) {
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectNoFailure(t, mt)
 		comparator := func(t TT, expected, actual any) any {
 			if expected != 2 {
@@ -42,10 +42,10 @@ func TestCompareTo(t *testing.T) {
 			}
 			return actual
 		}
-		For(mt).Expect(1).Will(CompareTo(2).Using(comparator))
+		For(mt).Expect(1).Will(CompareTo(2).Using(comparator)).OrFail()
 	})
 	t.Run("Failure propagation", func(t *testing.T) {
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectFailure(t, mt, `expected error`)
 		comparator := func(t TT, expected, actual any) any {
 			t.Fatalf("expected error")
@@ -54,7 +54,7 @@ func TestCompareTo(t *testing.T) {
 		For(mt).Expect(1).Will(CompareTo(2).Using(comparator)).OrFail()
 	})
 	t.Run("Success propagation", func(t *testing.T) {
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectNoFailure(t, mt)
 		called := false
 		comparator := func(t TT, expected, actual any) any {

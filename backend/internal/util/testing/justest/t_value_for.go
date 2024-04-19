@@ -10,6 +10,7 @@ var (
 	contextValues = sync.Map{}
 )
 
+//go:noinline
 func getValueForT(t T, key any) any {
 	GetHelper(t).Helper()
 	values, ok := contextValues.Load(t)
@@ -32,6 +33,7 @@ func getValueForT(t T, key any) any {
 	return values.(map[any]any)[key]
 }
 
+//go:noinline
 func setValueForT(t T, key, value any) {
 	GetHelper(t).Helper()
 	values, _ := contextValues.LoadOrStore(t, make(map[any]any))

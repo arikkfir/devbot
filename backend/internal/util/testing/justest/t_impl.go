@@ -3,47 +3,37 @@ package justest
 import (
 	"context"
 	"fmt"
-	"testing"
 	"time"
-)
-
-var (
-	ignoredStackTracePrefixes = []string{"testing.", "github.com/arikkfir/devbot/backend/internal/util/testing/justest"}
 )
 
 //go:noinline
 func NewTT(t T) TT {
-	return &tImpl{
+	tt := &tImpl{
 		t:   t,
 		ctx: context.Background(),
 	}
-}
-
-type T interface {
-	Cleanup(func())
-	Fatalf(format string, args ...any)
-	Log(args ...any)
-	Logf(format string, args ...any)
-}
-
-type TT interface {
-	T
-	Deadline() (deadline time.Time, ok bool)
-	Done() <-chan struct{}
-	Err() error
-	Value(key any) any
+	t.Cleanup(tt.PerformCleanups)
+	return tt
 }
 
 type tImpl struct {
-	t   T
-	ctx context.Context
+	t       T
+	ctx     context.Context
+	cleanup []func()
 }
 
 //go:noinline
-func (t *tImpl) Cleanup(f func()) {
+func (t *tImpl) PerformCleanups() {
 	GetHelper(t).Helper()
-	t.t.Cleanup(f)
+	cleanups := t.cleanup
+	t.cleanup = nil
+	for i := len(cleanups) - 1; i >= 0; i-- {
+		cleanups[i]()
+	}
 }
+
+//go:noinline
+func (t *tImpl) Cleanup(f func()) { GetHelper(t).Helper(); t.cleanup = append(t.cleanup, f) }
 
 //go:noinline
 func (t *tImpl) Fatalf(format string, args ...any) {
@@ -96,22 +86,4 @@ func (t *tImpl) Err() error {
 func (t *tImpl) Value(key any) interface{} {
 	GetHelper(t).Helper()
 	return getValueForT(t, key)
-}
-
-//goland:noinspection GoUnusedExportedFunction
-func RootOf(t T) *testing.T {
-	switch tt := t.(type) {
-	case *tImpl:
-		return RootOf(tt.t)
-	case *inverseTT:
-		return RootOf(tt.parent)
-	case *eventuallyT:
-		return RootOf(tt.parent)
-	case *MockT:
-		return RootOf(tt.Parent)
-	case *testing.T:
-		return tt
-	default:
-		panic(fmt.Sprintf("unrecognized TT type: %T", t))
-	}
 }

@@ -42,7 +42,7 @@ func TestBeEmpty(t *testing.T) {
 			for name, tc := range kindTestCases {
 				t.Run(name, func(t *testing.T) {
 					t.Parallel()
-					mt := &MockT{Parent: NewTT(t)}
+					mt := NewMockT(NewTT(t))
 					if tc.expectFailurePattern != nil {
 						defer expectFailure(t, mt, *tc.expectFailurePattern)
 					} else {

@@ -70,7 +70,7 @@ func TestEventually(t *testing.T) {
 			interval: 100 * time.Millisecond,
 		},
 		"Fails on timeout": {
-			expectFailurePattern: lang.Ptr(`Timed out after [0-9]+(\.[0-9]+)?s waiting for expectation to be met: failure`),
+			expectFailurePattern: lang.Ptr(`Timed out after [0-9]+(\.[0-9]+)?s waiting for expectation to be met:\n\t.+ <-- failure`),
 			actualsGenerator:     func(t TT, tc *testCase) []any { return []any{"foo-bar"} },
 			matcherGenerator: func(t TT, tc *testCase) (Matcher, Verifier) {
 				var firstTrial *time.Time
@@ -115,7 +115,7 @@ func TestEventually(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			if tc.expectFailurePattern != nil {
 				if tc.expectPanicPattern != nil {
 					t.Fatalf("Invalid test - cannot specify both expected panic and expected failure")

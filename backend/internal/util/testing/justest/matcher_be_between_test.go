@@ -103,7 +103,7 @@ func TestBeBetween(t *testing.T) {
 		t.Run(kind.String(), func(t *testing.T) {
 			for name, tc := range kindTestCases {
 				t.Run(name, func(t *testing.T) {
-					mt := &MockT{Parent: NewTT(t)}
+					mt := NewMockT(NewTT(t))
 					if tc.expectFailurePattern != nil {
 						defer expectFailure(t, mt, *tc.expectFailurePattern)
 					} else {
@@ -116,13 +116,13 @@ func TestBeBetween(t *testing.T) {
 	}
 	t.Run("MaxTypeMismatches", func(t *testing.T) {
 		t.Parallel()
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectFailure(t, mt, `Expected actual value to be of type 'int64', but it is of type 'int'`)
 		For(mt).Expect(1).Will(BeBetween(0, int64(9))).OrFail()
 	})
 	t.Run("MinTypeMismatches", func(t *testing.T) {
 		t.Parallel()
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectFailure(t, mt, `Expected actual value to be of type 'int64', but it is of type 'int'`)
 		For(mt).Expect(1).Will(BeBetween(int64(0), 9)).OrFail()
 	})

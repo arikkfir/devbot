@@ -2,8 +2,7 @@ package justest
 
 import (
 	"fmt"
-	"reflect"
-	"runtime"
+	"github.com/secureworks/errors"
 	"time"
 )
 
@@ -11,13 +10,21 @@ type inverseTT struct {
 	parent    TT
 	fatalMsg  *string
 	fatalArgs *[]any
+	cleanup   []func()
 }
 
 //go:noinline
-func (t *inverseTT) Cleanup(f func()) {
-	GetHelper(t.parent).Helper()
-	t.parent.Cleanup(f)
+func (t *inverseTT) PerformCleanups() {
+	GetHelper(t).Helper()
+	cleanups := t.cleanup
+	t.cleanup = nil
+	for i := len(cleanups) - 1; i >= 0; i-- {
+		cleanups[i]()
+	}
 }
+
+//go:noinline
+func (t *inverseTT) Cleanup(f func()) { GetHelper(t).Helper(); t.cleanup = append(t.cleanup, f) }
 
 //go:noinline
 func (t *inverseTT) Fatalf(format string, args ...any) {
@@ -26,6 +33,7 @@ func (t *inverseTT) Fatalf(format string, args ...any) {
 	a := args
 	t.fatalMsg = &f
 	t.fatalArgs = &a
+	panic(t)
 }
 
 //go:noinline
@@ -68,34 +76,28 @@ func (t *inverseTT) Value(key any) interface{} { GetHelper(t).Helper(); return g
 
 //go:noinline
 func Not(m Matcher) Matcher {
-	return func(t TT, actuals ...any) []any {
+	return func(t TT, actuals ...any) (results []any) {
 		GetHelper(t).Helper()
 
-		var newActuals []any
+		tt := &inverseTT{parent: t}
+		t.Cleanup(tt.PerformCleanups)
 
-		handleActual := func(t TT, actual any) any {
-			tt := &inverseTT{parent: t}
-
-			defer func() {
-				if r := recover(); r != nil {
-					if tt.fatalMsg != nil {
-						// no-op: a call to tt.Fatalf(...) is expected and wanted, do nothing
-					} else {
-						// an unexpected panic! re-panic
-						panic(r)
-					}
+		defer func() {
+			GetHelper(t).Helper()
+			if r := recover(); r != nil {
+				if r == tt && tt.fatalMsg != nil {
+					// Matcher failed - good!
+				} else {
+					// Unexpected panic - bubble it up
+					panic(errors.New("unexpected panic! recovered: %+v", r))
 				}
-			}()
+			} else {
+				t.Fatalf("Expected this matcher to fail, but it did not")
+			}
+		}()
 
-			_ = m(tt, actual)
-			funcForPC := runtime.FuncForPC(reflect.ValueOf(m).Pointer())
-			t.Fatalf("Expected match failure, which did not occur!\nMatcher: %+v\nActual value: %+v", funcForPC.Name(), actual)
-			panic("unreachable")
-		}
-		for _, actual := range actuals {
-			actual := actual
-			newActuals = append(newActuals, handleActual(t, actual))
-		}
-		return newActuals
+		results = actuals
+		_ = m(tt, actuals...)
+		return
 	}
 }

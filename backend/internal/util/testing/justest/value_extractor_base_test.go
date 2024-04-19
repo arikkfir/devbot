@@ -12,7 +12,7 @@ import (
 func TestValueExtractor(t *testing.T) {
 	t.Run("Default extractor is used when no extractors have been defined", func(t *testing.T) {
 		t.Parallel()
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		ve := NewValueExtractor(func(t TT, v any) (any, bool) { return "bar", true })
 		v := ve.MustExtractValue(mt, "foo")
 		if "bar" != v {
@@ -21,7 +21,7 @@ func TestValueExtractor(t *testing.T) {
 	})
 	t.Run("Nil actual finds nil result", func(t *testing.T) {
 		t.Parallel()
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		ve := NewValueExtractor(func(t TT, v any) (any, bool) { return "bar", true })
 		v, found := ve.ExtractValue(mt, nil)
 		if v != nil {
@@ -32,7 +32,7 @@ func TestValueExtractor(t *testing.T) {
 		}
 	})
 	t.Run("Invokes correct extractor when kind found", func(t *testing.T) {
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		ve := NewValueExtractor(ExtractorUnsupported)
 		ve[reflect.String] = func(t TT, v any) (any, bool) { return "foo: " + v.(string), true }
 		v, found := ve.ExtractValue(mt, "bar")
@@ -46,7 +46,7 @@ func TestValueExtractor(t *testing.T) {
 		}
 	})
 	t.Run("Default extractor when kind not found", func(t *testing.T) {
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		ve := NewValueExtractor(func(t TT, v any) (any, bool) { return "bar", true })
 		ve[reflect.String] = func(t TT, v any) (any, bool) { return "foo: " + v.(string), true }
 		v, found := ve.ExtractValue(mt, 1)
@@ -60,7 +60,7 @@ func TestValueExtractor(t *testing.T) {
 		}
 	})
 	t.Run("Failure occurs when value is required and not found", func(t *testing.T) {
-		mt := &MockT{Parent: NewTT(t)}
+		mt := NewMockT(NewTT(t))
 		defer expectFailure(t, mt, `Value could not be extracted from an actual of type 'int': 1`)
 
 		ve := NewValueExtractor(func(t TT, v any) (any, bool) { return nil, false })
@@ -157,7 +157,7 @@ func TestNewChannelExtractor(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			defer verifyTestCaseError(t, mt, tc.wantErr)
 
 			ve := NewValueExtractor(tc.defaultExtractor)
@@ -233,7 +233,7 @@ func TestNewPointerExtractor(t *testing.T) {
 	}
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			defer verifyTestCaseError(t, mt, tc.wantErr)
 
 			ve := NewValueExtractor(tc.defaultExtractor)
@@ -426,7 +426,7 @@ func TestNewFuncExtractor(t *testing.T) {
 			var actual any
 			var found bool
 
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			defer func() {
 				GetHelper(t).Helper()
 				if tc.wantCalled && !tc.called {

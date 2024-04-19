@@ -36,7 +36,7 @@ func TestFail(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			mt := &MockT{Parent: NewTT(t)}
+			mt := NewMockT(NewTT(t))
 			if tc.expectFailurePattern != nil {
 				if tc.expectPanicPattern != nil {
 					t.Fatalf("Invalid test - cannot specify both expected panic and expected failure")

@@ -1,12 +1,7 @@
 package justest
 
 import (
-	"bytes"
-	"fmt"
-	"github.com/alecthomas/chroma/v2/quick"
 	"github.com/secureworks/errors"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -20,11 +15,12 @@ type Evaluator interface {
 	Because(string, ...any) Results
 }
 
+//go:noinline
 func newEvaluator(t TT, matcher Matcher, actuals ...any) Evaluator {
 	GetHelper(t).Helper()
 	e := &evaluator{t: t, actuals: actuals, matcher: matcher}
 
-	var location, source string
+	loc := unevaluatedLocation{function: "unknown", file: "unknown", line: 0}
 	for _, frame := range errors.CallStackAt(0) {
 		function, file, line := frame.Location()
 
@@ -37,33 +33,15 @@ func newEvaluator(t TT, matcher Matcher, actuals ...any) Evaluator {
 		}
 
 		if !startsWithAnIgnoredPrefix {
-			location = fmt.Sprintf("%s:%d", filepath.Base(file), line)
-
-			// Try to read the actual statement that fails
-			if b, err := os.ReadFile(file); err == nil {
-				fileContents := string(b)
-				lines := strings.Split(fileContents, "\n")
-				if len(lines) > line {
-					source = strings.TrimSpace(lines[line-1])
-
-					output := bytes.Buffer{}
-					err := quick.Highlight(&output, source, "go", goSourceFormatter, goSourceStyle)
-					if err == nil {
-						source = output.String()
-					}
-				}
-			}
-			break
+			loc = unevaluatedLocation{function: function, file: file, line: line}
 		}
 	}
 
 	t.Cleanup(func() {
 		GetHelper(t).Helper()
 		if !e.evaluated {
-			_, _ = fmt.Fprintf(os.Stderr, "\t%s: %s <-- Unevaluated expectation!\n", location, source)
-			//t.Logf("%s: %s <-- Unevaluated expectation!", location, source)
+			unevaluated.Add(t, loc.function, loc.file, loc.line)
 		}
-		source = location
 	})
 
 	return e
@@ -76,6 +54,7 @@ type evaluator struct {
 	evaluated bool
 }
 
+//go:noinline
 func (e *evaluator) Because(format string, args ...any) Results {
 	GetHelper(e.t).Helper()
 	et := &explainedTT{parent: e.t, format: format, args: args}
@@ -84,11 +63,13 @@ func (e *evaluator) Because(format string, args ...any) Results {
 	return e
 }
 
+//go:noinline
 func (e *evaluator) OrFail() {
 	GetHelper(e.t).Helper()
 	e.Result()
 }
 
+//go:noinline
 func (e *evaluator) Result() []any {
 	GetHelper(e.t).Helper()
 	e.evaluated = true

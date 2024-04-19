@@ -35,7 +35,7 @@ func TestEntrypoint(t *testing.T) {
 			} else {
 				defer expectNoFailure(t, mt)
 			}
-			For(mt).Expect(tc.actuals...).Will(tc.matcher(&tc))
+			For(mt).Expect(tc.actuals...).Will(tc.matcher(&tc)).OrFail()
 		})
 	}
 
