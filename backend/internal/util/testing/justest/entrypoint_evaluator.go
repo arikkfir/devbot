@@ -34,6 +34,7 @@ func newEvaluator(t TT, matcher Matcher, actuals ...any) Evaluator {
 
 		if !startsWithAnIgnoredPrefix {
 			loc = unevaluatedLocation{function: function, file: file, line: line}
+			break
 		}
 	}
 
