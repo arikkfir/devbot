@@ -67,12 +67,12 @@ func (r *GitHubRepositoryInfo) SetupWebhook(t T) {
 
 func (r *GitHubRepositoryInfo) CreateBranch(t T, branch string) string {
 	mainRef, _, err := r.gh.client.Git.GetRef(For(t).Context(), r.Owner, r.Name, "heads/main")
-	For(t).Expect(err).Will(BeNil())
-	For(t).Expect(mainRef).Will(Not(BeNil()))
+	For(t).Expect(err).Will(BeNil()).OrFail()
+	For(t).Expect(mainRef).Will(Not(BeNil())).OrFail()
 	For(t).Expect(r.gh.client.Git.CreateRef(For(t).Context(), r.Owner, r.Name, &github.Reference{
 		Ref:    github.String("refs/heads/" + branch),
 		Object: mainRef.Object,
-	})).Will(Succeed())
+	})).Will(Succeed()).OrFail()
 	return r.GetBranchSHA(t, branch)
 }
 
@@ -80,11 +80,11 @@ func (r *GitHubRepositoryInfo) GetBranchSHA(t T, branch string) string {
 	var sha string
 	For(t).Expect(func(t TT) {
 		branchRef, _, err := r.gh.client.Git.GetRef(t, r.Owner, r.Name, "heads/"+branch)
-		For(t).Expect(err).Will(BeNil())
-		For(t).Expect(branchRef).Will(Not(BeNil()))
+		For(t).Expect(err).Will(BeNil()).OrFail()
+		For(t).Expect(branchRef).Will(Not(BeNil())).OrFail()
 		sha = branchRef.GetObject().GetSHA()
-		For(t).Expect(sha).Will(Not(BeEmpty()))
-	}).Will(Eventually(Succeed()).Within(5 * time.Second).ProbingEvery(time.Second))
+		For(t).Expect(sha).Will(Not(BeEmpty())).OrFail()
+	}).Will(Eventually(Succeed()).Within(5 * time.Second).ProbingEvery(time.Second)).OrFail()
 
 	return sha
 }
@@ -93,8 +93,8 @@ func (r *GitHubRepositoryInfo) CreateFile(t T, branch string) string {
 	var sha string
 	For(t).Expect(func(t TT) {
 		branchRef, _, err := r.gh.client.Repositories.GetBranch(t, r.Owner, r.Name, branch, 0)
-		For(t).Expect(err).Will(BeNil())
-		For(t).Expect(branchRef).Will(Not(BeNil()))
+		For(t).Expect(err).Will(BeNil()).OrFail()
+		For(t).Expect(branchRef).Will(Not(BeNil())).OrFail()
 
 		file := stringsutil.RandomHash(7) + ".txt"
 		cr, _, err := r.gh.client.Repositories.CreateFile(t, r.Owner, r.Name, file, &github.RepositoryContentFileOptions{
@@ -102,11 +102,11 @@ func (r *GitHubRepositoryInfo) CreateFile(t T, branch string) string {
 			Content: []byte(stringsutil.RandomHash(32)),
 			Branch:  &branch,
 		})
-		For(t).Expect(err).Will(BeNil())
+		For(t).Expect(err).Will(BeNil()).OrFail()
 
 		sha = cr.GetSHA()
-		For(t).Expect(sha).Will(Not(BeEmpty()))
-	}).Will(Eventually(Succeed()).Within(10 * time.Second).ProbingEvery(time.Second))
+		For(t).Expect(sha).Will(Not(BeEmpty())).OrFail()
+	}).Will(Eventually(Succeed()).Within(10 * time.Second).ProbingEvery(time.Second)).OrFail()
 	return sha
 }
 

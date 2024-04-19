@@ -28,16 +28,16 @@ type GClient struct {
 func GH(t T) *GClient {
 	if v := For(t).Value(gClientKey); v == nil {
 		token := os.Getenv("GITHUB_TOKEN")
-		For(t).Expect(token).Will(Not(BeEmpty()))
+		For(t).Expect(token).Will(Not(BeEmpty())).OrFail()
 
 		c := github.NewClient(nil).WithAuthToken(token)
 
 		req, err := c.NewRequest("GET", "user", nil)
-		For(t).Expect(err).Will(BeNil())
+		For(t).Expect(err).Will(BeNil()).OrFail()
 
 		response, err := c.Do(For(t).Context(), req, nil)
-		For(t).Expect(err).Will(BeNil())
-		For(t).Expect(response.StatusCode).Will(BeEqualTo(http.StatusOK))
+		For(t).Expect(err).Will(BeNil()).OrFail()
+		For(t).Expect(response.StatusCode).Will(BeEqualTo(http.StatusOK)).OrFail()
 		For(t).AddValue(gClientKey, &GClient{Token: token, client: c})
 		return GH(t)
 	} else {
@@ -52,46 +52,46 @@ func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitH
 		DefaultBranch: github.String("main"),
 		Visibility:    &[]string{"public"}[0],
 	})
-	For(t).Expect(err).Will(BeNil())
+	For(t).Expect(err).Will(BeNil()).OrFail()
 
 	cloneURL := ghRepo.GetCloneURL()
 	repoOwner := ghRepo.Owner.GetLogin()
 	repoName := ghRepo.GetName()
 	t.Cleanup(func() {
-		For(t).Expect(gh.client.Repositories.Delete(For(t).Context(), repoOwner, repoName)).Will(Succeed())
+		For(t).Expect(gh.client.Repositories.Delete(For(t).Context(), repoOwner, repoName)).Will(Succeed()).OrFail()
 	})
 
 	// Create the repository contents locally
 	// Corresponds to: git init
 	path := filepath.Join(os.TempDir(), stringsutil.RandomHash(7))
 	localRepo, err := git.PlainInit(path, false)
-	For(t).Expect(err).Will(BeNil())
-	t.Cleanup(func() { For(t).Expect(os.RemoveAll(path)).Will(Succeed()) })
+	For(t).Expect(err).Will(BeNil()).OrFail()
+	t.Cleanup(func() { For(t).Expect(os.RemoveAll(path)).Will(Succeed()).OrFail() })
 
 	// Populate the new local repository & commit the changes to HEAD
 	worktree, err := localRepo.Worktree()
-	For(t).Expect(err).Will(BeNil())
+	For(t).Expect(err).Will(BeNil()).OrFail()
 	For(t).Expect(TraverseEmbeddedPath(fs, embeddedPath, func(p string, data []byte) error {
 		p = strings.TrimPrefix(p, embeddedPath+"/")
 		f := filepath.Join(path, p)
 		dir := filepath.Dir(f)
-		For(t).Expect(os.MkdirAll(dir, 0755)).Will(Succeed())
-		For(t).Expect(os.WriteFile(f, data, 0644)).Will(Succeed())
-		For(t).Expect(worktree.Add(p)).Will(Succeed())
+		For(t).Expect(os.MkdirAll(dir, 0755)).Will(Succeed()).OrFail()
+		For(t).Expect(os.WriteFile(f, data, 0644)).Will(Succeed()).OrFail()
+		For(t).Expect(worktree.Add(p)).Will(Succeed()).OrFail()
 		return nil
-	})).Will(Succeed())
-	For(t).Expect(worktree.Commit("Initial commit", &git.CommitOptions{})).Will(Succeed())
+	})).Will(Succeed()).OrFail()
+	For(t).Expect(worktree.Commit("Initial commit", &git.CommitOptions{})).Will(Succeed()).OrFail()
 
 	// Rename local HEAD to "main"
 	// Corresponds to:
 	// - git branch -m main
 	// - git remote add origin https://github.com/devbot-testing/REPOSITORY_NAME.git
 	headRef, err := localRepo.Head()
-	For(t).Expect(err).Will(BeNil())
+	For(t).Expect(err).Will(BeNil()).OrFail()
 
 	mainRef := plumbing.NewHashReference("refs/heads/main", headRef.Hash())
-	For(t).Expect(localRepo.Storer.SetReference(mainRef)).Will(Succeed())
-	For(t).Expect(localRepo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{cloneURL}})).Will(Succeed())
+	For(t).Expect(localRepo.Storer.SetReference(mainRef)).Will(Succeed()).OrFail()
+	For(t).Expect(localRepo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{cloneURL}})).Will(Succeed()).OrFail()
 
 	// Push changes to the repository
 	// Corresponds to: git push -u origin main
@@ -100,7 +100,7 @@ func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitH
 		RefSpecs:   []config.RefSpec{"refs/heads/main:refs/heads/main"},
 		Progress:   os.Stderr,
 		Auth:       &githttp.BasicAuth{Username: "anything", Password: gh.Token},
-	})).Will(Succeed())
+	})).Will(Succeed()).OrFail()
 
 	repoInfo := &GitHubRepositoryInfo{
 		Owner: repoOwner,

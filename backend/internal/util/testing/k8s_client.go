@@ -35,11 +35,11 @@ type KClient struct {
 func K(t T) *KClient {
 	if v := For(t).Value(kClientKey); v == nil {
 		userHomeDir, err := os.UserHomeDir()
-		For(t).Expect(err).Will(BeNil())
+		For(t).Expect(err).Will(BeNil()).OrFail()
 
 		kubeConfigPath := filepath.Join(userHomeDir, ".kube", "config")
 		kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-		For(t).Expect(err).Will(BeNil())
+		For(t).Expect(err).Will(BeNil()).OrFail()
 
 		scheme := k8s.CreateScheme()
 		mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
@@ -55,9 +55,9 @@ func K(t T) *KClient {
 			HealthProbeBindAddress: "0",
 			PprofBindAddress:       "0",
 		})
-		For(t).Expect(err).Will(BeNil())
-		For(t).Expect(k8s.AddOwnershipIndex(For(t).Context(), mgr.GetFieldIndexer(), &apiv1.Environment{})).Will(Succeed())
-		For(t).Expect(k8s.AddOwnershipIndex(For(t).Context(), mgr.GetFieldIndexer(), &apiv1.Deployment{})).Will(Succeed())
+		For(t).Expect(err).Will(BeNil()).OrFail()
+		For(t).Expect(k8s.AddOwnershipIndex(For(t).Context(), mgr.GetFieldIndexer(), &apiv1.Environment{})).Will(Succeed()).OrFail()
+		For(t).Expect(k8s.AddOwnershipIndex(For(t).Context(), mgr.GetFieldIndexer(), &apiv1.Deployment{})).Will(Succeed()).OrFail()
 
 		go func() {
 			if err := mgr.Start(For(t).Context()); err != nil {
@@ -77,27 +77,27 @@ func (k *KClient) CreateNamespace(t T) *KNamespace {
 	devbotGitOpsName := "devbot-gitops"
 
 	r := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: strings.RandomHash(7)}}
-	For(t).Expect(k.Client.Create(For(t).Context(), r)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), r)).Will(Succeed()) })
+	For(t).Expect(k.Client.Create(For(t).Context(), r)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), r)).Will(Succeed()).OrFail() })
 
 	sa := &corev1.ServiceAccount{ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name}}
-	For(t).Expect(k.Client.Create(For(t).Context(), sa)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), sa)).Will(Succeed()) })
+	For(t).Expect(k.Client.Create(For(t).Context(), sa)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), sa)).Will(Succeed()).OrFail() })
 
 	role := &rbacv1.Role{
 		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
 		Rules:      []rbacv1.PolicyRule{{APIGroups: []string{"*"}, Resources: []string{"*"}, Verbs: []string{"*"}}},
 	}
-	For(t).Expect(k.Client.Create(For(t).Context(), role)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), role)).Will(Succeed()) })
+	For(t).Expect(k.Client.Create(For(t).Context(), role)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), role)).Will(Succeed()).OrFail() })
 
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
 		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "Role", Name: devbotGitOpsName},
 		Subjects:   []rbacv1.Subject{{Kind: rbacv1.ServiceAccountKind, Name: devbotGitOpsName}},
 	}
-	For(t).Expect(k.Client.Create(For(t).Context(), rb)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), rb)).Will(Succeed()) })
+	For(t).Expect(k.Client.Create(For(t).Context(), rb)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), rb)).Will(Succeed()).OrFail() })
 
 	return &KNamespace{Name: r.Name, k: k}
 }

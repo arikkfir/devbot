@@ -34,8 +34,8 @@ func (n *KNamespace) CreateGitHubAuthSecret(t T, token string, restrictRole bool
 		ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: secretName},
 		Data:       map[string][]byte{key: []byte(token)},
 	}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), secret)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), secret)).Will(Succeed()) })
+	For(t).Expect(n.k.Client.Create(For(t).Context(), secret)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), secret)).Will(Succeed()).OrFail() })
 
 	// List of resource names to restrict the role to (if any)
 	var resourceNames []string
@@ -55,8 +55,8 @@ func (n *KNamespace) CreateGitHubAuthSecret(t T, token string, restrictRole bool
 			},
 		},
 	}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), clusterRole)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), clusterRole)).Will(Succeed()) })
+	For(t).Expect(n.k.Client.Create(For(t).Context(), clusterRole)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), clusterRole)).Will(Succeed()).OrFail() })
 
 	// Bind the cluster role to the devbot controllers, thus allowing them access to the specific secret
 	roleBinding := &rbacv1.RoleBinding{
@@ -66,15 +66,15 @@ func (n *KNamespace) CreateGitHubAuthSecret(t T, token string, restrictRole bool
 			{Kind: k8sServiceAccountKind, Name: DevbotRepositoryControllerServiceAccountName, Namespace: DevbotNamespace},
 		},
 	}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), roleBinding)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), roleBinding)).Will(Succeed()) })
+	For(t).Expect(n.k.Client.Create(For(t).Context(), roleBinding)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), roleBinding)).Will(Succeed()).OrFail() })
 	return
 }
 
 func (n *KNamespace) CreateRepository(t T, spec apiv1.RepositorySpec) string {
 	repo := &apiv1.Repository{ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: strings.RandomHash(7)}, Spec: spec}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), repo)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), repo)).Will(Succeed()) })
+	For(t).Expect(n.k.Client.Create(For(t).Context(), repo)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), repo)).Will(Succeed()).OrFail() })
 
 	return repo.Name
 }
