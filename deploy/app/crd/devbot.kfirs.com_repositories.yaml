@@ -18,17 +18,17 @@ spec:
     - jsonPath: .spec.refreshInterval
       name: Refresh Interval
       type: string
+    - jsonPath: .status.privateArea.Valid
+      name: Valid
+      type: string
+    - jsonPath: .status.privateArea.Authenticated
+      name: Authenticated
+      type: string
     - jsonPath: .status.defaultBranch
       name: Default Branch
       type: string
-    - jsonPath: .status.conditions[?(@.type=="Unauthenticated")].reason
-      name: Unauthenticated
-      type: string
-    - jsonPath: .status.conditions[?(@.type=="Invalid")].reason
-      name: Invalid
-      type: string
-    - jsonPath: .status.conditions[?(@.type=="Stale")].reason
-      name: Stale
+    - jsonPath: .status.privateArea.Current
+      name: Current
       type: string
     name: v1
     schema:
@@ -195,6 +195,13 @@ spec:
                 minLength: 1
                 pattern: ^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$
                 type: string
+              privateArea:
+                additionalProperties:
+                  type: string
+                description: PrivateArea is not meant for public consumption, nor
+                  is it part of the public API. It is exposed due to Go and controller-runtime
+                  limitations but is an internal part of the implementation.
+                type: object
               resolvedName:
                 description: ResolvedName is a universal human-readable name of the
                   repository. The format of this field can vary depending on the type

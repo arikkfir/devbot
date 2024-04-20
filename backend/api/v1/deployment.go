@@ -7,17 +7,20 @@ import (
 // Deployment represents a deployment of a repository into an environment.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +condition:commons
+// +condition:Current,Stale:InternalError,Invalid
+// +condition:Current,Stale:PersistentVolumeCreationFailed,PersistentVolumeMissing
+// +condition:Current,Stale:Cloning,CloneFailed,BranchNotFound,RepositoryNotAccessible,RepositoryNotFound
+// +condition:Current,Stale:Baking,BakingFailed
+// +condition:Current,Stale:Applying,ApplyFailed
+// +condition:Valid,Invalid:RepositoryNotSupported
+// +kubebuilder:printcolumn:name="Valid",type=string,JSONPath=`.status.privateArea.Valid`
 // +kubebuilder:printcolumn:name="Repository",type=string,JSONPath=`.status.resolvedRepository`
 // +kubebuilder:printcolumn:name="Branch",type=string,JSONPath=`.status.branch`
-// +kubebuilder:printcolumn:name="Persistent Volume Claim",type=string,JSONPath=`.status.persistentVolumeNameClaim`
+// +kubebuilder:printcolumn:name="PVC",type=string,JSONPath=`.status.persistentVolumeNameClaim`
 // +kubebuilder:printcolumn:name="Last Attempted Revision",type=string,JSONPath=`.status.lastAttemptedRevision`
 // +kubebuilder:printcolumn:name="Last Applied Revision",type=string,JSONPath=`.status.lastAppliedRevision`
-// +kubebuilder:printcolumn:name="Invalid",type=string,JSONPath=`.status.conditions[?(@.type=="Invalid")].reason`
-// +kubebuilder:printcolumn:name="Stale",type=string,JSONPath=`.status.conditions[?(@.type=="Stale")].reason`
-// +condition:Current,Stale:Applying,ApplyFailed,Baking,BakingFailed,BranchNotFound,CheckoutFailed,CloneFailed,CloneMissing,CloneOpenFailed,Cloning,FetchFailed,InternalError,Invalid,PersistentVolumeCreationFailed,PersistentVolumeMissing,RepositoryNotAccessible,RepositoryNotFound
-// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
-// +condition:Initialized,FailedToInitialize:InternalError
-// +condition:Valid,Invalid:ControllerNotAccessible,ControllerNotFound,ControllerReferenceMissing,InternalError,JobMissing,RepositoryNotSupported
+// +kubebuilder:printcolumn:name="Current",type=string,JSONPath=`.status.privateArea.Current`
 type Deployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -80,6 +83,10 @@ type DeploymentStatus struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern=^[a-f0-9]+$
 	LastAppliedRevision string `json:"lastAppliedRevision,omitempty"`
+
+	// PrivateArea is not meant for public consumption, nor is it part of the public API. It is exposed due to Go and
+	// controller-runtime limitations but is an internal part of the implementation.
+	PrivateArea ConditionsInverseState `json:"privateArea,omitempty"`
 }
 
 //+kubebuilder:object:root=true

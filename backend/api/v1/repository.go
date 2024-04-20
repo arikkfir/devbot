@@ -7,16 +7,15 @@ import (
 // Repository represents a single source code repository hosted remotely (e.g. on GitHub).
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Refresh Interval",type=string,JSONPath=`.spec.refreshInterval`
-// +kubebuilder:printcolumn:name="Default Branch",type=string,JSONPath=`.status.defaultBranch`
-// +kubebuilder:printcolumn:name="Unauthenticated",type=string,JSONPath=`.status.conditions[?(@.type=="Unauthenticated")].reason`
-// +kubebuilder:printcolumn:name="Invalid",type=string,JSONPath=`.status.conditions[?(@.type=="Invalid")].reason`
-// +kubebuilder:printcolumn:name="Stale",type=string,JSONPath=`.status.conditions[?(@.type=="Stale")].reason`
+// +condition:commons
 // +condition:Authenticated,Unauthenticated:AuthenticationFailed,AuthSecretForbidden,AuthSecretKeyNotFound,AuthSecretNotFound,AuthTokenEmpty,InternalError,Invalid
 // +condition:Current,Stale:BranchesOutOfSync,DefaultBranchOutOfSync,InternalError,Invalid,RepositoryNotFound,Unauthenticated
-// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
-// +condition:Initialized,FailedToInitialize:InternalError
 // +condition:Valid,Invalid:AuthConfigMissing,AuthSecretKeyMissing,AuthSecretNameMissing,InvalidRefreshInterval,RepositoryNameMissing,RepositoryOwnerMissing,UnknownRepositoryType
+// +kubebuilder:printcolumn:name="Refresh Interval",type=string,JSONPath=`.spec.refreshInterval`
+// +kubebuilder:printcolumn:name="Valid",type=string,JSONPath=`.status.privateArea.Valid`
+// +kubebuilder:printcolumn:name="Authenticated",type=string,JSONPath=`.status.privateArea.Authenticated`
+// +kubebuilder:printcolumn:name="Default Branch",type=string,JSONPath=`.status.defaultBranch`
+// +kubebuilder:printcolumn:name="Current",type=string,JSONPath=`.status.privateArea.Current`
 type Repository struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -108,6 +107,18 @@ type RepositoryStatus struct {
 	// Revisions is a map of branch names to their last detected revision.
 	// +kubebuilder:validation:Optional
 	Revisions map[string]string `json:"revisions,omitempty"`
+
+	// PrivateArea is not meant for public consumption, nor is it part of the public API. It is exposed due to Go and
+	// controller-runtime limitations but is an internal part of the implementation.
+	PrivateArea ConditionsInverseState `json:"privateArea,omitempty"`
+}
+
+type RepositoryStatusPrivateArea struct {
+	Initialized   string `json:"-"`
+	Finalized     string `json:"-"`
+	Valid         string `json:"valid,omitempty"`
+	Authenticated string `json:"authenticated,omitempty"`
+	Current       string `json:"current,omitempty"`
 }
 
 // RepositoryList contains a list of Repository objects.

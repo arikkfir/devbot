@@ -7,6 +7,9 @@ import (
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"path/filepath"
@@ -41,7 +44,9 @@ func K(t T) *KClient {
 		kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 		For(t).Expect(err).Will(BeNil()).OrFail()
 
-		scheme := k8s.CreateScheme()
+		scheme := runtime.NewScheme()
+		utilruntime.Must(apiv1.AddToScheme(scheme))
+		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 		mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
 			Scheme: scheme,
 			Client: client.Options{

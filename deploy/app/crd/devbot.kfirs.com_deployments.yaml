@@ -15,6 +15,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .status.privateArea.Valid
+      name: Valid
+      type: string
     - jsonPath: .status.resolvedRepository
       name: Repository
       type: string
@@ -22,7 +25,7 @@ spec:
       name: Branch
       type: string
     - jsonPath: .status.persistentVolumeNameClaim
-      name: Persistent Volume Claim
+      name: PVC
       type: string
     - jsonPath: .status.lastAttemptedRevision
       name: Last Attempted Revision
@@ -30,11 +33,8 @@ spec:
     - jsonPath: .status.lastAppliedRevision
       name: Last Applied Revision
       type: string
-    - jsonPath: .status.conditions[?(@.type=="Invalid")].reason
-      name: Invalid
-      type: string
-    - jsonPath: .status.conditions[?(@.type=="Stale")].reason
-      name: Stale
+    - jsonPath: .status.privateArea.Current
+      name: Current
       type: string
     name: v1
     schema:
@@ -180,6 +180,13 @@ spec:
                 minLength: 1
                 pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
                 type: string
+              privateArea:
+                additionalProperties:
+                  type: string
+                description: PrivateArea is not meant for public consumption, nor
+                  is it part of the public API. It is exposed due to Go and controller-runtime
+                  limitations but is an internal part of the implementation.
+                type: object
               resolvedRepository:
                 description: The fully qualified (namespace + name) of the repository
                   this deployment applies.

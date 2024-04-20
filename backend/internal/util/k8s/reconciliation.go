@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	v1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/config"
 	"github.com/secureworks/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -12,9 +11,31 @@ import (
 	"slices"
 )
 
+const (
+	controllerNotAccessible    = "ControllerNotAccessible"
+	controllerNotFound         = "ControllerNotFound"
+	controllerReferenceMissing = "ControllerReferenceMissing"
+	finalizationFailed         = "FinalizationFailed"
+	finalizerRemovalFailed     = "FinalizerRemovalFailed"
+	inProgress                 = "InProgress"
+	internalError              = "InternalError"
+)
+
+type CommonCondition struct {
+	RemovalVerb string
+	Reasons     []string
+}
+
+var (
+	CommonConditionReasons = map[string]CommonCondition{
+		"Finalizing":         {RemovalVerb: "Finalized", Reasons: []string{"FinalizationFailed", "FinalizerRemovalFailed", "InProgress"}},
+		"FailedToInitialize": {RemovalVerb: "Initialized", Reasons: []string{"InternalError"}},
+		"Invalid":            {RemovalVerb: "Valid", Reasons: []string{"ControllerNotAccessible", "ControllerNotFound", "ControllerReferenceMissing", "InternalError"}},
+	}
+)
+
 type ConditionsProvider interface {
 	GetConditions() []metav1.Condition
-	SetConditions(conditions []metav1.Condition)
 }
 
 type FinalizingObjectStatus interface {
@@ -68,18 +89,14 @@ func NewReconciliation[O client.Object](ctx context.Context, cfg config.CommandC
 func (r *Reconciliation[O]) UpdateStatus() *Result {
 	// Ensure that newly-set conditions have the correct ObservedGeneration and LastTransitionTime
 	if conditionsProvider, ok := GetStatusOfType[ConditionsProvider](r.Object); ok {
-		var newConditions []metav1.Condition
-		for _, c := range conditionsProvider.GetConditions() {
-			nc := c
-			if nc.ObservedGeneration == 0 {
-				nc.ObservedGeneration = r.Object.GetGeneration()
+		for i, c := range conditionsProvider.GetConditions() {
+			if c.ObservedGeneration == 0 {
+				conditionsProvider.GetConditions()[i].ObservedGeneration = r.Object.GetGeneration()
 			}
-			if nc.LastTransitionTime.IsZero() {
-				nc.LastTransitionTime = metav1.Now()
+			if c.LastTransitionTime.IsZero() {
+				conditionsProvider.GetConditions()[i].LastTransitionTime = metav1.Now()
 			}
-			newConditions = append(newConditions, nc)
 		}
-		conditionsProvider.SetConditions(newConditions)
 	}
 
 	// Update the status subresource, invoking the error strategy accordingly if an error occurs
@@ -133,7 +150,7 @@ func (r *Reconciliation[O]) FinalizeObjectIfDeleted() *Result {
 			}
 		}
 
-		status.SetFinalizedIfFinalizingDueToAnyOf(v1.InProgress, v1.FinalizationFailed, v1.FinalizerRemovalFailed)
+		status.SetFinalizedIfFinalizingDueToAnyOf(inProgress, finalizationFailed, finalizerRemovalFailed)
 		if result := r.UpdateStatus(); result != nil {
 			return result
 		}
@@ -165,7 +182,7 @@ func (r *Reconciliation[O]) InitializeObject() *Result {
 		}
 	}
 
-	status.SetInitializedIfFailedToInitializeDueToAnyOf(v1.InternalError)
+	status.SetInitializedIfFailedToInitializeDueToAnyOf(internalError)
 	if result := r.UpdateStatus(); result != nil {
 		return result
 	}
@@ -207,7 +224,7 @@ func (r *Reconciliation[O]) GetRequiredController(controller client.Object) *Res
 		}
 	}
 
-	status.SetValidIfInvalidDueToAnyOf(v1.ControllerReferenceMissing, v1.ControllerNotFound, v1.ControllerNotAccessible, v1.InternalError)
+	status.SetValidIfInvalidDueToAnyOf(controllerReferenceMissing, controllerNotFound, controllerNotAccessible, internalError)
 	if result := r.UpdateStatus(); result != nil {
 		return result
 	}

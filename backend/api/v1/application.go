@@ -11,15 +11,14 @@ const (
 
 // Application represents a single application, optionally spanning multiple repositories (or a single one) and manages
 // multiple deployment environments, as deducted from the different branches in said repositories.
-// +kubebuilder:printcolumn:name="Service Account",type=string,JSONPath=`.spec.serviceAccountName`
-// +kubebuilder:printcolumn:name="Invalid",type=string,JSONPath=`.status.conditions[?(@.type=="Invalid")].reason`
-// +kubebuilder:printcolumn:name="Stale",type=string,JSONPath=`.status.conditions[?(@.type=="Stale")].reason`
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +condition:commons
 // +condition:Current,Stale:EnvironmentsAreStale,InternalError,RepositoryNotAccessible,RepositoryNotFound
-// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
-// +condition:Initialized,FailedToInitialize:InternalError
 // +condition:Valid,Invalid:InvalidBranchSpecification
+// +kubebuilder:printcolumn:name="Service Account",type=string,JSONPath=`.spec.serviceAccountName`
+// +kubebuilder:printcolumn:name="Valid",type=string,JSONPath=`.status.privateArea.Valid`
+// +kubebuilder:printcolumn:name="Current",type=string,JSONPath=`.status.privateArea.Current`
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -88,6 +87,10 @@ type ApplicationStatus struct {
 	// Conditions represent the latest available observations of the application's state.
 	// +kubebuilder:validation:Optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
+	// PrivateArea is not meant for public consumption, nor is it part of the public API. It is exposed due to Go and
+	// controller-runtime limitations but is an internal part of the implementation.
+	PrivateArea ConditionsInverseState `json:"privateArea,omitempty"`
 }
 
 //+kubebuilder:object:root=true

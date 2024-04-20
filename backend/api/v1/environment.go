@@ -7,13 +7,11 @@ import (
 // Environment is the Schema for the environments API.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Preferred Branch",type=string,JSONPath=`.spec.branch`
-// +kubebuilder:printcolumn:name="Invalid",type=string,JSONPath=`.status.conditions[?(@.type=="Invalid")].reason`
-// +kubebuilder:printcolumn:name="Stale",type=string,JSONPath=`.status.conditions[?(@.type=="Stale")].reason`
+// +condition:commons
 // +condition:Current,Stale:DeploymentsAreStale,FailedCreatingDeployment,FailedDeletingDeployment,InternalError
-// +condition:Finalized,Finalizing:FinalizationFailed,FinalizerRemovalFailed,InProgress
-// +condition:Initialized,FailedToInitialize:InternalError
-// +condition:Valid,Invalid:ControllerNotAccessible,ControllerNotFound,ControllerReferenceMissing,InternalError
+// +kubebuilder:printcolumn:name="Preferred Branch",type=string,JSONPath=`.spec.branch`
+// +kubebuilder:printcolumn:name="Valid",type=string,JSONPath=`.status.privateArea.Valid`
+// +kubebuilder:printcolumn:name="Current",type=string,JSONPath=`.status.privateArea.Current`
 type Environment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -40,6 +38,10 @@ type EnvironmentStatus struct {
 	// Conditions represent the latest available observations of the application environment's state.
 	// +kubebuilder:validation:Optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+
+	// PrivateArea is not meant for public consumption, nor is it part of the public API. It is exposed due to Go and
+	// controller-runtime limitations but is an internal part of the implementation.
+	PrivateArea ConditionsInverseState `json:"privateArea,omitempty"`
 }
 
 //+kubebuilder:object:root=true

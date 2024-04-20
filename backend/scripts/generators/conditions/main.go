@@ -4,6 +4,7 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/jessevdk/go-flags"
 	"github.com/secureworks/errors"
 	"go/ast"
@@ -22,6 +23,7 @@ import (
 var (
 	//go:embed *.tmpl
 	templatesFS                 embed.FS
+	commonConditionsRegexp      = regexp.MustCompile(`\s*\+condition:commons$`)
 	conditionRegexp             = regexp.MustCompile(`\s*\+condition:([^:]+),([^:]+):(.*)`)
 	conditionTypeRegexp         = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$`)
 	reasonRegexp                = regexp.MustCompile(`^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$`)
@@ -74,6 +76,20 @@ func locateFiles(pathGlobs []string) ([]string, error) {
 func parseObjectConditionTypes(object *ast.Object, commentLines []string) ([]Condition, error) {
 	var conditionTypes []Condition
 	for _, line := range commentLines {
+		if commonConditionsRegexp.MatchString(line) {
+			for conditionType, info := range k8s.CommonConditionReasons {
+				slices.Sort(info.Reasons)
+				conditionTypes = append(conditionTypes,
+					Condition{
+						Name:        conditionType,
+						RemovalVerb: info.RemovalVerb,
+						Reasons:     info.Reasons,
+					},
+				)
+			}
+		}
+	}
+	for _, line := range commentLines {
 		if matches := conditionRegexp.FindStringSubmatch(line); len(matches) > 0 {
 			removalVerb := matches[1]
 			if !conditionTypeRegexp.MatchString(removalVerb) {
@@ -96,7 +112,11 @@ func parseObjectConditionTypes(object *ast.Object, commentLines []string) ([]Con
 					if conditionType.RemovalVerb != removalVerb {
 						return nil, errors.New("conflicting removal verbs for condition '%s' of '%s'", name, object.Name)
 					} else {
-						conditionTypes[i].Reasons = append(conditionTypes[i].Reasons, reasons...)
+						for _, reason := range reasons {
+							if !slices.Contains(conditionTypes[i].Reasons, reason) {
+								conditionTypes[i].Reasons = append(conditionTypes[i].Reasons, reason)
+							}
+						}
 						slices.Sort(conditionTypes[i].Reasons)
 						found = true
 						break
@@ -123,22 +143,10 @@ func generateConditionsFile(tmpl *template.Template, src string, packageName str
 	}
 	defer genFile.Close()
 
-	hasCommonConditions := slices.ContainsFunc(
-		conditions,
-		func(c Condition) bool {
-			return c.Name == "Invalid" &&
-				slices.Contains(c.Reasons, "AddFinalizerFailed") &&
-				slices.Contains(c.Reasons, "ControllerMissing") &&
-				slices.Contains(c.Reasons, "FailedGettingOwnedObjects") &&
-				slices.Contains(c.Reasons, "FinalizationFailed") &&
-				slices.Contains(c.Reasons, "InternalError")
-		},
-	)
 	err = tmpl.ExecuteTemplate(genFile, "zz_generated.OBJECT.go.tmpl", map[string]interface{}{
-		"PackageName":         packageName,
-		"ObjectType":          object.Name,
-		"Conditions":          conditions,
-		"HasCommonConditions": hasCommonConditions,
+		"PackageName": packageName,
+		"ObjectType":  object.Name,
+		"Conditions":  conditions,
 	})
 	if err != nil {
 		return errors.New("failed to generate '%s': %w", genFilename, err)
@@ -257,10 +265,22 @@ func main() {
 		for _, condition := range constants.Conditions {
 			if _, ok := mergedConstants[condition.Name]; !ok {
 				mergedConstants[condition.Name] = condition.Name
+				mergedConstants[condition.RemovalVerb] = condition.RemovalVerb
 			}
 			for _, reason := range condition.Reasons {
+				isCommonReason := false
 				if _, ok := mergedConstants[reason]; !ok {
-					mergedConstants[reason] = reason
+					for _, info := range k8s.CommonConditionReasons {
+						for _, commonReason := range info.Reasons {
+							if commonReason == reason {
+								isCommonReason = true
+								break
+							}
+						}
+					}
+					if !isCommonReason {
+						mergedConstants[reason] = reason
+					}
 				}
 			}
 		}

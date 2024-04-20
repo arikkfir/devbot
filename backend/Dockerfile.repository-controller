@@ -17,10 +17,10 @@ COPY internal/config/base.go internal/config/
 COPY internal/controllers/config.go internal/controllers/
 COPY internal/controllers/repository/controller.go internal/controllers/repository/
 COPY internal/util/configuration/parse.go internal/util/configuration/
+COPY internal/util/k8s/conditions.go internal/util/k8s/
 COPY internal/util/k8s/owned_by.go internal/util/k8s/
 COPY internal/util/k8s/reconciliation.go internal/util/k8s/
 COPY internal/util/k8s/result.go internal/util/k8s/
-COPY internal/util/k8s/scheme.go internal/util/k8s/
 COPY internal/util/k8s/status.go internal/util/k8s/
 COPY internal/util/lang/duration.go internal/util/lang/
 COPY internal/util/lang/pointers.go internal/util/lang/

@@ -18,11 +18,11 @@ spec:
     - jsonPath: .spec.branch
       name: Preferred Branch
       type: string
-    - jsonPath: .status.conditions[?(@.type=="Invalid")].reason
-      name: Invalid
+    - jsonPath: .status.privateArea.Valid
+      name: Valid
       type: string
-    - jsonPath: .status.conditions[?(@.type=="Stale")].reason
-      name: Stale
+    - jsonPath: .status.privateArea.Current
+      name: Current
       type: string
     name: v1
     schema:
@@ -127,6 +127,13 @@ spec:
                   - type
                   type: object
                 type: array
+              privateArea:
+                additionalProperties:
+                  type: string
+                description: PrivateArea is not meant for public consumption, nor
+                  is it part of the public API. It is exposed due to Go and controller-runtime
+                  limitations but is an internal part of the implementation.
+                type: object
             type: object
         required:
         - spec

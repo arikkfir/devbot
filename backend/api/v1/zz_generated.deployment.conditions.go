@@ -5,1660 +5,822 @@
 package v1
 
 import (
-	"fmt"
-
+	. "github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"slices"
 )
 
 func (s *DeploymentStatus) GetCondition(conditionType string) *v1.Condition {
-	for _, c := range s.Conditions {
-		if c.Type == conditionType {
-			lc := c
-			return &lc
-		}
-	}
-	return nil
-}
-
-func (s *DeploymentStatus) SetStaleDueToApplyFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != ApplyFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = ApplyFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  ApplyFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToApplyFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != ApplyFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = ApplyFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  ApplyFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToApplying(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != Applying || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = Applying
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  Applying,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToApplying(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != Applying || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = Applying
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  Applying,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToBaking(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != Baking || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = Baking
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  Baking,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToBaking(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != Baking || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = Baking
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  Baking,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToBakingFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != BakingFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = BakingFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  BakingFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToBakingFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != BakingFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = BakingFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  BakingFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToBranchNotFound(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != BranchNotFound || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = BranchNotFound
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  BranchNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToBranchNotFound(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != BranchNotFound || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = BranchNotFound
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  BranchNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToCheckoutFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != CheckoutFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = CheckoutFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  CheckoutFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToCheckoutFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != CheckoutFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = CheckoutFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  CheckoutFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToCloneFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != CloneFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = CloneFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  CloneFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToCloneFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != CloneFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = CloneFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  CloneFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToCloneMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != CloneMissing || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = CloneMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  CloneMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToCloneMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != CloneMissing || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = CloneMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  CloneMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToCloneOpenFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != CloneOpenFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = CloneOpenFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  CloneOpenFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToCloneOpenFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != CloneOpenFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = CloneOpenFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  CloneOpenFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToCloning(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != Cloning || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = Cloning
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  Cloning,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToCloning(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != Cloning || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = Cloning
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  Cloning,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToFetchFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != FetchFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = FetchFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  FetchFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToFetchFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != FetchFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = FetchFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  FetchFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToInternalError(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = InternalError
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToInternalError(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = InternalError
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToInvalid(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != Invalid || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = Invalid
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  Invalid,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToInvalid(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != Invalid || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = Invalid
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  Invalid,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToPersistentVolumeCreationFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != PersistentVolumeCreationFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = PersistentVolumeCreationFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  PersistentVolumeCreationFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToPersistentVolumeCreationFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != PersistentVolumeCreationFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = PersistentVolumeCreationFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  PersistentVolumeCreationFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToPersistentVolumeMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != PersistentVolumeMissing || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = PersistentVolumeMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  PersistentVolumeMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToPersistentVolumeMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != PersistentVolumeMissing || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = PersistentVolumeMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  PersistentVolumeMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToRepositoryNotAccessible(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotAccessible || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = RepositoryNotAccessible
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryNotAccessible,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToRepositoryNotAccessible(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotAccessible || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = RepositoryNotAccessible
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryNotAccessible,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotFound || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = RepositoryNotFound
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Stale {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotFound || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = RepositoryNotFound
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Stale,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetCurrentIfStaleDueToAnyOf(reasons ...string) bool {
-	changed := false
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale || !slices.Contains(reasons, c.Reason) {
-			newConditions = append(newConditions, c)
-		} else {
-			changed = true
-		}
-	}
-	if changed {
-		s.Conditions = newConditions
-	}
-	return changed
-}
-
-func (s *DeploymentStatus) SetCurrent() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Stale {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
-}
-
-func (s *DeploymentStatus) IsCurrent() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Stale {
-			return c.Status == v1.ConditionFalse
-		}
-	}
-	return true
-}
-
-func (s *DeploymentStatus) IsStale() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Stale {
-			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
-		}
-	}
-	return false
-}
-
-func (s *DeploymentStatus) GetStaleCondition() *v1.Condition {
-	for _, c := range s.Conditions {
-		if c.Type == Stale {
-			lc := c
-			return &lc
-		}
-	}
-	return nil
-}
-
-func (s *DeploymentStatus) GetStaleReason() string {
-	for _, c := range s.Conditions {
-		if c.Type == Stale {
-			return c.Reason
-		}
-	}
-	return ""
-}
-
-func (s *DeploymentStatus) GetStaleStatus() *v1.ConditionStatus {
-	for _, c := range s.Conditions {
-		if c.Type == Stale {
-			status := c.Status
-			return &status
-		}
-	}
-	return nil
-}
-
-func (s *DeploymentStatus) GetStaleMessage() string {
-	for _, c := range s.Conditions {
-		if c.Type == Stale {
-			return c.Message
-		}
-	}
-	return ""
+	return GetCondition(s.Conditions, conditionType)
 }
 
 func (s *DeploymentStatus) SetFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Finalizing {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != FinalizationFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = FinalizationFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Finalizing,
-		Status:  v1.ConditionTrue,
-		Reason:  FinalizationFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizationFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizationFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, FinalizationFailed, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Finalizing {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != FinalizationFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = FinalizationFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Finalizing,
-		Status:  v1.ConditionUnknown,
-		Reason:  FinalizationFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizationFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizationFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, FinalizationFailed, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Finalizing {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != FinalizerRemovalFailed || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = FinalizerRemovalFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Finalizing,
-		Status:  v1.ConditionTrue,
-		Reason:  FinalizerRemovalFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizerRemovalFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizerRemovalFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, FinalizerRemovalFailed, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Finalizing {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != FinalizerRemovalFailed || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = FinalizerRemovalFailed
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Finalizing,
-		Status:  v1.ConditionUnknown,
-		Reason:  FinalizerRemovalFailed,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizerRemovalFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizerRemovalFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, FinalizerRemovalFailed, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetFinalizingDueToInProgress(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Finalizing {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != InProgress || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = InProgress
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Finalizing,
-		Status:  v1.ConditionTrue,
-		Reason:  InProgress,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+InProgress {
+		s.PrivateArea[Finalized] = "No: " + InProgress
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, InProgress, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeFinalizingDueToInProgress(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Finalizing {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != InProgress || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = InProgress
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Finalizing,
-		Status:  v1.ConditionUnknown,
-		Reason:  InProgress,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+InProgress {
+		s.PrivateArea[Finalized] = "No: " + InProgress
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, InProgress, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetFinalizedIfFinalizingDueToAnyOf(reasons ...string) bool {
 	changed := false
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Finalizing || !slices.Contains(reasons, c.Reason) {
-			newConditions = append(newConditions, c)
-		} else {
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Finalizing, reasons...) || changed
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if s.IsFinalized() {
+		if v, ok := s.PrivateArea[Finalized]; !ok || v != "Yes" {
+			s.PrivateArea[Finalized] = "Yes"
 			changed = true
 		}
-	}
-	if changed {
-		s.Conditions = newConditions
+	} else {
+		if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+s.GetFinalizingReason() {
+			s.PrivateArea[Finalized] = "No: " + s.GetFinalizingReason()
+			changed = true
+		}
 	}
 	return changed
 }
 
-func (s *DeploymentStatus) SetFinalized() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Finalizing {
-			newConditions = append(newConditions, c)
-		}
+func (s *DeploymentStatus) SetFinalized() bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = newConditions
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "Yes" {
+		s.PrivateArea[Finalized] = "Yes"
+		changed = true
+	}
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Finalizing, FinalizationFailed, FinalizerRemovalFailed, InProgress, "NonExistent") || changed
+	return changed
 }
 
 func (s *DeploymentStatus) IsFinalized() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Finalizing {
-			return c.Status == v1.ConditionFalse
-		}
-	}
-	return true
+	return !HasCondition(s.Conditions, Finalizing) || IsConditionStatusOneOf(s.Conditions, Finalizing, v1.ConditionFalse)
 }
 
 func (s *DeploymentStatus) IsFinalizing() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Finalizing {
-			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
-		}
-	}
-	return false
+	return IsConditionStatusOneOf(s.Conditions, Finalizing, v1.ConditionTrue, v1.ConditionUnknown)
 }
 
 func (s *DeploymentStatus) GetFinalizingCondition() *v1.Condition {
-	for _, c := range s.Conditions {
-		if c.Type == Finalizing {
-			lc := c
-			return &lc
-		}
-	}
-	return nil
+	return GetCondition(s.Conditions, Finalizing)
 }
 
 func (s *DeploymentStatus) GetFinalizingReason() string {
-	for _, c := range s.Conditions {
-		if c.Type == Finalizing {
-			return c.Reason
-		}
-	}
-	return ""
+	return GetConditionReason(s.Conditions, Finalizing)
 }
 
 func (s *DeploymentStatus) GetFinalizingStatus() *v1.ConditionStatus {
-	for _, c := range s.Conditions {
-		if c.Type == Finalizing {
-			status := c.Status
-			return &status
-		}
-	}
-	return nil
+	return GetConditionStatus(s.Conditions, Finalizing)
 }
 
 func (s *DeploymentStatus) GetFinalizingMessage() string {
-	for _, c := range s.Conditions {
-		if c.Type == Finalizing {
-			return c.Message
-		}
-	}
-	return ""
+	return GetConditionMessage(s.Conditions, Finalizing)
 }
 
 func (s *DeploymentStatus) SetFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = InternalError
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    FailedToInitialize,
-		Status:  v1.ConditionTrue,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Initialized] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, FailedToInitialize, v1.ConditionTrue, InternalError, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = InternalError
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    FailedToInitialize,
-		Status:  v1.ConditionUnknown,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Initialized] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, FailedToInitialize, v1.ConditionUnknown, InternalError, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetInitializedIfFailedToInitializeDueToAnyOf(reasons ...string) bool {
 	changed := false
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != FailedToInitialize || !slices.Contains(reasons, c.Reason) {
-			newConditions = append(newConditions, c)
-		} else {
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, FailedToInitialize, reasons...) || changed
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if s.IsInitialized() {
+		if v, ok := s.PrivateArea[Initialized]; !ok || v != "Yes" {
+			s.PrivateArea[Initialized] = "Yes"
 			changed = true
 		}
-	}
-	if changed {
-		s.Conditions = newConditions
+	} else {
+		if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+s.GetFailedToInitializeReason() {
+			s.PrivateArea[Initialized] = "No: " + s.GetFailedToInitializeReason()
+			changed = true
+		}
 	}
 	return changed
 }
 
-func (s *DeploymentStatus) SetInitialized() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != FailedToInitialize {
-			newConditions = append(newConditions, c)
-		}
+func (s *DeploymentStatus) SetInitialized() bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = newConditions
+	if v, ok := s.PrivateArea[Initialized]; !ok || v != "Yes" {
+		s.PrivateArea[Initialized] = "Yes"
+		changed = true
+	}
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, FailedToInitialize, InternalError, "NonExistent") || changed
+	return changed
 }
 
 func (s *DeploymentStatus) IsInitialized() bool {
-	for _, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			return c.Status == v1.ConditionFalse
-		}
-	}
-	return true
+	return !HasCondition(s.Conditions, FailedToInitialize) || IsConditionStatusOneOf(s.Conditions, FailedToInitialize, v1.ConditionFalse)
 }
 
 func (s *DeploymentStatus) IsFailedToInitialize() bool {
-	for _, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
-		}
-	}
-	return false
+	return IsConditionStatusOneOf(s.Conditions, FailedToInitialize, v1.ConditionTrue, v1.ConditionUnknown)
 }
 
 func (s *DeploymentStatus) GetFailedToInitializeCondition() *v1.Condition {
-	for _, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			lc := c
-			return &lc
-		}
-	}
-	return nil
+	return GetCondition(s.Conditions, FailedToInitialize)
 }
 
 func (s *DeploymentStatus) GetFailedToInitializeReason() string {
-	for _, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			return c.Reason
-		}
-	}
-	return ""
+	return GetConditionReason(s.Conditions, FailedToInitialize)
 }
 
 func (s *DeploymentStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
-	for _, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			status := c.Status
-			return &status
-		}
-	}
-	return nil
+	return GetConditionStatus(s.Conditions, FailedToInitialize)
 }
 
 func (s *DeploymentStatus) GetFailedToInitializeMessage() string {
-	for _, c := range s.Conditions {
-		if c.Type == FailedToInitialize {
-			return c.Message
-		}
-	}
-	return ""
+	return GetConditionMessage(s.Conditions, FailedToInitialize)
 }
 
 func (s *DeploymentStatus) SetInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotAccessible || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = ControllerNotAccessible
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  ControllerNotAccessible,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotAccessible {
+		s.PrivateArea[Valid] = "No: " + ControllerNotAccessible
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerNotAccessible, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotAccessible || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = ControllerNotAccessible
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  ControllerNotAccessible,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotAccessible {
+		s.PrivateArea[Valid] = "No: " + ControllerNotAccessible
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerNotAccessible, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != ControllerNotFound || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = ControllerNotFound
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  ControllerNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotFound {
+		s.PrivateArea[Valid] = "No: " + ControllerNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerNotFound, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != ControllerNotFound || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = ControllerNotFound
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  ControllerNotFound,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotFound {
+		s.PrivateArea[Valid] = "No: " + ControllerNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerNotFound, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != ControllerReferenceMissing || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = ControllerReferenceMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  ControllerReferenceMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerReferenceMissing {
+		s.PrivateArea[Valid] = "No: " + ControllerReferenceMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerReferenceMissing, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != ControllerReferenceMissing || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = ControllerReferenceMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  ControllerReferenceMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerReferenceMissing {
+		s.PrivateArea[Valid] = "No: " + ControllerReferenceMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerReferenceMissing, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetInvalidDueToInternalError(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != InternalError || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = InternalError
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Valid] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, InternalError, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != InternalError || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = InternalError
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  InternalError,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetInvalidDueToJobMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != JobMissing || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = JobMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Valid] = "No: " + InternalError
+		changed = true
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  JobMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
-}
-
-func (s *DeploymentStatus) SetMaybeInvalidDueToJobMissing(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != JobMissing || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = JobMissing
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
-	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  JobMissing,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, InternalError, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetInvalidDueToRepositoryNotSupported(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionTrue || c.Reason != RepositoryNotSupported || c.Message != msg {
-				c.Status = v1.ConditionTrue
-				c.Reason = RepositoryNotSupported
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionTrue,
-		Reason:  RepositoryNotSupported,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+RepositoryNotSupported {
+		s.PrivateArea[Valid] = "No: " + RepositoryNotSupported
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, RepositoryNotSupported, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetMaybeInvalidDueToRepositoryNotSupported(message string, args ...interface{}) bool {
-	for i, c := range s.Conditions {
-		if c.Type == Invalid {
-			msg := fmt.Sprintf(message, args...)
-			if c.Status != v1.ConditionUnknown || c.Reason != RepositoryNotSupported || c.Message != msg {
-				c.Status = v1.ConditionUnknown
-				c.Reason = RepositoryNotSupported
-				c.Message = msg
-				s.Conditions[i] = c
-				return true
-			} else {
-				return false
-			}
-		}
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = append(s.Conditions, v1.Condition{
-		Type:    Invalid,
-		Status:  v1.ConditionUnknown,
-		Reason:  RepositoryNotSupported,
-		Message: fmt.Sprintf(message, args...),
-	})
-	return true
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+RepositoryNotSupported {
+		s.PrivateArea[Valid] = "No: " + RepositoryNotSupported
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, RepositoryNotSupported, message, args...) || changed
+	return changed
 }
 
 func (s *DeploymentStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
 	changed := false
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid || !slices.Contains(reasons, c.Reason) {
-			newConditions = append(newConditions, c)
-		} else {
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, reasons...) || changed
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if s.IsValid() {
+		if v, ok := s.PrivateArea[Valid]; !ok || v != "Yes" {
+			s.PrivateArea[Valid] = "Yes"
 			changed = true
 		}
-	}
-	if changed {
-		s.Conditions = newConditions
+	} else {
+		if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+s.GetInvalidReason() {
+			s.PrivateArea[Valid] = "No: " + s.GetInvalidReason()
+			changed = true
+		}
 	}
 	return changed
 }
 
-func (s *DeploymentStatus) SetValid() {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.Type != Invalid {
-			newConditions = append(newConditions, c)
-		}
+func (s *DeploymentStatus) SetValid() bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
 	}
-	s.Conditions = newConditions
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "Yes" {
+		s.PrivateArea[Valid] = "Yes"
+		changed = true
+	}
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, ControllerNotAccessible, ControllerNotFound, ControllerReferenceMissing, InternalError, RepositoryNotSupported, "NonExistent") || changed
+	return changed
 }
 
 func (s *DeploymentStatus) IsValid() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Status == v1.ConditionFalse
-		}
-	}
-	return true
+	return !HasCondition(s.Conditions, Invalid) || IsConditionStatusOneOf(s.Conditions, Invalid, v1.ConditionFalse)
 }
 
 func (s *DeploymentStatus) IsInvalid() bool {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Status == v1.ConditionTrue || c.Status == v1.ConditionUnknown
-		}
-	}
-	return false
+	return IsConditionStatusOneOf(s.Conditions, Invalid, v1.ConditionTrue, v1.ConditionUnknown)
 }
 
 func (s *DeploymentStatus) GetInvalidCondition() *v1.Condition {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			lc := c
-			return &lc
-		}
-	}
-	return nil
+	return GetCondition(s.Conditions, Invalid)
 }
 
 func (s *DeploymentStatus) GetInvalidReason() string {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Reason
-		}
-	}
-	return ""
+	return GetConditionReason(s.Conditions, Invalid)
 }
 
 func (s *DeploymentStatus) GetInvalidStatus() *v1.ConditionStatus {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			status := c.Status
-			return &status
-		}
-	}
-	return nil
+	return GetConditionStatus(s.Conditions, Invalid)
 }
 
 func (s *DeploymentStatus) GetInvalidMessage() string {
-	for _, c := range s.Conditions {
-		if c.Type == Invalid {
-			return c.Message
+	return GetConditionMessage(s.Conditions, Invalid)
+}
+
+func (s *DeploymentStatus) SetStaleDueToApplyFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+ApplyFailed {
+		s.PrivateArea[Current] = "No: " + ApplyFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, ApplyFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToApplyFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+ApplyFailed {
+		s.PrivateArea[Current] = "No: " + ApplyFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, ApplyFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToApplying(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Applying {
+		s.PrivateArea[Current] = "No: " + Applying
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, Applying, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToApplying(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Applying {
+		s.PrivateArea[Current] = "No: " + Applying
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, Applying, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToBaking(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Baking {
+		s.PrivateArea[Current] = "No: " + Baking
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, Baking, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToBaking(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Baking {
+		s.PrivateArea[Current] = "No: " + Baking
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, Baking, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToBakingFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+BakingFailed {
+		s.PrivateArea[Current] = "No: " + BakingFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, BakingFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToBakingFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+BakingFailed {
+		s.PrivateArea[Current] = "No: " + BakingFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, BakingFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToBranchNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+BranchNotFound {
+		s.PrivateArea[Current] = "No: " + BranchNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, BranchNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToBranchNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+BranchNotFound {
+		s.PrivateArea[Current] = "No: " + BranchNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, BranchNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToCloneFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+CloneFailed {
+		s.PrivateArea[Current] = "No: " + CloneFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, CloneFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToCloneFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+CloneFailed {
+		s.PrivateArea[Current] = "No: " + CloneFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, CloneFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToCloning(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Cloning {
+		s.PrivateArea[Current] = "No: " + Cloning
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, Cloning, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToCloning(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Cloning {
+		s.PrivateArea[Current] = "No: " + Cloning
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, Cloning, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToInternalError(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Current] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, InternalError, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToInternalError(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Current] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, InternalError, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToInvalid(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Invalid {
+		s.PrivateArea[Current] = "No: " + Invalid
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, Invalid, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToInvalid(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+Invalid {
+		s.PrivateArea[Current] = "No: " + Invalid
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, Invalid, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToPersistentVolumeCreationFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+PersistentVolumeCreationFailed {
+		s.PrivateArea[Current] = "No: " + PersistentVolumeCreationFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, PersistentVolumeCreationFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToPersistentVolumeCreationFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+PersistentVolumeCreationFailed {
+		s.PrivateArea[Current] = "No: " + PersistentVolumeCreationFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, PersistentVolumeCreationFailed, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToPersistentVolumeMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+PersistentVolumeMissing {
+		s.PrivateArea[Current] = "No: " + PersistentVolumeMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, PersistentVolumeMissing, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToPersistentVolumeMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+PersistentVolumeMissing {
+		s.PrivateArea[Current] = "No: " + PersistentVolumeMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, PersistentVolumeMissing, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToRepositoryNotAccessible(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+RepositoryNotAccessible {
+		s.PrivateArea[Current] = "No: " + RepositoryNotAccessible
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, RepositoryNotAccessible, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToRepositoryNotAccessible(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+RepositoryNotAccessible {
+		s.PrivateArea[Current] = "No: " + RepositoryNotAccessible
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, RepositoryNotAccessible, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+RepositoryNotFound {
+		s.PrivateArea[Current] = "No: " + RepositoryNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionTrue, RepositoryNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetMaybeStaleDueToRepositoryNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+RepositoryNotFound {
+		s.PrivateArea[Current] = "No: " + RepositoryNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Stale, v1.ConditionUnknown, RepositoryNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *DeploymentStatus) SetCurrentIfStaleDueToAnyOf(reasons ...string) bool {
+	changed := false
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Stale, reasons...) || changed
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if s.IsCurrent() {
+		if v, ok := s.PrivateArea[Current]; !ok || v != "Yes" {
+			s.PrivateArea[Current] = "Yes"
+			changed = true
+		}
+	} else {
+		if v, ok := s.PrivateArea[Current]; !ok || v != "No: "+s.GetStaleReason() {
+			s.PrivateArea[Current] = "No: " + s.GetStaleReason()
+			changed = true
 		}
 	}
-	return ""
+	return changed
+}
+
+func (s *DeploymentStatus) SetCurrent() bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Current]; !ok || v != "Yes" {
+		s.PrivateArea[Current] = "Yes"
+		changed = true
+	}
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Stale, ApplyFailed, Applying, Baking, BakingFailed, BranchNotFound, CloneFailed, Cloning, InternalError, Invalid, PersistentVolumeCreationFailed, PersistentVolumeMissing, RepositoryNotAccessible, RepositoryNotFound, "NonExistent") || changed
+	return changed
+}
+
+func (s *DeploymentStatus) IsCurrent() bool {
+	return !HasCondition(s.Conditions, Stale) || IsConditionStatusOneOf(s.Conditions, Stale, v1.ConditionFalse)
+}
+
+func (s *DeploymentStatus) IsStale() bool {
+	return IsConditionStatusOneOf(s.Conditions, Stale, v1.ConditionTrue, v1.ConditionUnknown)
+}
+
+func (s *DeploymentStatus) GetStaleCondition() *v1.Condition {
+	return GetCondition(s.Conditions, Stale)
+}
+
+func (s *DeploymentStatus) GetStaleReason() string {
+	return GetConditionReason(s.Conditions, Stale)
+}
+
+func (s *DeploymentStatus) GetStaleStatus() *v1.ConditionStatus {
+	return GetConditionStatus(s.Conditions, Stale)
+}
+
+func (s *DeploymentStatus) GetStaleMessage() string {
+	return GetConditionMessage(s.Conditions, Stale)
 }
 
 func (s *DeploymentStatus) GetConditions() []v1.Condition {
 	return s.Conditions
 }
 
-func (s *DeploymentStatus) SetConditions(conditions []v1.Condition) {
-	s.Conditions = conditions
+func (s *DeploymentStatus) SetGenerationAndTransitionTime(generation int64) {
+	SetConditionsGenerationAndTransitionTime(s.Conditions, generation)
 }
 
 func (s *DeploymentStatus) ClearStaleConditions(currentGeneration int64) {
-	var newConditions []v1.Condition
-	for _, c := range s.Conditions {
-		if c.ObservedGeneration >= currentGeneration {
-			newConditions = append(newConditions, c)
-		}
-	}
-	s.Conditions = newConditions
+	ClearStaleConditions(&s.Conditions, currentGeneration)
 }

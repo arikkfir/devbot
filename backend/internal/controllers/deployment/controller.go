@@ -306,7 +306,7 @@ func (r *Reconciler) getApplication(rec *k8s.Reconciliation[*apiv1.Deployment], 
 			return k8s.Requeue()
 		}
 	}
-	rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.ControllerNotAccessible, apiv1.ControllerNotFound, apiv1.InternalError, apiv1.JobMissing, apiv1.RepositoryNotSupported)
+	rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.ControllerNotAccessible, apiv1.ControllerNotFound, apiv1.InternalError, apiv1.RepositoryNotSupported)
 	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.Invalid)
 	if result := rec.UpdateStatus(); result != nil {
 		return result

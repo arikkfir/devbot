@@ -70,80 +70,101 @@ func TestRepositoryReconciliation(t *testing.T) {
 		reposList := &apiv1.RepositoryList{}
 		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
 		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
-	}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(100 * time.Millisecond)).OrFail()
 
-	//// Create new branches
-	//commonRepoFeature1SHA := ghCommonRepo.CreateBranch(t, ctx, "feature1")
-	//serverRepoFeature2SHA := ghServerRepo.CreateBranch(t, ctx, "feature2")
-	//
-	//// Validate changes have been reconciled
-	//For(t).Expect(func(t JustT) {
-	//	validateRepositoryExpectations(t, ctx, k, ns, repositoryExpectations{
-	//		kCommonRepoName: {
-	//			conditions: map[string]*metav1.Condition{
-	//				apiv1.FailedToInitialize: nil,
-	//				apiv1.Finalizing:         nil,
-	//				apiv1.Invalid:            nil,
-	//				apiv1.Stale:              nil,
-	//				apiv1.Unauthenticated:    nil,
-	//			},
-	//			defaultBranch: "main",
-	//			revisions: map[string]string{
-	//				"main":     ghCommonRepo.GetBranchSHA(t, ctx, "main"),
-	//				"feature1": commonRepoFeature1SHA,
-	//			},
-	//		},
-	//		kServerRepoName: {
-	//			conditions: map[string]*metav1.Condition{
-	//				apiv1.FailedToInitialize: nil,
-	//				apiv1.Finalizing:         nil,
-	//				apiv1.Invalid:            nil,
-	//				apiv1.Stale:              nil,
-	//				apiv1.Unauthenticated:    nil,
-	//			},
-	//			defaultBranch: "main",
-	//			revisions: map[string]string{
-	//				"main":     ghServerRepo.GetBranchSHA(t, ctx, "main"),
-	//				"feature2": serverRepoFeature2SHA,
-	//			},
-	//		},
-	//	})
-	//}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(100 * time.Millisecond))
-	//
-	//// Create a new commit on the common repository
-	//commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(t, ctx, "feature1")
-	//
-	//// Validate changes have been reconciled
-	//For(t).Expect(func(t JustT) {
-	//	validateRepositoryExpectations(t, ctx, k, ns, repositoryExpectations{
-	//		kCommonRepoName: {
-	//			conditions: map[string]*metav1.Condition{
-	//				apiv1.FailedToInitialize: nil,
-	//				apiv1.Finalizing:         nil,
-	//				apiv1.Invalid:            nil,
-	//				apiv1.Stale:              nil,
-	//				apiv1.Unauthenticated:    nil,
-	//			},
-	//			defaultBranch: "main",
-	//			revisions: map[string]string{
-	//				"main":     ghCommonRepo.GetBranchSHA(t, ctx, "main"),
-	//				"feature1": commonRepoFeature1CommitSHA,
-	//			},
-	//		},
-	//		kServerRepoName: {
-	//			conditions: map[string]*metav1.Condition{
-	//				apiv1.FailedToInitialize: nil,
-	//				apiv1.Finalizing:         nil,
-	//				apiv1.Invalid:            nil,
-	//				apiv1.Stale:              nil,
-	//				apiv1.Unauthenticated:    nil,
-	//			},
-	//			defaultBranch: "main",
-	//			revisions: map[string]string{
-	//				"main":     ghServerRepo.GetBranchSHA(t, ctx, "main"),
-	//				"feature2": serverRepoFeature2SHA,
-	//			},
-	//		},
-	//	})
-	//}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(100 * time.Millisecond))
+	}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(1 * time.Second)).OrFail()
+
+	// Create new branches
+	commonRepoFeature1SHA := ghCommonRepo.CreateBranch(t, "feature1")
+	serverRepoFeature2SHA := ghServerRepo.CreateBranch(t, "feature2")
+
+	// Validate changes have been reconciled
+	For(t).Expect(func(t TT) {
+		repositoryExpectations := []RepositoryE{
+			{
+				Name: kCommonRepoName,
+				Status: RepositoryStatusE{
+					Conditions: map[string]*ConditionE{
+						apiv1.FailedToInitialize: nil,
+						apiv1.Finalizing:         nil,
+						apiv1.Invalid:            nil,
+						apiv1.Stale:              nil,
+						apiv1.Unauthenticated:    nil,
+					},
+					DefaultBranch: "main",
+					Revisions: map[string]string{
+						"main":     ghCommonRepo.GetBranchSHA(t, "main"),
+						"feature1": commonRepoFeature1SHA,
+					},
+				},
+			},
+			{
+				Name: kServerRepoName,
+				Status: RepositoryStatusE{
+					Conditions: map[string]*ConditionE{
+						apiv1.FailedToInitialize: nil,
+						apiv1.Finalizing:         nil,
+						apiv1.Invalid:            nil,
+						apiv1.Stale:              nil,
+						apiv1.Unauthenticated:    nil,
+					},
+					DefaultBranch: "main",
+					Revisions: map[string]string{
+						"main":     ghServerRepo.GetBranchSHA(t, "main"),
+						"feature2": serverRepoFeature2SHA,
+					},
+				},
+			},
+		}
+		reposList := &apiv1.RepositoryList{}
+		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
+
+	}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(1 * time.Second)).OrFail()
+
+	// Create a new commit on the common repository
+	commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(t, "feature1")
+
+	// Validate changes have been reconciled
+	For(t).Expect(func(t TT) {
+		repositoryExpectations := []RepositoryE{
+			{
+				Name: kCommonRepoName,
+				Status: RepositoryStatusE{
+					Conditions: map[string]*ConditionE{
+						apiv1.FailedToInitialize: nil,
+						apiv1.Finalizing:         nil,
+						apiv1.Invalid:            nil,
+						apiv1.Stale:              nil,
+						apiv1.Unauthenticated:    nil,
+					},
+					DefaultBranch: "main",
+					Revisions: map[string]string{
+						"main":     ghCommonRepo.GetBranchSHA(t, "main"),
+						"feature1": commonRepoFeature1CommitSHA,
+					},
+				},
+			},
+			{
+				Name: kServerRepoName,
+				Status: RepositoryStatusE{
+					Conditions: map[string]*ConditionE{
+						apiv1.FailedToInitialize: nil,
+						apiv1.Finalizing:         nil,
+						apiv1.Invalid:            nil,
+						apiv1.Stale:              nil,
+						apiv1.Unauthenticated:    nil,
+					},
+					DefaultBranch: "main",
+					Revisions: map[string]string{
+						"main":     ghServerRepo.GetBranchSHA(t, "main"),
+						"feature2": ghServerRepo.GetBranchSHA(t, "feature2"),
+					},
+				},
+			},
+		}
+		reposList := &apiv1.RepositoryList{}
+		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
+
+	}).Will(Eventually(Succeed()).Within(30 * time.Minute).ProbingEvery(1 * time.Second)).OrFail()
 }
