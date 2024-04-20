@@ -32,5 +32,5 @@ test:
 	cd backend && go test ./...
 
 .PHONY: skaffold-dev
-dev: generate ensure-local-cluster
+dev: ensure-local-cluster
 	skaffold dev
