@@ -180,7 +180,7 @@ func ConditionComparator(t TT, e, a any) any {
 		For(t).Expect(actual.Reason).Will(Say(expected.Reason)).OrFail()
 	}
 	if expected.Message != nil {
-		For(t).Expect(actual.Message).Will(Say(expected.Message)).Because("Condition message does not match '%s': %s", expected.Message.String(), actual.Message).OrFail()
+		For(t).Expect(actual.Message).Will(Say(expected.Message)).OrFail()
 	}
 	return actual
 }
