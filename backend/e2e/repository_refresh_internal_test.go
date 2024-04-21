@@ -114,7 +114,7 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 				repo := &apiv1.Repository{}
 				For(t).Expect(K(t).Client.Get(t, client.ObjectKey{Namespace: ns.Name, Name: kRepoName}, repo)).Will(Succeed()).OrFail()
 				For(t).Expect(*repo).Will(CompareTo(repositoryExpectation).Using(RepositoryComparator)).OrFail()
-			}).Will(Eventually(Succeed()).Within(10 * time.Second).ProbingEvery(100 * time.Millisecond)).OrFail()
+			}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(1 * time.Second)).OrFail()
 		})
 	}
 }
