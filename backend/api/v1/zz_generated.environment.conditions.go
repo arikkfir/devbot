@@ -13,167 +13,6 @@ func (s *EnvironmentStatus) GetCondition(conditionType string) *v1.Condition {
 	return GetCondition(s.Conditions, conditionType)
 }
 
-func (s *EnvironmentStatus) SetInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotAccessible {
-		s.PrivateArea[Valid] = "No: " + ControllerNotAccessible
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerNotAccessible, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotAccessible {
-		s.PrivateArea[Valid] = "No: " + ControllerNotAccessible
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerNotAccessible, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotFound {
-		s.PrivateArea[Valid] = "No: " + ControllerNotFound
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerNotFound, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotFound {
-		s.PrivateArea[Valid] = "No: " + ControllerNotFound
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerNotFound, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerReferenceMissing {
-		s.PrivateArea[Valid] = "No: " + ControllerReferenceMissing
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerReferenceMissing, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerReferenceMissing {
-		s.PrivateArea[Valid] = "No: " + ControllerReferenceMissing
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerReferenceMissing, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetInvalidDueToInternalError(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+InternalError {
-		s.PrivateArea[Valid] = "No: " + InternalError
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, InternalError, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+InternalError {
-		s.PrivateArea[Valid] = "No: " + InternalError
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, InternalError, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
-	changed := false
-	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, reasons...) || changed
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if s.IsValid() {
-		if v, ok := s.PrivateArea[Valid]; !ok || v != "Yes" {
-			s.PrivateArea[Valid] = "Yes"
-			changed = true
-		}
-	} else {
-		if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+s.GetInvalidReason() {
-			s.PrivateArea[Valid] = "No: " + s.GetInvalidReason()
-			changed = true
-		}
-	}
-	return changed
-}
-
-func (s *EnvironmentStatus) SetValid() bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Valid]; !ok || v != "Yes" {
-		s.PrivateArea[Valid] = "Yes"
-		changed = true
-	}
-	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, ControllerNotAccessible, ControllerNotFound, ControllerReferenceMissing, InternalError, "NonExistent") || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) IsValid() bool {
-	return !HasCondition(s.Conditions, Invalid) || IsConditionStatusOneOf(s.Conditions, Invalid, v1.ConditionFalse)
-}
-
-func (s *EnvironmentStatus) IsInvalid() bool {
-	return IsConditionStatusOneOf(s.Conditions, Invalid, v1.ConditionTrue, v1.ConditionUnknown)
-}
-
-func (s *EnvironmentStatus) GetInvalidCondition() *v1.Condition {
-	return GetCondition(s.Conditions, Invalid)
-}
-
-func (s *EnvironmentStatus) GetInvalidReason() string {
-	return GetConditionReason(s.Conditions, Invalid)
-}
-
-func (s *EnvironmentStatus) GetInvalidStatus() *v1.ConditionStatus {
-	return GetConditionStatus(s.Conditions, Invalid)
-}
-
-func (s *EnvironmentStatus) GetInvalidMessage() string {
-	return GetConditionMessage(s.Conditions, Invalid)
-}
-
 func (s *EnvironmentStatus) SetFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
 	changed := false
 	if s.PrivateArea == nil {
@@ -390,6 +229,167 @@ func (s *EnvironmentStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
 
 func (s *EnvironmentStatus) GetFailedToInitializeMessage() string {
 	return GetConditionMessage(s.Conditions, FailedToInitialize)
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotAccessible {
+		s.PrivateArea[Valid] = "No: " + ControllerNotAccessible
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerNotAccessible, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotAccessible {
+		s.PrivateArea[Valid] = "No: " + ControllerNotAccessible
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerNotAccessible, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotFound {
+		s.PrivateArea[Valid] = "No: " + ControllerNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerNotFound {
+		s.PrivateArea[Valid] = "No: " + ControllerNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerReferenceMissing {
+		s.PrivateArea[Valid] = "No: " + ControllerReferenceMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, ControllerReferenceMissing, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetMaybeInvalidDueToControllerReferenceMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+ControllerReferenceMissing {
+		s.PrivateArea[Valid] = "No: " + ControllerReferenceMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, ControllerReferenceMissing, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetInvalidDueToInternalError(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Valid] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, InternalError, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetMaybeInvalidDueToInternalError(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Valid] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, InternalError, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
+	changed := false
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, reasons...) || changed
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if s.IsValid() {
+		if v, ok := s.PrivateArea[Valid]; !ok || v != "Yes" {
+			s.PrivateArea[Valid] = "Yes"
+			changed = true
+		}
+	} else {
+		if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+s.GetInvalidReason() {
+			s.PrivateArea[Valid] = "No: " + s.GetInvalidReason()
+			changed = true
+		}
+	}
+	return changed
+}
+
+func (s *EnvironmentStatus) SetValid() bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "Yes" {
+		s.PrivateArea[Valid] = "Yes"
+		changed = true
+	}
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, ControllerNotAccessible, ControllerNotFound, ControllerReferenceMissing, InternalError, "NonExistent") || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) IsValid() bool {
+	return !HasCondition(s.Conditions, Invalid) || IsConditionStatusOneOf(s.Conditions, Invalid, v1.ConditionFalse)
+}
+
+func (s *EnvironmentStatus) IsInvalid() bool {
+	return IsConditionStatusOneOf(s.Conditions, Invalid, v1.ConditionTrue, v1.ConditionUnknown)
+}
+
+func (s *EnvironmentStatus) GetInvalidCondition() *v1.Condition {
+	return GetCondition(s.Conditions, Invalid)
+}
+
+func (s *EnvironmentStatus) GetInvalidReason() string {
+	return GetConditionReason(s.Conditions, Invalid)
+}
+
+func (s *EnvironmentStatus) GetInvalidStatus() *v1.ConditionStatus {
+	return GetConditionStatus(s.Conditions, Invalid)
+}
+
+func (s *EnvironmentStatus) GetInvalidMessage() string {
+	return GetConditionMessage(s.Conditions, Invalid)
 }
 
 func (s *EnvironmentStatus) SetStaleDueToDeploymentsAreStale(message string, args ...interface{}) bool {

@@ -13,141 +13,6 @@ func (s *ApplicationStatus) GetCondition(conditionType string) *v1.Condition {
 	return GetCondition(s.Conditions, conditionType)
 }
 
-func (s *ApplicationStatus) SetFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizationFailed {
-		s.PrivateArea[Finalized] = "No: " + FinalizationFailed
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, FinalizationFailed, message, args...) || changed
-	return changed
-}
-
-func (s *ApplicationStatus) SetMaybeFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizationFailed {
-		s.PrivateArea[Finalized] = "No: " + FinalizationFailed
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, FinalizationFailed, message, args...) || changed
-	return changed
-}
-
-func (s *ApplicationStatus) SetFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizerRemovalFailed {
-		s.PrivateArea[Finalized] = "No: " + FinalizerRemovalFailed
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, FinalizerRemovalFailed, message, args...) || changed
-	return changed
-}
-
-func (s *ApplicationStatus) SetMaybeFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizerRemovalFailed {
-		s.PrivateArea[Finalized] = "No: " + FinalizerRemovalFailed
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, FinalizerRemovalFailed, message, args...) || changed
-	return changed
-}
-
-func (s *ApplicationStatus) SetFinalizingDueToInProgress(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+InProgress {
-		s.PrivateArea[Finalized] = "No: " + InProgress
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, InProgress, message, args...) || changed
-	return changed
-}
-
-func (s *ApplicationStatus) SetMaybeFinalizingDueToInProgress(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+InProgress {
-		s.PrivateArea[Finalized] = "No: " + InProgress
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, InProgress, message, args...) || changed
-	return changed
-}
-
-func (s *ApplicationStatus) SetFinalizedIfFinalizingDueToAnyOf(reasons ...string) bool {
-	changed := false
-	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Finalizing, reasons...) || changed
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if s.IsFinalized() {
-		if v, ok := s.PrivateArea[Finalized]; !ok || v != "Yes" {
-			s.PrivateArea[Finalized] = "Yes"
-			changed = true
-		}
-	} else {
-		if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+s.GetFinalizingReason() {
-			s.PrivateArea[Finalized] = "No: " + s.GetFinalizingReason()
-			changed = true
-		}
-	}
-	return changed
-}
-
-func (s *ApplicationStatus) SetFinalized() bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Finalized]; !ok || v != "Yes" {
-		s.PrivateArea[Finalized] = "Yes"
-		changed = true
-	}
-	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Finalizing, FinalizationFailed, FinalizerRemovalFailed, InProgress, "NonExistent") || changed
-	return changed
-}
-
-func (s *ApplicationStatus) IsFinalized() bool {
-	return !HasCondition(s.Conditions, Finalizing) || IsConditionStatusOneOf(s.Conditions, Finalizing, v1.ConditionFalse)
-}
-
-func (s *ApplicationStatus) IsFinalizing() bool {
-	return IsConditionStatusOneOf(s.Conditions, Finalizing, v1.ConditionTrue, v1.ConditionUnknown)
-}
-
-func (s *ApplicationStatus) GetFinalizingCondition() *v1.Condition {
-	return GetCondition(s.Conditions, Finalizing)
-}
-
-func (s *ApplicationStatus) GetFinalizingReason() string {
-	return GetConditionReason(s.Conditions, Finalizing)
-}
-
-func (s *ApplicationStatus) GetFinalizingStatus() *v1.ConditionStatus {
-	return GetConditionStatus(s.Conditions, Finalizing)
-}
-
-func (s *ApplicationStatus) GetFinalizingMessage() string {
-	return GetConditionMessage(s.Conditions, Finalizing)
-}
-
 func (s *ApplicationStatus) SetFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
 	changed := false
 	if s.PrivateArea == nil {
@@ -416,6 +281,141 @@ func (s *ApplicationStatus) GetInvalidStatus() *v1.ConditionStatus {
 
 func (s *ApplicationStatus) GetInvalidMessage() string {
 	return GetConditionMessage(s.Conditions, Invalid)
+}
+
+func (s *ApplicationStatus) SetFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizationFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizationFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, FinalizationFailed, message, args...) || changed
+	return changed
+}
+
+func (s *ApplicationStatus) SetMaybeFinalizingDueToFinalizationFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizationFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizationFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, FinalizationFailed, message, args...) || changed
+	return changed
+}
+
+func (s *ApplicationStatus) SetFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizerRemovalFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizerRemovalFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, FinalizerRemovalFailed, message, args...) || changed
+	return changed
+}
+
+func (s *ApplicationStatus) SetMaybeFinalizingDueToFinalizerRemovalFailed(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+FinalizerRemovalFailed {
+		s.PrivateArea[Finalized] = "No: " + FinalizerRemovalFailed
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, FinalizerRemovalFailed, message, args...) || changed
+	return changed
+}
+
+func (s *ApplicationStatus) SetFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+InProgress {
+		s.PrivateArea[Finalized] = "No: " + InProgress
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionTrue, InProgress, message, args...) || changed
+	return changed
+}
+
+func (s *ApplicationStatus) SetMaybeFinalizingDueToInProgress(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+InProgress {
+		s.PrivateArea[Finalized] = "No: " + InProgress
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Finalizing, v1.ConditionUnknown, InProgress, message, args...) || changed
+	return changed
+}
+
+func (s *ApplicationStatus) SetFinalizedIfFinalizingDueToAnyOf(reasons ...string) bool {
+	changed := false
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Finalizing, reasons...) || changed
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if s.IsFinalized() {
+		if v, ok := s.PrivateArea[Finalized]; !ok || v != "Yes" {
+			s.PrivateArea[Finalized] = "Yes"
+			changed = true
+		}
+	} else {
+		if v, ok := s.PrivateArea[Finalized]; !ok || v != "No: "+s.GetFinalizingReason() {
+			s.PrivateArea[Finalized] = "No: " + s.GetFinalizingReason()
+			changed = true
+		}
+	}
+	return changed
+}
+
+func (s *ApplicationStatus) SetFinalized() bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Finalized]; !ok || v != "Yes" {
+		s.PrivateArea[Finalized] = "Yes"
+		changed = true
+	}
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Finalizing, FinalizationFailed, FinalizerRemovalFailed, InProgress, "NonExistent") || changed
+	return changed
+}
+
+func (s *ApplicationStatus) IsFinalized() bool {
+	return !HasCondition(s.Conditions, Finalizing) || IsConditionStatusOneOf(s.Conditions, Finalizing, v1.ConditionFalse)
+}
+
+func (s *ApplicationStatus) IsFinalizing() bool {
+	return IsConditionStatusOneOf(s.Conditions, Finalizing, v1.ConditionTrue, v1.ConditionUnknown)
+}
+
+func (s *ApplicationStatus) GetFinalizingCondition() *v1.Condition {
+	return GetCondition(s.Conditions, Finalizing)
+}
+
+func (s *ApplicationStatus) GetFinalizingReason() string {
+	return GetConditionReason(s.Conditions, Finalizing)
+}
+
+func (s *ApplicationStatus) GetFinalizingStatus() *v1.ConditionStatus {
+	return GetConditionStatus(s.Conditions, Finalizing)
+}
+
+func (s *ApplicationStatus) GetFinalizingMessage() string {
+	return GetConditionMessage(s.Conditions, Finalizing)
 }
 
 func (s *ApplicationStatus) SetStaleDueToEnvironmentsAreStale(message string, args ...interface{}) bool {
