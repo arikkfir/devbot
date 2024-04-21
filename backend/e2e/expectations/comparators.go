@@ -169,6 +169,8 @@ func ConditionComparator(t TT, e, a any) any {
 		t.Fatalf("Expected condition '%s' to exist, but it does not", expected.Type)
 	} else if actual != nil && expected == nil {
 		t.Fatalf("Expected condition '%s' not to exist, but it does", actual.Type)
+	} else if actual.Type != expected.Type {
+		t.Fatalf("Expected condition '%s', but got '%s'", expected.Type, actual.Type)
 	}
 
 	if expected.Status != nil {
