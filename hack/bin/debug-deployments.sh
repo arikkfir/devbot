@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 NS="$(k get ns -oname | grep -v kube | grep -v devbot | grep -v local-path-storage | grep -v default | cut -d/ -f2)"
-[[ -z "${NS}" ]] && echo "No namespace to debug found" >&2 && exit 1
+[[ -z "${NS}" ]] && echo "No namespace to debug found" >&2 && exit 0
+[[ ${NS} -gt 1 ]] && printf "Too many namespaces found:\n%s\n" "${NS}" >&2 && exit 0
 
 set -euo pipefail
 
