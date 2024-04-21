@@ -17,12 +17,14 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 	t.Parallel()
 
 	testCases := map[string]struct {
+		defaultBranch   string
 		refreshInterval string
 		invalid         *ConditionE
 		unauthenticated *ConditionE
 		stale           *ConditionE
 	}{
 		"Empty": {
+			defaultBranch:   "",
 			refreshInterval: "",
 			invalid: &ConditionE{
 				Type:    apiv1.Invalid,
@@ -97,6 +99,10 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 
 			ns := K(t).CreateNamespace(t)
 			kRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{RefreshInterval: tc.refreshInterval})
+			defaultBranch := tc.defaultBranch
+			if defaultBranch == "" {
+				defaultBranch = "main"
+			}
 			For(t).Expect(func(t TT) {
 				repositoryExpectation := RepositoryE{
 					Name: kRepoName,
@@ -108,7 +114,7 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 							apiv1.Stale:              tc.stale,
 							apiv1.Unauthenticated:    tc.unauthenticated,
 						},
-						DefaultBranch: "main",
+						DefaultBranch: tc.defaultBranch,
 					},
 				}
 				repo := &apiv1.Repository{}
