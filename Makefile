@@ -31,6 +31,10 @@ ensure-local-cluster:
 test:
 	cd backend && go test ./...
 
+.PHONY: tidy
+tidy:
+	cd backend && go mod tidy
+
 .PHONY: skaffold-dev
 dev: ensure-local-cluster
 	skaffold dev
