@@ -22,7 +22,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 			Name:                ghCommonRepo.Name,
 			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(e2e.Ctx, t, e2e.GH.Token, true),
 		},
-		RefreshInterval: "10s",
+		RefreshInterval: "5s",
 	})
 
 	ghServerRepo := e2e.GH.CreateRepository(e2e.Ctx, t, repositoriesFS, "repositories/server")
@@ -32,7 +32,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 			Name:                ghServerRepo.Name,
 			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(e2e.Ctx, t, e2e.GH.Token, true),
 		},
-		RefreshInterval: "2s",
+		RefreshInterval: "5s",
 	})
 
 	// Validate initial reconciliation
@@ -70,7 +70,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 		reposList := &apiv1.RepositoryList{}
 		With(t).Verify(K(e2e.Ctx, t).Client.List(e2e.Ctx, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
 		With(t).Verify(reposList.Items).Will(EqualTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
-	}).Will(Succeed()).Within(10*time.Second, 1*time.Second)
+	}).Will(Succeed()).Within(10*time.Second, 100*time.Millisecond)
 
 	// Create new branches
 	commonRepoFeature1SHA := ghCommonRepo.CreateBranch(e2e.Ctx, t, "feature1")
@@ -118,7 +118,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 		With(t).Verify(e2e.K.Client.List(e2e.Ctx, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
 		With(t).Verify(reposList.Items).Will(EqualTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
 
-	}).Will(Succeed()).Within(10*time.Second, 1*time.Second)
+	}).Will(Succeed()).Within(10*time.Second, 100*time.Millisecond)
 
 	// Create a new commit on the common repository
 	commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(e2e.Ctx, t, "feature1")
@@ -165,5 +165,5 @@ func TestRepositoryReconciliation(t *testing.T) {
 		With(t).Verify(e2e.K.Client.List(e2e.Ctx, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
 		With(t).Verify(reposList.Items).Will(EqualTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
 
-	}).Will(Succeed()).Within(10*time.Minute, 1*time.Second)
+	}).Will(Succeed()).Within(10*time.Second, 100*time.Millisecond)
 }
