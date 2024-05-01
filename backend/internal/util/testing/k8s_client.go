@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
@@ -23,7 +24,6 @@ import (
 const (
 	DevbotNamespace                              = "devbot"
 	DevbotRepositoryControllerServiceAccountName = "devbot-repository-controller"
-	kClientKey                                   = "___Kubernetes"
 )
 
 var (
@@ -35,74 +35,69 @@ type KClient struct {
 	Client client.Client
 }
 
-func K(t T) *KClient {
-	if v := For(t).Value(kClientKey); v == nil {
-		userHomeDir, err := os.UserHomeDir()
-		For(t).Expect(err).Will(BeNil()).OrFail()
+func K(ctx context.Context, t T) *KClient {
+	userHomeDir, err := os.UserHomeDir()
+	With(t).Verify(err).Will(BeNil()).OrFail()
 
-		kubeConfigPath := filepath.Join(userHomeDir, ".kube", "config")
-		kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
-		For(t).Expect(err).Will(BeNil()).OrFail()
+	kubeConfigPath := filepath.Join(userHomeDir, ".kube", "config")
+	kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	With(t).Verify(err).Will(BeNil()).OrFail()
 
-		scheme := runtime.NewScheme()
-		utilruntime.Must(apiv1.AddToScheme(scheme))
-		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
+	scheme := runtime.NewScheme()
+	utilruntime.Must(apiv1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	mgr, err := ctrl.NewManager(kubeConfig, ctrl.Options{
+		Scheme: scheme,
+		Client: client.Options{
 			Scheme: scheme,
-			Client: client.Options{
-				Scheme: scheme,
-				Cache: &client.CacheOptions{
-					DisableFor: nil,
-				},
+			Cache: &client.CacheOptions{
+				DisableFor: nil,
 			},
-			LeaderElection:         false,
-			Metrics:                metricsserver.Options{BindAddress: "0"},
-			HealthProbeBindAddress: "0",
-			PprofBindAddress:       "0",
-		})
-		For(t).Expect(err).Will(BeNil()).OrFail()
-		For(t).Expect(k8s.AddOwnershipIndex(For(t).Context(), mgr.GetFieldIndexer(), &apiv1.Environment{})).Will(Succeed()).OrFail()
-		For(t).Expect(k8s.AddOwnershipIndex(For(t).Context(), mgr.GetFieldIndexer(), &apiv1.Deployment{})).Will(Succeed()).OrFail()
+		},
+		LeaderElection:         false,
+		Metrics:                metricsserver.Options{BindAddress: "0"},
+		HealthProbeBindAddress: "0",
+		PprofBindAddress:       "0",
+	})
+	With(t).Verify(err).Will(BeNil()).OrFail()
+	With(t).Verify(k8s.AddOwnershipIndex(ctx, mgr.GetFieldIndexer(), &apiv1.Environment{})).Will(Succeed()).OrFail()
+	With(t).Verify(k8s.AddOwnershipIndex(ctx, mgr.GetFieldIndexer(), &apiv1.Deployment{})).Will(Succeed()).OrFail()
 
-		go func() {
-			if err := mgr.Start(For(t).Context()); err != nil {
-				t.Logf("Kubernetes manager failed: %+v", err)
-			}
-		}()
-		For(t).AddValue(kClientKey, &KClient{Client: mgr.GetClient()})
+	go func() {
+		if err := mgr.Start(ctx); err != nil {
+			t.Logf("Kubernetes manager failed: %+v", err)
+		}
+	}()
 
-		time.Sleep(3 * time.Second)
-		return K(t)
-	} else {
-		return v.(*KClient)
-	}
+	time.Sleep(3 * time.Second)
+	return &KClient{Client: mgr.GetClient()}
 }
 
-func (k *KClient) CreateNamespace(t T) *KNamespace {
+func (k *KClient) CreateNamespace(ctx context.Context, t T) *KNamespace {
 	devbotGitOpsName := "devbot-gitops"
 
 	r := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: strings.RandomHash(7)}}
-	For(t).Expect(k.Client.Create(For(t).Context(), r)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), r)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(ctx, r)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, r)).Will(Succeed()).OrFail() })
 
 	sa := &corev1.ServiceAccount{ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name}}
-	For(t).Expect(k.Client.Create(For(t).Context(), sa)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), sa)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(ctx, sa)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, sa)).Will(Succeed()).OrFail() })
 
 	role := &rbacv1.Role{
 		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
 		Rules:      []rbacv1.PolicyRule{{APIGroups: []string{"*"}, Resources: []string{"*"}, Verbs: []string{"*"}}},
 	}
-	For(t).Expect(k.Client.Create(For(t).Context(), role)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), role)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(ctx, role)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, role)).Will(Succeed()).OrFail() })
 
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
 		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "Role", Name: devbotGitOpsName},
 		Subjects:   []rbacv1.Subject{{Kind: rbacv1.ServiceAccountKind, Name: devbotGitOpsName}},
 	}
-	For(t).Expect(k.Client.Create(For(t).Context(), rb)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(k.Client.Delete(For(t).Context(), rb)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(ctx, rb)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, rb)).Will(Succeed()).OrFail() })
 
 	return &KNamespace{Name: r.Name, k: k}
 }

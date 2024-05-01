@@ -12,31 +12,31 @@ import (
 
 func TestRepositoryReconciliation(t *testing.T) {
 	t.Parallel()
+	e2e := NewE2E(t)
+	ns := e2e.K.CreateNamespace(e2e.Ctx, t)
 
-	ns := K(t).CreateNamespace(t)
-
-	ghCommonRepo := GH(t).CreateRepository(t, repositoriesFS, "repositories/common")
-	kCommonRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{
+	ghCommonRepo := e2e.GH.CreateRepository(e2e.Ctx, t, repositoriesFS, "repositories/common")
+	kCommonRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{
 		GitHub: &apiv1.GitHubRepositorySpec{
 			Owner:               ghCommonRepo.Owner,
 			Name:                ghCommonRepo.Name,
-			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(t, GH(t).Token, true),
+			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(e2e.Ctx, t, e2e.GH.Token, true),
 		},
 		RefreshInterval: "10s",
 	})
 
-	ghServerRepo := GH(t).CreateRepository(t, repositoriesFS, "repositories/server")
-	kServerRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{
+	ghServerRepo := e2e.GH.CreateRepository(e2e.Ctx, t, repositoriesFS, "repositories/server")
+	kServerRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{
 		GitHub: &apiv1.GitHubRepositorySpec{
 			Owner:               ghServerRepo.Owner,
 			Name:                ghServerRepo.Name,
-			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(t, GH(t).Token, true),
+			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(e2e.Ctx, t, e2e.GH.Token, true),
 		},
-		RefreshInterval: "10s",
+		RefreshInterval: "2s",
 	})
 
 	// Validate initial reconciliation
-	For(t).Expect(func(t TT) {
+	With(t).Verify(func(t T) {
 		repositoryExpectations := []RepositoryE{
 			{
 				Name: kCommonRepoName,
@@ -49,7 +49,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 						apiv1.Unauthenticated:    nil,
 					},
 					DefaultBranch: "main",
-					Revisions:     map[string]string{"main": ghCommonRepo.GetBranchSHA(t, "main")},
+					Revisions:     map[string]string{"main": ghCommonRepo.GetBranchSHA(e2e.Ctx, t, "main")},
 				},
 			},
 			{
@@ -63,22 +63,21 @@ func TestRepositoryReconciliation(t *testing.T) {
 						apiv1.Unauthenticated:    nil,
 					},
 					DefaultBranch: "main",
-					Revisions:     map[string]string{"main": ghServerRepo.GetBranchSHA(t, "main")},
+					Revisions:     map[string]string{"main": ghServerRepo.GetBranchSHA(e2e.Ctx, t, "main")},
 				},
 			},
 		}
 		reposList := &apiv1.RepositoryList{}
-		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
-		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
-
-	}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(1 * time.Second)).OrFail()
+		With(t).Verify(K(e2e.Ctx, t).Client.List(e2e.Ctx, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		With(t).Verify(reposList.Items).Will(EqualTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
+	}).Will(Succeed()).Within(10*time.Second, 1*time.Second)
 
 	// Create new branches
-	commonRepoFeature1SHA := ghCommonRepo.CreateBranch(t, "feature1")
-	serverRepoFeature2SHA := ghServerRepo.CreateBranch(t, "feature2")
+	commonRepoFeature1SHA := ghCommonRepo.CreateBranch(e2e.Ctx, t, "feature1")
+	serverRepoFeature2SHA := ghServerRepo.CreateBranch(e2e.Ctx, t, "feature2")
 
 	// Validate changes have been reconciled
-	For(t).Expect(func(t TT) {
+	With(t).Verify(func(t T) {
 		repositoryExpectations := []RepositoryE{
 			{
 				Name: kCommonRepoName,
@@ -92,7 +91,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghCommonRepo.GetBranchSHA(t, "main"),
+						"main":     ghCommonRepo.GetBranchSHA(e2e.Ctx, t, "main"),
 						"feature1": commonRepoFeature1SHA,
 					},
 				},
@@ -109,23 +108,23 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghServerRepo.GetBranchSHA(t, "main"),
+						"main":     ghServerRepo.GetBranchSHA(e2e.Ctx, t, "main"),
 						"feature2": serverRepoFeature2SHA,
 					},
 				},
 			},
 		}
 		reposList := &apiv1.RepositoryList{}
-		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
-		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
+		With(t).Verify(e2e.K.Client.List(e2e.Ctx, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		With(t).Verify(reposList.Items).Will(EqualTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
 
-	}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(1 * time.Second)).OrFail()
+	}).Will(Succeed()).Within(10*time.Second, 1*time.Second)
 
 	// Create a new commit on the common repository
-	commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(t, "feature1")
+	commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(e2e.Ctx, t, "feature1")
 
 	// Validate changes have been reconciled
-	For(t).Expect(func(t TT) {
+	With(t).Verify(func(t T) {
 		repositoryExpectations := []RepositoryE{
 			{
 				Name: kCommonRepoName,
@@ -139,7 +138,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghCommonRepo.GetBranchSHA(t, "main"),
+						"main":     ghCommonRepo.GetBranchSHA(e2e.Ctx, t, "main"),
 						"feature1": commonRepoFeature1CommitSHA,
 					},
 				},
@@ -156,15 +155,15 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghServerRepo.GetBranchSHA(t, "main"),
-						"feature2": ghServerRepo.GetBranchSHA(t, "feature2"),
+						"main":     ghServerRepo.GetBranchSHA(e2e.Ctx, t, "main"),
+						"feature2": ghServerRepo.GetBranchSHA(e2e.Ctx, t, "feature2"),
 					},
 				},
 			},
 		}
 		reposList := &apiv1.RepositoryList{}
-		For(t).Expect(K(t).Client.List(t, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
-		For(t).Expect(reposList.Items).Will(CompareTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
+		With(t).Verify(e2e.K.Client.List(e2e.Ctx, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		With(t).Verify(reposList.Items).Will(EqualTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
 
-	}).Will(Eventually(Succeed()).Within(30 * time.Minute).ProbingEvery(1 * time.Second)).OrFail()
+	}).Will(Succeed()).Within(10*time.Minute, 1*time.Second)
 }

@@ -24,7 +24,7 @@ func init() {
 }
 
 //go:noinline
-func verifyNotInterrupted(t T) {
+func VerifyNotInterrupted(t T) {
 	GetHelper(t).Helper()
 	if interruptionSignal != nil {
 		t.Fatalf("Process has been canceled via signal %s", interruptionSignal)

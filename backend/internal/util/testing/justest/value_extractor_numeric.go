@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	numericValueExtractor = NewNumericValueExtractor()
+	NumericValueExtractor = NewNumericValueExtractor()
 )
 
 //go:noinline
@@ -34,7 +34,7 @@ func NewNumericValueExtractor() ValueExtractor {
 // for the numeric type provided.
 //
 //go:noinline
-func getNumericCompareFuncFor(t TT, v any) reflect.Value {
+func getNumericCompareFuncFor(t T, v any) reflect.Value {
 	GetHelper(t).Helper()
 	switch v.(type) {
 	case int:

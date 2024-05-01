@@ -2,6 +2,7 @@ package testing
 
 import (
 	"bytes"
+	"context"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
 	"github.com/google/go-github/v56/github"
@@ -10,11 +11,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-)
-
-const (
-	TenSecs        = 10 * time.Second
-	HundredsMillis = 100 * time.Millisecond
 )
 
 var (
@@ -28,7 +24,7 @@ type GitHubRepositoryInfo struct {
 	gh            *GClient
 }
 
-func (r *GitHubRepositoryInfo) SetupWebhook(t T) {
+func (r *GitHubRepositoryInfo) SetupWebhook(ctx context.Context, t T) {
 	if r.WebhookSecret != "" {
 		return
 	}
@@ -40,13 +36,13 @@ func (r *GitHubRepositoryInfo) SetupWebhook(t T) {
 	smeeCommand = exec.Command("smee", "--port", "8080", "--path", "/github/webhook")
 	smeeCommand.Stdout = &smeeOutput
 	smeeCommand.Stderr = os.Stderr
-	For(t).Expect(smeeCommand.Start()).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(smeeCommand.Process.Signal(os.Interrupt)).Will(Succeed()) })
+	With(t).Verify(smeeCommand.Start()).Will(Succeed()) // TODO: not evaluated, ensure this fails tests
+	t.Cleanup(func() { With(t).Verify(smeeCommand.Process.Signal(os.Interrupt)).Will(Succeed()) })
 
-	For(t).Expect(smeeCommand.Stdout).Will(Eventually(Say(smeeTunnelRE)).Within(TenSecs).ProbingEvery(HundredsMillis))
+	With(t).Verify(smeeCommand.Stdout).Will(Say(smeeTunnelRE)).Within(10*time.Second, 100*time.Millisecond)
 	webHookURL := strings.TrimSpace(smeeTunnelRE.FindStringSubmatch(smeeOutput.String())[1])
 
-	hook, _, err := r.gh.client.Repositories.CreateHook(For(t).Context(), r.Owner, r.Name, &github.Hook{
+	hook, _, err := r.gh.client.Repositories.CreateHook(ctx, r.Owner, r.Name, &github.Hook{
 		Name:   github.String("web"),
 		Active: github.Bool(true),
 		Events: []string{"push"},
@@ -57,59 +53,59 @@ func (r *GitHubRepositoryInfo) SetupWebhook(t T) {
 			"insecure_ssl": "0",
 		},
 	})
-	For(t).Expect(err).Will(BeNil())
+	With(t).Verify(err).Will(BeNil()) // TODO: not evaluated, ensure this fails tests
 	t.Cleanup(func() {
-		For(t).Expect(r.gh.client.Repositories.DeleteHook(For(t).Context(), r.Owner, r.Name, hook.GetID())).Will(Succeed())
+		With(t).Verify(r.gh.client.Repositories.DeleteHook(ctx, r.Owner, r.Name, hook.GetID())).Will(Succeed()) // TODO: not evaluated, ensure this fails tests
 	})
 
 	r.WebhookSecret = webhookSecret
 }
 
-func (r *GitHubRepositoryInfo) CreateBranch(t T, branch string) string {
-	mainRef, _, err := r.gh.client.Git.GetRef(For(t).Context(), r.Owner, r.Name, "heads/main")
-	For(t).Expect(err).Will(BeNil()).OrFail()
-	For(t).Expect(mainRef).Will(Not(BeNil())).OrFail()
-	For(t).Expect(r.gh.client.Git.CreateRef(For(t).Context(), r.Owner, r.Name, &github.Reference{
+func (r *GitHubRepositoryInfo) CreateBranch(ctx context.Context, t T, branch string) string {
+	mainRef, _, err := r.gh.client.Git.GetRef(ctx, r.Owner, r.Name, "heads/main")
+	With(t).Verify(err).Will(BeNil()).OrFail()
+	With(t).Verify(mainRef).Will(Not(BeNil())).OrFail()
+	With(t).Verify(r.gh.client.Git.CreateRef(ctx, r.Owner, r.Name, &github.Reference{
 		Ref:    github.String("refs/heads/" + branch),
 		Object: mainRef.Object,
 	})).Will(Succeed()).OrFail()
-	return r.GetBranchSHA(t, branch)
+	return r.GetBranchSHA(ctx, t, branch)
 }
 
-func (r *GitHubRepositoryInfo) GetBranchSHA(t T, branch string) string {
+func (r *GitHubRepositoryInfo) GetBranchSHA(ctx context.Context, t T, branch string) string {
 	var sha string
-	For(t).Expect(func(t TT) {
-		branchRef, _, err := r.gh.client.Git.GetRef(t, r.Owner, r.Name, "heads/"+branch)
-		For(t).Expect(err).Will(BeNil()).OrFail()
-		For(t).Expect(branchRef).Will(Not(BeNil())).OrFail()
+	With(t).Verify(func(t T) {
+		branchRef, _, err := r.gh.client.Git.GetRef(ctx, r.Owner, r.Name, "heads/"+branch)
+		With(t).Verify(err).Will(BeNil()).OrFail()
+		With(t).Verify(branchRef).Will(Not(BeNil())).OrFail()
 		sha = branchRef.GetObject().GetSHA()
-		For(t).Expect(sha).Will(Not(BeEmpty())).OrFail()
-	}).Will(Eventually(Succeed()).Within(5 * time.Second).ProbingEvery(time.Second)).OrFail()
+		With(t).Verify(sha).Will(Not(BeEmpty())).OrFail()
+	}).Will(Succeed()).Within(5*time.Second, 1*time.Second)
 
 	return sha
 }
 
-func (r *GitHubRepositoryInfo) CreateFile(t T, branch string) string {
+func (r *GitHubRepositoryInfo) CreateFile(ctx context.Context, t T, branch string) string {
 	var sha string
-	For(t).Expect(func(t TT) {
-		branchRef, _, err := r.gh.client.Repositories.GetBranch(t, r.Owner, r.Name, branch, 0)
-		For(t).Expect(err).Will(BeNil()).OrFail()
-		For(t).Expect(branchRef).Will(Not(BeNil())).OrFail()
+	With(t).Verify(func(t T) {
+		branchRef, _, err := r.gh.client.Repositories.GetBranch(ctx, r.Owner, r.Name, branch, 0)
+		With(t).Verify(err).Will(BeNil()).OrFail()
+		With(t).Verify(branchRef).Will(Not(BeNil())).OrFail()
 
 		file := stringsutil.RandomHash(7) + ".txt"
-		cr, _, err := r.gh.client.Repositories.CreateFile(t, r.Owner, r.Name, file, &github.RepositoryContentFileOptions{
+		cr, _, err := r.gh.client.Repositories.CreateFile(ctx, r.Owner, r.Name, file, &github.RepositoryContentFileOptions{
 			Message: github.String(stringsutil.RandomHash(32)),
 			Content: []byte(stringsutil.RandomHash(32)),
 			Branch:  &branch,
 		})
-		For(t).Expect(err).Will(BeNil()).OrFail()
+		With(t).Verify(err).Will(BeNil()).OrFail()
 
 		sha = cr.GetSHA()
-		For(t).Expect(sha).Will(Not(BeEmpty())).OrFail()
-	}).Will(Eventually(Succeed()).Within(10 * time.Second).ProbingEvery(time.Second)).OrFail()
+		With(t).Verify(sha).Will(Not(BeEmpty())).OrFail()
+	}).Will(Succeed()).Within(10*time.Second, 1*time.Second)
 	return sha
 }
 
-func (r *GitHubRepositoryInfo) DeleteBranch(t T, branch string) {
-	For(t).Expect(r.gh.client.Git.DeleteRef(For(t).Context(), r.Owner, r.Name, "heads/"+branch)).Will(Succeed())
+func (r *GitHubRepositoryInfo) DeleteBranch(ctx context.Context, t T, branch string) {
+	With(t).Verify(r.gh.client.Git.DeleteRef(ctx, r.Owner, r.Name, "heads/"+branch)).Will(Succeed())
 }

@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
@@ -14,8 +15,8 @@ type KNamespace struct {
 	k    *KClient
 }
 
-func (n *KNamespace) CreateGitHubAuthSecretSpec(t T, token string, restrictRole bool) *apiv1.GitHubRepositoryPersonalAccessToken {
-	ghAuthSecretName, ghAuthSecretKeyName := n.CreateGitHubAuthSecret(t, token, restrictRole)
+func (n *KNamespace) CreateGitHubAuthSecretSpec(ctx context.Context, t T, token string, restrictRole bool) *apiv1.GitHubRepositoryPersonalAccessToken {
+	ghAuthSecretName, ghAuthSecretKeyName := n.CreateGitHubAuthSecret(ctx, t, token, restrictRole)
 	return &apiv1.GitHubRepositoryPersonalAccessToken{
 		Secret: apiv1.SecretReferenceWithOptionalNamespace{
 			Name:      ghAuthSecretName,
@@ -25,7 +26,7 @@ func (n *KNamespace) CreateGitHubAuthSecretSpec(t T, token string, restrictRole 
 	}
 }
 
-func (n *KNamespace) CreateGitHubAuthSecret(t T, token string, restrictRole bool) (secretName, key string) {
+func (n *KNamespace) CreateGitHubAuthSecret(ctx context.Context, t T, token string, restrictRole bool) (secretName, key string) {
 	key = strings.RandomHash(7)
 	secretName = strings.RandomHash(7)
 
@@ -34,8 +35,8 @@ func (n *KNamespace) CreateGitHubAuthSecret(t T, token string, restrictRole bool
 		ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: secretName},
 		Data:       map[string][]byte{key: []byte(token)},
 	}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), secret)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), secret)).Will(Succeed()).OrFail() })
+	With(t).Verify(n.k.Client.Create(ctx, secret)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, secret)).Will(Succeed()).OrFail() })
 
 	// List of resource names to restrict the role to (if any)
 	var resourceNames []string
@@ -55,8 +56,8 @@ func (n *KNamespace) CreateGitHubAuthSecret(t T, token string, restrictRole bool
 			},
 		},
 	}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), clusterRole)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), clusterRole)).Will(Succeed()).OrFail() })
+	With(t).Verify(n.k.Client.Create(ctx, clusterRole)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, clusterRole)).Will(Succeed()).OrFail() })
 
 	// Bind the cluster role to the devbot controllers, thus allowing them access to the specific secret
 	roleBinding := &rbacv1.RoleBinding{
@@ -66,22 +67,22 @@ func (n *KNamespace) CreateGitHubAuthSecret(t T, token string, restrictRole bool
 			{Kind: k8sServiceAccountKind, Name: DevbotRepositoryControllerServiceAccountName, Namespace: DevbotNamespace},
 		},
 	}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), roleBinding)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), roleBinding)).Will(Succeed()).OrFail() })
+	With(t).Verify(n.k.Client.Create(ctx, roleBinding)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, roleBinding)).Will(Succeed()).OrFail() })
 	return
 }
 
-func (n *KNamespace) CreateRepository(t T, spec apiv1.RepositorySpec) string {
+func (n *KNamespace) CreateRepository(ctx context.Context, t T, spec apiv1.RepositorySpec) string {
 	repo := &apiv1.Repository{ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: strings.RandomHash(7)}, Spec: spec}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), repo)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), repo)).Will(Succeed()).OrFail() })
+	With(t).Verify(n.k.Client.Create(ctx, repo)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, repo)).Will(Succeed()).OrFail() })
 
 	return repo.Name
 }
 
-func (n *KNamespace) CreateApplication(t T, spec apiv1.ApplicationSpec) string {
+func (n *KNamespace) CreateApplication(ctx context.Context, t T, spec apiv1.ApplicationSpec) string {
 	app := &apiv1.Application{ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: strings.RandomHash(7)}, Spec: spec}
-	For(t).Expect(n.k.Client.Create(For(t).Context(), app)).Will(Succeed())
-	t.Cleanup(func() { For(t).Expect(n.k.Client.Delete(For(t).Context(), app)).Will(Succeed()) })
+	With(t).Verify(n.k.Client.Create(ctx, app)).Will(Succeed())
+	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, app)).Will(Succeed()) })
 	return app.Name
 }

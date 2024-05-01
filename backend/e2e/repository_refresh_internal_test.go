@@ -4,7 +4,6 @@ import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	. "github.com/arikkfir/devbot/backend/e2e/expectations"
 	"github.com/arikkfir/devbot/backend/internal/util/lang"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
 	. "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"regexp"
@@ -97,13 +96,15 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			ns := K(t).CreateNamespace(t)
-			kRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{RefreshInterval: tc.refreshInterval})
+			e2e := NewE2E(t)
+			ns := e2e.K.CreateNamespace(e2e.Ctx, t)
+
+			kRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{RefreshInterval: tc.refreshInterval})
 			defaultBranch := tc.defaultBranch
 			if defaultBranch == "" {
 				defaultBranch = "main"
 			}
-			For(t).Expect(func(t TT) {
+			With(t).Verify(func(t T) {
 				repositoryExpectation := RepositoryE{
 					Name: kRepoName,
 					Status: RepositoryStatusE{
@@ -118,9 +119,9 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 					},
 				}
 				repo := &apiv1.Repository{}
-				For(t).Expect(K(t).Client.Get(t, client.ObjectKey{Namespace: ns.Name, Name: kRepoName}, repo)).Will(Succeed()).OrFail()
-				For(t).Expect(*repo).Will(CompareTo(repositoryExpectation).Using(RepositoryComparator)).OrFail()
-			}).Will(Eventually(Succeed()).Within(30 * time.Second).ProbingEvery(1 * time.Second)).OrFail()
+				With(t).Verify(e2e.K.Client.Get(e2e.Ctx, client.ObjectKey{Namespace: ns.Name, Name: kRepoName}, repo)).Will(Succeed()).OrFail()
+				With(t).Verify(*repo).Will(EqualTo(repositoryExpectation).Using(RepositoryComparator)).OrFail()
+			}).Will(Succeed()).Within(30*time.Second, 1*time.Second)
 		})
 	}
 }

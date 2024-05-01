@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"context"
 	"embed"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
@@ -17,7 +18,6 @@ import (
 
 const (
 	GitHubOwner = "devbot-testing"
-	gClientKey  = "___github"
 )
 
 type GClient struct {
@@ -25,77 +25,72 @@ type GClient struct {
 	client *github.Client
 }
 
-func GH(t T) *GClient {
-	if v := For(t).Value(gClientKey); v == nil {
-		token := os.Getenv("GITHUB_TOKEN")
-		For(t).Expect(token).Will(Not(BeEmpty())).OrFail()
+func GH(ctx context.Context, t T) *GClient {
+	token := os.Getenv("GITHUB_TOKEN")
+	With(t).Verify(token).Will(Not(BeEmpty())).OrFail()
 
-		c := github.NewClient(nil).WithAuthToken(token)
+	c := github.NewClient(nil).WithAuthToken(token)
+	req, err := c.NewRequest("GET", "user", nil)
+	With(t).Verify(err).Will(BeNil()).OrFail()
 
-		req, err := c.NewRequest("GET", "user", nil)
-		For(t).Expect(err).Will(BeNil()).OrFail()
+	response, err := c.Do(ctx, req, nil)
+	With(t).Verify(err).Will(BeNil()).OrFail()
+	With(t).Verify(response.StatusCode).Will(EqualTo(http.StatusOK)).OrFail()
 
-		response, err := c.Do(For(t).Context(), req, nil)
-		For(t).Expect(err).Will(BeNil()).OrFail()
-		For(t).Expect(response.StatusCode).Will(BeEqualTo(http.StatusOK)).OrFail()
-		For(t).AddValue(gClientKey, &GClient{Token: token, client: c})
-		return GH(t)
-	} else {
-		return v.(*GClient)
-	}
+	return &GClient{Token: token, client: c}
 }
 
-func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitHubRepositoryInfo {
+func (gh *GClient) CreateRepository(ctx context.Context, t T, fs embed.FS, embeddedPath string) *GitHubRepositoryInfo {
 	// Create the repository
-	ghRepo, _, err := gh.client.Repositories.Create(For(t).Context(), GitHubOwner, &github.Repository{
+	ghRepo, _, err := gh.client.Repositories.Create(ctx, GitHubOwner, &github.Repository{
 		Name:          &[]string{stringsutil.Name()}[0],
 		DefaultBranch: github.String("main"),
 		Visibility:    &[]string{"public"}[0],
 	})
-	For(t).Expect(err).Will(BeNil()).OrFail()
+	With(t).Verify(err).Will(BeNil()).OrFail()
 
 	cloneURL := ghRepo.GetCloneURL()
 	repoOwner := ghRepo.Owner.GetLogin()
 	repoName := ghRepo.GetName()
 	t.Cleanup(func() {
-		For(t).Expect(gh.client.Repositories.Delete(For(t).Context(), repoOwner, repoName)).Will(Succeed()).OrFail()
+		With(t).Verify(gh.client.Repositories.Delete(ctx, repoOwner, repoName)).Will(Succeed()).OrFail()
 	})
 
 	// Create the repository contents locally
 	// Corresponds to: git init
 	path := filepath.Join(os.TempDir(), stringsutil.RandomHash(7))
 	localRepo, err := git.PlainInit(path, false)
-	For(t).Expect(err).Will(BeNil()).OrFail()
-	t.Cleanup(func() { For(t).Expect(os.RemoveAll(path)).Will(Succeed()).OrFail() })
+	With(t).Verify(err).Will(BeNil()).OrFail()
+	t.Cleanup(func() { With(t).Verify(os.RemoveAll(path)).Will(Succeed()).OrFail() })
 
 	// Populate the new local repository & commit the changes to HEAD
 	worktree, err := localRepo.Worktree()
-	For(t).Expect(err).Will(BeNil()).OrFail()
-	For(t).Expect(TraverseEmbeddedPath(fs, embeddedPath, func(p string, data []byte) error {
+	With(t).Verify(err).Will(BeNil()).OrFail()
+	With(t).Verify(TraverseEmbeddedPath(fs, embeddedPath, func(p string, data []byte) error {
 		p = strings.TrimPrefix(p, embeddedPath+"/")
 		f := filepath.Join(path, p)
 		dir := filepath.Dir(f)
-		For(t).Expect(os.MkdirAll(dir, 0755)).Will(Succeed()).OrFail()
-		For(t).Expect(os.WriteFile(f, data, 0644)).Will(Succeed()).OrFail()
-		For(t).Expect(worktree.Add(p)).Will(Succeed()).OrFail()
+		With(t).Verify(os.MkdirAll(dir, 0755)).Will(Succeed()).OrFail()
+		With(t).Verify(os.WriteFile(f, data, 0644)).Will(Succeed()).OrFail()
+		With(t).Verify(worktree.Add(p)).Will(Succeed()).OrFail()
 		return nil
 	})).Will(Succeed()).OrFail()
-	For(t).Expect(worktree.Commit("Initial commit", &git.CommitOptions{})).Will(Succeed()).OrFail()
+	With(t).Verify(worktree.Commit("Initial commit", &git.CommitOptions{})).Will(Succeed()).OrFail()
 
 	// Rename local HEAD to "main"
 	// Corresponds to:
 	// - git branch -m main
 	// - git remote add origin https://github.com/devbot-testing/REPOSITORY_NAME.git
 	headRef, err := localRepo.Head()
-	For(t).Expect(err).Will(BeNil()).OrFail()
+	With(t).Verify(err).Will(BeNil()).OrFail()
 
 	mainRef := plumbing.NewHashReference("refs/heads/main", headRef.Hash())
-	For(t).Expect(localRepo.Storer.SetReference(mainRef)).Will(Succeed()).OrFail()
-	For(t).Expect(localRepo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{cloneURL}})).Will(Succeed()).OrFail()
+	With(t).Verify(localRepo.Storer.SetReference(mainRef)).Will(Succeed()).OrFail()
+	With(t).Verify(localRepo.CreateRemote(&config.RemoteConfig{Name: "origin", URLs: []string{cloneURL}})).Will(Succeed()).OrFail()
 
 	// Push changes to the repository
 	// Corresponds to: git push -u origin main
-	For(t).Expect(localRepo.PushContext(For(t).Context(), &git.PushOptions{
+	With(t).Verify(localRepo.PushContext(ctx, &git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{"refs/heads/main:refs/heads/main"},
 		Progress:   os.Stderr,

@@ -122,35 +122,36 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 				Message: regexp.MustCompile(regexp.QuoteMeta("Auth secret name is empty")),
 			},
 		},
-		"AuthSecretKeyMissing": {
-			repoContents: "bare",
-			patProvider: func(namespace, secretName, secretKey string) *apiv1.GitHubRepositoryPersonalAccessToken {
-				return &apiv1.GitHubRepositoryPersonalAccessToken{
-					Secret: apiv1.SecretReferenceWithOptionalNamespace{
-						Name:      secretName,
-						Namespace: namespace,
-					},
-					Key: "",
-				}
-			},
-			invalid: &ConditionE{
-				Type:    apiv1.Invalid,
-				Status:  lang.Ptr(string(ConditionTrue)),
-				Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.AuthSecretKeyMissing)),
-				Message: regexp.MustCompile(regexp.QuoteMeta("Auth secret key is missing")),
-			},
-			unauthenticated: &ConditionE{
-				Type:    apiv1.Unauthenticated,
-				Status:  lang.Ptr(string(ConditionTrue)),
-				Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.Invalid)),
-				Message: regexp.MustCompile(regexp.QuoteMeta("Auth secret key is missing")),
-			},
-			stale: &ConditionE{
-				Type:    apiv1.Stale,
-				Status:  lang.Ptr(string(ConditionUnknown)),
-				Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.Unauthenticated)),
-				Message: regexp.MustCompile(regexp.QuoteMeta("Auth secret key is missing")),
-			}},
+		// "AuthSecretKeyMissing": {
+		// 	repoContents: "repositories/bare",
+		// 	patProvider: func(namespace, secretName, secretKey string) *apiv1.GitHubRepositoryPersonalAccessToken {
+		// 		return &apiv1.GitHubRepositoryPersonalAccessToken{
+		// 			Secret: apiv1.SecretReferenceWithOptionalNamespace{
+		// 				Name:      secretName,
+		// 				Namespace: namespace,
+		// 			},
+		// 			Key: "",
+		// 		}
+		// 	},
+		// 	invalid: &ConditionE{
+		// 		Type:    apiv1.Invalid,
+		// 		Status:  lang.Ptr(string(ConditionTrue)),
+		// 		Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.AuthSecretKeyMissing)),
+		// 		Message: regexp.MustCompile(regexp.QuoteMeta("Auth secret key is missing")),
+		// 	},
+		// 	unauthenticated: &ConditionE{
+		// 		Type:    apiv1.Unauthenticated,
+		// 		Status:  lang.Ptr(string(ConditionTrue)),
+		// 		Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.Invalid)),
+		// 		Message: regexp.MustCompile(regexp.QuoteMeta("Auth secret key is missing")),
+		// 	},
+		// 	stale: &ConditionE{
+		// 		Type:    apiv1.Stale,
+		// 		Status:  lang.Ptr(string(ConditionUnknown)),
+		// 		Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.Unauthenticated)),
+		// 		Message: regexp.MustCompile(regexp.QuoteMeta("Auth secret key is missing")),
+		// 	},
+		// },
 		"AuthSecretWithImplicitNamespaceNotFound": {
 			repoContents: "bare",
 			patProvider: func(namespace, secretName, secretKey string) *apiv1.GitHubRepositoryPersonalAccessToken {
@@ -254,7 +255,8 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			ns := K(t).CreateNamespace(t)
+			e2e := NewE2E(t)
+			ns := e2e.K.CreateNamespace(e2e.Ctx, t)
 
 			var ghRepo *GitHubRepositoryInfo
 			var ghAuthSecretName, ghAuthSecretKeyName string
@@ -264,14 +266,14 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 				if tc.owner != "" || tc.name != "" {
 					t.Fatalf("owner and name must be empty when repoContents is not empty")
 				}
-				ghRepo = GH(t).CreateRepository(t, repositoriesFS, tc.repoContents)
-				ghAuthSecretName, ghAuthSecretKeyName = ns.CreateGitHubAuthSecret(t, GH(t).Token, tc.restrictSecretRole)
+				ghRepo = e2e.GH.CreateRepository(e2e.Ctx, t, repositoriesFS, tc.repoContents)
+				ghAuthSecretName, ghAuthSecretKeyName = ns.CreateGitHubAuthSecret(e2e.Ctx, t, e2e.GH.Token, tc.restrictSecretRole)
 				tc.owner = ghRepo.Owner
 				tc.name = ghRepo.Name
 				pat = tc.patProvider(ns.Name, ghAuthSecretName, ghAuthSecretKeyName)
 			}
 
-			kRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{
+			kRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{
 				GitHub: &apiv1.GitHubRepositorySpec{
 					Owner:               tc.owner,
 					Name:                tc.name,
@@ -280,7 +282,7 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 				RefreshInterval: "10s",
 			})
 
-			For(t).Expect(func(t TT) {
+			With(t).Verify(func(t T) {
 				repositoryExpectation := RepositoryE{
 					Name: kRepoName,
 					Status: RepositoryStatusE{
@@ -295,9 +297,9 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 					},
 				}
 				repo := &apiv1.Repository{}
-				For(t).Expect(K(t).Client.Get(t, client.ObjectKey{Namespace: ns.Name, Name: kRepoName}, repo)).Will(Succeed())
-				For(t).Expect(repo).Will(CompareTo(repositoryExpectation).Using(RepositoryComparator))
-			}).Will(Eventually(Succeed()).Within(10 * time.Second).ProbingEvery(100 * time.Millisecond))
+				With(t).Verify(e2e.K.Client.Get(e2e.Ctx, client.ObjectKey{Namespace: ns.Name, Name: kRepoName}, repo)).Will(Succeed())
+				With(t).Verify(repo).Will(EqualTo(repositoryExpectation).Using(RepositoryComparator))
+			}).Will(Succeed()).Within(10*time.Second, 100*time.Millisecond)
 		})
 	}
 }

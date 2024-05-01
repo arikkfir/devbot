@@ -29,7 +29,7 @@ type (
 		Object    client.Object
 		Name      string
 		Namespace string
-		Validator func(TT, ResourceE)
+		Validator func(T, ResourceE)
 	}
 	DeploymentSpecE struct {
 		Repository v1.DeploymentRepositoryReference

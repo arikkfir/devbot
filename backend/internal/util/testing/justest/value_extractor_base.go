@@ -6,17 +6,18 @@ import (
 )
 
 var (
-	justTTTypePkgPath string
-	justTTTypeName    string
+	tTypePkgPath string
+	tTypeName    string
 )
 
+//go:noinline
 func init() {
-	justTType := reflect.TypeOf((*TT)(nil)).Elem()
-	justTTTypePkgPath = justTType.PkgPath()
-	justTTTypeName = justTType.Name()
+	rt := reflect.TypeOf((*T)(nil)).Elem()
+	tTypePkgPath = rt.PkgPath()
+	tTypeName = rt.Name()
 }
 
-type Extractor func(TT, any) (any, bool)
+type Extractor func(T, any) (any, bool)
 
 type ValueExtractor map[reflect.Kind]Extractor
 
@@ -28,7 +29,16 @@ func NewValueExtractor(defaultExtractor Extractor) ValueExtractor {
 }
 
 //go:noinline
-func (ve ValueExtractor) ExtractValue(t TT, actual any) (any, bool) {
+func NewValueExtractorWithMap(defaultExtractor Extractor, extractors map[reflect.Kind]Extractor) ValueExtractor {
+	ve := NewValueExtractor(defaultExtractor)
+	for k, v := range extractors {
+		ve[k] = v
+	}
+	return ve
+}
+
+//go:noinline
+func (ve ValueExtractor) ExtractValue(t T, actual any) (any, bool) {
 	GetHelper(t).Helper()
 
 	if actual == nil {
@@ -48,7 +58,7 @@ func (ve ValueExtractor) ExtractValue(t TT, actual any) (any, bool) {
 }
 
 //go:noinline
-func (ve ValueExtractor) MustExtractValue(t TT, actual any) any {
+func (ve ValueExtractor) MustExtractValue(t T, actual any) any {
 	GetHelper(t).Helper()
 	value, found := ve.ExtractValue(t, actual)
 	if !found {
@@ -57,21 +67,22 @@ func (ve ValueExtractor) MustExtractValue(t TT, actual any) any {
 	return value
 }
 
-var (
-	ExtractSameValue Extractor = func(t TT, v any) (any, bool) {
-		GetHelper(t).Helper()
-		return v, true
-	}
-	ExtractorUnsupported Extractor = func(t TT, v any) (any, bool) {
-		GetHelper(t).Helper()
-		t.Fatalf("Unsupported actual value: %+v", v)
-		panic("unreachable")
-	}
-)
+//go:noinline
+func ExtractSameValue(t T, v any) (any, bool) {
+	GetHelper(t).Helper()
+	return v, true
+}
+
+//go:noinline
+func ExtractorUnsupported(t T, v any) (any, bool) {
+	GetHelper(t).Helper()
+	t.Fatalf("Unsupported actual value: %+v", v)
+	panic("unreachable")
+}
 
 //go:noinline
 func NewChannelExtractor(ve ValueExtractor, recurse bool) Extractor {
-	return func(t TT, v any) (any, bool) {
+	return func(t T, v any) (any, bool) {
 		GetHelper(t).Helper()
 
 		msg, ok := reflect.ValueOf(v).TryRecv()
@@ -89,7 +100,7 @@ func NewChannelExtractor(ve ValueExtractor, recurse bool) Extractor {
 
 //go:noinline
 func NewPointerExtractor(ve ValueExtractor, recurse bool) Extractor {
-	return func(t TT, v any) (any, bool) {
+	return func(t T, v any) (any, bool) {
 		GetHelper(t).Helper()
 
 		underlyingValue := reflect.ValueOf(v).Elem()
@@ -103,19 +114,20 @@ func NewPointerExtractor(ve ValueExtractor, recurse bool) Extractor {
 
 //go:noinline
 func NewFuncExtractor(ve ValueExtractor, recurse bool) Extractor {
-	return func(t TT, v any) (any, bool) {
+	return func(t T, v any) (any, bool) {
 		GetHelper(t).Helper()
 
 		funcValue := reflect.ValueOf(v)
 		funcType := funcValue.Type()
 
+		// Prepare input parameters
 		var in []reflect.Value
 		switch funcType.NumIn() {
 		case 0:
 			in = nil
 		case 1:
 			arg0Type := funcType.In(0)
-			if arg0Type.PkgPath() == justTTTypePkgPath && arg0Type.Name() == justTTTypeName {
+			if arg0Type.PkgPath() == tTypePkgPath && arg0Type.Name() == tTypeName {
 				in = append(in, reflect.ValueOf(t))
 			} else {
 				t.Fatalf("Argument of functions with one argument must be of type TT, found: %+v", arg0Type.Name())
@@ -126,6 +138,7 @@ func NewFuncExtractor(ve ValueExtractor, recurse bool) Extractor {
 			panic("unreachable")
 		}
 
+		// Prepare call & output extraction
 		switch funcType.NumOut() {
 		case 0:
 			funcValue.Call(in)
