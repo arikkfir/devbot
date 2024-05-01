@@ -24,7 +24,13 @@ func RepositoriesComparator(t T, e, a any) {
 
 func RepositoryComparator(t T, e, a any) {
 	expected := e.(RepositoryE)
-	actual := a.(apiv1.Repository)
+	var actual *apiv1.Repository
+	if rp, ok := a.(*apiv1.Repository); ok {
+		actual = rp
+	} else {
+		v := a.(apiv1.Repository)
+		actual = &v
+	}
 	With(t).Verify(actual.Status.Conditions).Will(EqualTo(expected.Status.Conditions).Using(ConditionsComparator)).OrFail()
 	With(t).Verify(actual.Status.DefaultBranch).Will(EqualTo(expected.Status.DefaultBranch)).OrFail()
 	With(t).Verify(actual.Status.Revisions).Will(EqualTo(expected.Status.Revisions)).OrFail()
