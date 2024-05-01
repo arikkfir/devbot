@@ -12,9 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"regexp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"slices"
 )
@@ -189,7 +192,12 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&apiv1.Application{}).
+		For(&apiv1.Application{}, builder.WithPredicates(predicate.Funcs{
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				// Only reconcile if the generation has changed
+				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+			},
+		})).
 		Watches(&apiv1.Environment{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 			environment := obj.(*apiv1.Environment)
 			appRef := metav1.GetControllerOf(environment)

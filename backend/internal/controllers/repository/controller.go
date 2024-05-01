@@ -12,7 +12,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"time"
 )
 
@@ -356,6 +359,11 @@ func (r *Reconciler) fetchRepository(rec *k8s.Reconciliation[*apiv1.Repository],
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&apiv1.Repository{}).
+		For(&apiv1.Repository{}, builder.WithPredicates(predicate.Funcs{
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				// Only reconcile if the generation has changed
+				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+			},
+		})).
 		Complete(r)
 }
