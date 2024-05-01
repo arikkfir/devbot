@@ -66,14 +66,14 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 				Type:    apiv1.Invalid,
 				Status:  lang.Ptr(string(ConditionTrue)),
 				Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.InvalidRefreshInterval)),
-				Message: regexp.MustCompile(regexp.QuoteMeta(`refresh interval '2s' is too low \(must not be less than 5s\)`)),
+				Message: regexp.MustCompile(regexp.QuoteMeta(`refresh interval '2s' is too low (must not be less than 5s)`)),
 			},
 			unauthenticated: nil,
 			stale: &ConditionE{
 				Type:    apiv1.Stale,
 				Status:  lang.Ptr(string(ConditionUnknown)),
 				Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.Invalid)),
-				Message: regexp.MustCompile(regexp.QuoteMeta(`refresh interval '2s' is too low \(must not be less than 5s\)`)),
+				Message: regexp.MustCompile(regexp.QuoteMeta(`refresh interval '2s' is too low (must not be less than 5s)`)),
 			},
 		},
 		"Valid": {
