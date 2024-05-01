@@ -1,6 +1,10 @@
-.PHONY: debug-print-resources
-debug-print-resources:
+.PHONY: print-resources
+print-resources:
 	./hack/bin/debug-deployments.sh
+
+.PHONY: watch-resources
+watch-resources:
+	watch -n1 -c 'make --no-print-directory print-resources'
 
 .PHONY: generate
 generate:
