@@ -37,10 +37,19 @@ func (m *equalTo) Using(comparator Comparator) EqualToMatcher {
 
 //go:noinline
 func EqualTo(expected ...any) EqualToMatcher {
+	var opts []cmp.Option
+	var expectedWithoutOpts []any
+	for _, e := range expected {
+		if _, ok := e.(cmp.Option); ok {
+			opts = append(opts, e.(cmp.Option))
+		} else {
+			expectedWithoutOpts = append(expectedWithoutOpts, e)
+		}
+	}
 	return &equalTo{
-		expected: expected,
+		expected: expectedWithoutOpts,
 		comparator: func(t T, expected, actual any) {
-			if !cmp.Equal(expected, actual) {
+			if !cmp.Equal(expected, actual, opts...) {
 				t.Fatalf("Unexpected difference:\n%s", cmp.Diff(expected, actual))
 			}
 		},

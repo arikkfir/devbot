@@ -32,8 +32,12 @@ func (n *KNamespace) CreateGitHubAuthSecret(ctx context.Context, t T, token stri
 
 	// Create a specific secret with the GitHub token
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: secretName},
-		Data:       map[string][]byte{key: []byte(token)},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   n.Name,
+			Name:        secretName,
+			Annotations: map[string]string{"test": t.Name()},
+		},
+		Data: map[string][]byte{key: []byte(token)},
 	}
 	With(t).Verify(n.k.Client.Create(ctx, secret)).Will(Succeed()).OrFail()
 	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, secret)).Will(Succeed()).OrFail() })
@@ -73,7 +77,14 @@ func (n *KNamespace) CreateGitHubAuthSecret(ctx context.Context, t T, token stri
 }
 
 func (n *KNamespace) CreateRepository(ctx context.Context, t T, spec apiv1.RepositorySpec) string {
-	repo := &apiv1.Repository{ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: strings.RandomHash(7)}, Spec: spec}
+	repo := &apiv1.Repository{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   n.Name,
+			Name:        strings.RandomHash(7),
+			Annotations: map[string]string{"test": t.Name()},
+		},
+		Spec: spec,
+	}
 	With(t).Verify(n.k.Client.Create(ctx, repo)).Will(Succeed()).OrFail()
 	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, repo)).Will(Succeed()).OrFail() })
 
@@ -81,7 +92,14 @@ func (n *KNamespace) CreateRepository(ctx context.Context, t T, spec apiv1.Repos
 }
 
 func (n *KNamespace) CreateApplication(ctx context.Context, t T, spec apiv1.ApplicationSpec) string {
-	app := &apiv1.Application{ObjectMeta: metav1.ObjectMeta{Namespace: n.Name, Name: strings.RandomHash(7)}, Spec: spec}
+	app := &apiv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   n.Name,
+			Name:        strings.RandomHash(7),
+			Annotations: map[string]string{"test": t.Name()},
+		},
+		Spec: spec,
+	}
 	With(t).Verify(n.k.Client.Create(ctx, app)).Will(Succeed())
 	t.Cleanup(func() { With(t).Verify(n.k.Client.Delete(ctx, app)).Will(Succeed()) })
 	return app.Name

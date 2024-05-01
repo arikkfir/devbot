@@ -16,6 +16,11 @@ func NewMockT(parent T) *MockT {
 func (t *MockT) GetParent() T { return t.Parent }
 
 //go:noinline
+func (t *MockT) Name() string {
+	return t.Parent.Name()
+}
+
+//go:noinline
 func (t *MockT) Cleanup(f func()) { GetHelper(t).Helper(); t.Cleanups = append(t.Cleanups, f) }
 
 //go:noinline

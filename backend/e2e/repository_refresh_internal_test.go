@@ -84,6 +84,12 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 				Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.UnknownRepositoryType)),
 				Message: regexp.MustCompile(regexp.QuoteMeta(`Unknown repository type`)),
 			},
+			stale: &ConditionE{
+				Type:    apiv1.Stale,
+				Status:  lang.Ptr(string(ConditionUnknown)),
+				Reason:  regexp.MustCompile(regexp.QuoteMeta(apiv1.Invalid)),
+				Message: regexp.MustCompile(regexp.QuoteMeta(`Unknown repository type`)),
+			},
 			unauthenticated: &ConditionE{
 				Type:    apiv1.Unauthenticated,
 				Status:  lang.Ptr(string(ConditionTrue)),

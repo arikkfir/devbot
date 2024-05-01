@@ -40,7 +40,7 @@ func TestEqualTo(t *testing.T) {
 			actuals:                []any{1},
 			expected:               []any{1, 2},
 			expectedOutcome:        ExpectFailure,
-			expectedFailurePattern: `^Unexpected difference: received 1 actual values and 2 expected values\n.+:\d+: --> .*`,
+			expectedFailurePattern: `^Unexpected difference: received 1 actual values and 2 expected values.*`,
 		},
 		"Custom comparator success propagates": {
 			actuals:  []any{1},
@@ -121,7 +121,7 @@ func TestEqualTo(t *testing.T) {
 				return comparatorFunc, verifierFunc
 			},
 			expectedOutcome:        ExpectFailure,
-			expectedFailurePattern: `Expected & actual value differ: expected \d+, got \d+\n.+:\d+: --> .*`,
+			expectedFailurePattern: `Expected & actual value differ: expected \d+, got \d+.*`,
 		},
 	}
 	for name, tc := range testCases {

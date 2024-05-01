@@ -10,6 +10,11 @@ type inverseT struct {
 }
 
 //go:noinline
+func (t *inverseT) Name() string {
+	return t.parent.Name()
+}
+
+//go:noinline
 func (t *inverseT) Cleanup(f func()) { GetHelper(t).Helper(); t.parent.Cleanup(f) }
 
 //go:noinline

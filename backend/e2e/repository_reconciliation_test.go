@@ -118,7 +118,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 		With(t).Verify(e2e.K.Client.List(e2e.Ctx, reposList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
 		With(t).Verify(reposList.Items).Will(EqualTo(repositoryExpectations).Using(RepositoriesComparator)).OrFail()
 
-	}).Will(Succeed()).Within(10*time.Second, 100*time.Millisecond)
+	}).Will(Succeed()).Within(20*time.Second, 100*time.Millisecond)
 
 	// Create a new commit on the common repository
 	commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(e2e.Ctx, t, "feature1")

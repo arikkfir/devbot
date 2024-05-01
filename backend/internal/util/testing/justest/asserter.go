@@ -262,6 +262,11 @@ func (a *assertion) Within(duration time.Duration, interval time.Duration) {
 }
 
 //go:noinline
+func (a *assertion) Name() string {
+	return a.t.Name()
+}
+
+//go:noinline
 func (a *assertion) Cleanup(f func()) {
 	GetHelper(a).Helper()
 	if a.contain {

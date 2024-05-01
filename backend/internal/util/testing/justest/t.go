@@ -5,6 +5,7 @@ import (
 )
 
 type T interface {
+	Name() string
 	Cleanup(f func())
 	Fatalf(format string, args ...any)
 	Failed() bool

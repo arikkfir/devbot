@@ -29,26 +29,21 @@ func ConditionsComparator(t T, e, a any) {
 }
 
 func ConditionComparator(t T, e, a any) {
-	expected := e.(*ConditionE)
 	actual := a.(*metav1.Condition)
-
-	if actual == nil && expected == nil {
-		return
-	} else if actual == nil && expected != nil {
-		t.Fatalf("Expected condition '%s' to exist, but it does not", expected.Type)
-	} else if actual != nil && expected == nil {
-		t.Fatalf("Expected condition '%s' not to exist, but it does", actual.Type)
-	} else if actual.Type != expected.Type {
-		t.Fatalf("Expected condition '%s', but got '%s'", expected.Type, actual.Type)
-	}
-
-	if expected.Status != nil {
-		With(t).Verify(string(actual.Status)).Will(EqualTo(*expected.Status)).OrFail()
-	}
-	if expected.Reason != nil {
-		With(t).Verify(actual.Reason).Will(Say(expected.Reason)).OrFail()
-	}
-	if expected.Message != nil {
-		With(t).Verify(actual.Message).Will(Say(expected.Message)).OrFail()
+	expectation := e.(*ConditionE)
+	if expectation != nil {
+		With(t).Verify(actual).Will(Not(BeNil())).OrFail()
+		With(t).Verify(actual.Type).Will(EqualTo(expectation.Type)).OrFail()
+		if expectation.Status != nil {
+			With(t).Verify(actual.Status).Will(EqualTo(metav1.ConditionStatus(*expectation.Status))).OrFail()
+		}
+		if expectation.Reason != nil {
+			With(t).Verify(actual.Reason).Will(Say(expectation.Reason)).OrFail()
+		}
+		if expectation.Message != nil {
+			With(t).Verify(actual.Message).Will(Say(expectation.Message)).OrFail()
+		}
+	} else {
+		With(t).Verify(actual).Will(BeNil()).OrFail()
 	}
 }

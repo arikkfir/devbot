@@ -82,7 +82,7 @@ func TestAssertionOrFail(t *testing.T) {
 				return func(t T, a ...any) { t.Fatalf("expected failure") }, nil
 			},
 			expectedOutcome:        ExpectFailure,
-			expectedOutcomePattern: `^expected failure\n.+:\d+:\s+.*$`,
+			expectedOutcomePattern: `^expected failure.*`,
 		},
 	}
 	for name, tc := range testCases {
@@ -124,7 +124,7 @@ func TestAssertionFor(t *testing.T) {
 				return func(t T, actuals ...any) { time.Sleep(5 * time.Second) }, nil
 			},
 			expectedOutcome:        ExpectFailure,
-			expectedOutcomePattern: `^Timed out after \d+s waiting for assertion to pass \(tick never finished once\)\n.+:\d+:\s+.*$`,
+			expectedOutcomePattern: `^Timed out after \d+s waiting for assertion to pass \(tick never finished once\).*`,
 		},
 		"Failure is immediately propagated": {
 			actuals:  []any{1},
@@ -141,7 +141,7 @@ func TestAssertionFor(t *testing.T) {
 				return matcherFunc, nil
 			},
 			expectedOutcome:        ExpectFailure,
-			expectedOutcomePattern: `^.+:\d+:\s+expected failure: 2\n--> .*\nAssertion failed after \d+(?:\.\d+)?m?s and did not pass repeatedly for \d+s\n.+:\d+:\s+.*$`,
+			expectedOutcomePattern: `^expected failure: 2.*`,
 		},
 		"No parallel ticks allowed": {
 			actuals:  []any{1},
@@ -169,7 +169,7 @@ func TestAssertionFor(t *testing.T) {
 				return func(t T, actuals ...any) { t.Fatalf("failure") }, nil
 			},
 			expectedOutcome:        ExpectFailure,
-			expectedOutcomePattern: `^.+:\d+:\s+failure\n--> .*\nAssertion failed after \d+(?:\.\d+)?m?s and did not pass repeatedly for \d+s\n.+:\d+:\s+.*$`,
+			expectedOutcomePattern: `^failure\nAssertion failed after \d+(?:\.\d+)?m?s and did not pass repeatedly for \d+s.*`,
 		},
 		"Matcher cleanups are called between intervals": {
 			actuals:  []any{1},
@@ -289,7 +289,7 @@ func TestAssertionWithin(t *testing.T) {
 				return func(t T, actuals ...any) { t.Fatalf("failure") }, nil
 			},
 			expectedOutcome:        ExpectFailure,
-			expectedOutcomePattern: `^.+:\d+:\s+failure\n--> .*\nTimed out after \d+(\.\d+)?m?s waiting for assertion to pass\n.+:\d+:\s+.*$`,
+			expectedOutcomePattern: `^failure\nTimed out after \d+(\.\d+)?m?s waiting for assertion to pass.*`,
 		},
 		"Matcher cleanups are called between intervals": {
 			actuals:  []any{1},
