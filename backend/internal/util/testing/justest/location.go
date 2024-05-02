@@ -76,6 +76,7 @@ func nearestLocation() Location {
 	return l
 }
 
+//go:noinline
 func readSourceAt(file string, line int) string {
 	source := "<could not read source>"
 	if b, err := os.ReadFile(file); err == nil {
