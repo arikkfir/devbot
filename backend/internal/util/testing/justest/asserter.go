@@ -117,7 +117,7 @@ func (a *assertion) For(duration time.Duration, interval time.Duration) {
 			if r := recover(); r != nil {
 				if fa, ok := r.(FormatAndArgs); ok {
 					failure = &fa
-				} else {
+				} else if !a.Failed() {
 					panic(r)
 				}
 			} else {
@@ -199,13 +199,10 @@ func (a *assertion) Within(duration time.Duration, interval time.Duration) {
 
 		// Contain the potential "Fatal" calls from this tick as failures
 		defer func() {
-			if a.Failed() {
-				return
-			}
 			if r := recover(); r != nil {
 				if fa, ok := r.(FormatAndArgs); ok {
 					failure = &fa
-				} else {
+				} else if !a.Failed() {
 					panic(r)
 				}
 			} else {
