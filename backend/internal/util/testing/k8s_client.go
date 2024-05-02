@@ -33,6 +33,7 @@ var (
 
 type KClient struct {
 	Client client.Client
+	ctx    context.Context
 }
 
 func K(ctx context.Context, t T) *KClient {
@@ -70,34 +71,34 @@ func K(ctx context.Context, t T) *KClient {
 	}()
 
 	time.Sleep(3 * time.Second)
-	return &KClient{Client: mgr.GetClient()}
+	return &KClient{Client: mgr.GetClient(), ctx: ctx}
 }
 
-func (k *KClient) CreateNamespace(ctx context.Context, t T) *KNamespace {
+func (k *KClient) CreateNamespace(t T) *KNamespace {
 	devbotGitOpsName := "devbot-gitops"
 
 	r := &corev1.Namespace{ObjectMeta: ctrl.ObjectMeta{Name: strings.RandomHash(7)}}
-	With(t).Verify(k.Client.Create(ctx, r)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, r)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(k.ctx, r)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(k.ctx, r)).Will(Succeed()).OrFail() })
 
 	sa := &corev1.ServiceAccount{ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name}}
-	With(t).Verify(k.Client.Create(ctx, sa)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, sa)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(k.ctx, sa)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(k.ctx, sa)).Will(Succeed()).OrFail() })
 
 	role := &rbacv1.Role{
 		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
 		Rules:      []rbacv1.PolicyRule{{APIGroups: []string{"*"}, Resources: []string{"*"}, Verbs: []string{"*"}}},
 	}
-	With(t).Verify(k.Client.Create(ctx, role)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, role)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(k.ctx, role)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(k.ctx, role)).Will(Succeed()).OrFail() })
 
 	rb := &rbacv1.RoleBinding{
 		ObjectMeta: ctrl.ObjectMeta{Name: devbotGitOpsName, Namespace: r.Name},
 		RoleRef:    rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "Role", Name: devbotGitOpsName},
 		Subjects:   []rbacv1.Subject{{Kind: rbacv1.ServiceAccountKind, Name: devbotGitOpsName}},
 	}
-	With(t).Verify(k.Client.Create(ctx, rb)).Will(Succeed()).OrFail()
-	t.Cleanup(func() { With(t).Verify(k.Client.Delete(ctx, rb)).Will(Succeed()).OrFail() })
+	With(t).Verify(k.Client.Create(k.ctx, rb)).Will(Succeed()).OrFail()
+	t.Cleanup(func() { With(t).Verify(k.Client.Delete(k.ctx, rb)).Will(Succeed()).OrFail() })
 
 	return &KNamespace{Name: r.Name, k: k}
 }

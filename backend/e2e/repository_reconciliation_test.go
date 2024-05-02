@@ -13,27 +13,9 @@ import (
 func TestRepositoryReconciliation(t *testing.T) {
 	t.Parallel()
 	e2e := NewE2E(t)
-	ns := e2e.K.CreateNamespace(e2e.Ctx, t)
-
-	ghCommonRepo := e2e.GH.CreateRepository(e2e.Ctx, t, repositoriesFS, "repositories/common")
-	kCommonRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{
-		GitHub: &apiv1.GitHubRepositorySpec{
-			Owner:               ghCommonRepo.Owner,
-			Name:                ghCommonRepo.Name,
-			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(e2e.Ctx, t, e2e.GH.Token, true),
-		},
-		RefreshInterval: "5s",
-	})
-
-	ghServerRepo := e2e.GH.CreateRepository(e2e.Ctx, t, repositoriesFS, "repositories/server")
-	kServerRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{
-		GitHub: &apiv1.GitHubRepositorySpec{
-			Owner:               ghServerRepo.Owner,
-			Name:                ghServerRepo.Name,
-			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(e2e.Ctx, t, e2e.GH.Token, true),
-		},
-		RefreshInterval: "5s",
-	})
+	ns := e2e.K.CreateNamespace(t)
+	ghCommonRepo, kCommonRepoName := e2e.CreateGitHubAndK8sRepository(t, ns, "common", "5s")
+	ghServerRepo, kServerRepoName := e2e.CreateGitHubAndK8sRepository(t, ns, "server", "5s")
 
 	// Validate initial reconciliation
 	With(t).Verify(func(t T) {
@@ -49,7 +31,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 						apiv1.Unauthenticated:    nil,
 					},
 					DefaultBranch: "main",
-					Revisions:     map[string]string{"main": ghCommonRepo.GetBranchSHA(e2e.Ctx, t, "main")},
+					Revisions:     map[string]string{"main": ghCommonRepo.GetBranchSHA(t, "main")},
 				},
 			},
 			{
@@ -63,7 +45,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 						apiv1.Unauthenticated:    nil,
 					},
 					DefaultBranch: "main",
-					Revisions:     map[string]string{"main": ghServerRepo.GetBranchSHA(e2e.Ctx, t, "main")},
+					Revisions:     map[string]string{"main": ghServerRepo.GetBranchSHA(t, "main")},
 				},
 			},
 		}
@@ -73,8 +55,8 @@ func TestRepositoryReconciliation(t *testing.T) {
 	}).Will(Succeed()).Within(10*time.Second, 100*time.Millisecond)
 
 	// Create new branches
-	commonRepoFeature1SHA := ghCommonRepo.CreateBranch(e2e.Ctx, t, "feature1")
-	serverRepoFeature2SHA := ghServerRepo.CreateBranch(e2e.Ctx, t, "feature2")
+	commonRepoFeature1SHA := ghCommonRepo.CreateBranch(t, "feature1")
+	serverRepoFeature2SHA := ghServerRepo.CreateBranch(t, "feature2")
 
 	// Validate changes have been reconciled
 	With(t).Verify(func(t T) {
@@ -91,7 +73,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghCommonRepo.GetBranchSHA(e2e.Ctx, t, "main"),
+						"main":     ghCommonRepo.GetBranchSHA(t, "main"),
 						"feature1": commonRepoFeature1SHA,
 					},
 				},
@@ -108,7 +90,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghServerRepo.GetBranchSHA(e2e.Ctx, t, "main"),
+						"main":     ghServerRepo.GetBranchSHA(t, "main"),
 						"feature2": serverRepoFeature2SHA,
 					},
 				},
@@ -121,7 +103,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 	}).Will(Succeed()).Within(20*time.Second, 100*time.Millisecond)
 
 	// Create a new commit on the common repository
-	commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(e2e.Ctx, t, "feature1")
+	commonRepoFeature1CommitSHA := ghCommonRepo.CreateFile(t, "feature1")
 
 	// Validate changes have been reconciled
 	With(t).Verify(func(t T) {
@@ -138,7 +120,7 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghCommonRepo.GetBranchSHA(e2e.Ctx, t, "main"),
+						"main":     ghCommonRepo.GetBranchSHA(t, "main"),
 						"feature1": commonRepoFeature1CommitSHA,
 					},
 				},
@@ -155,8 +137,8 @@ func TestRepositoryReconciliation(t *testing.T) {
 					},
 					DefaultBranch: "main",
 					Revisions: map[string]string{
-						"main":     ghServerRepo.GetBranchSHA(e2e.Ctx, t, "main"),
-						"feature2": ghServerRepo.GetBranchSHA(e2e.Ctx, t, "feature2"),
+						"main":     ghServerRepo.GetBranchSHA(t, "main"),
+						"feature2": ghServerRepo.GetBranchSHA(t, "feature2"),
 					},
 				},
 			},

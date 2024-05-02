@@ -103,9 +103,9 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 			t.Parallel()
 
 			e2e := NewE2E(t)
-			ns := e2e.K.CreateNamespace(e2e.Ctx, t)
+			ns := e2e.K.CreateNamespace(t)
 
-			kRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{RefreshInterval: tc.refreshInterval})
+			kRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{RefreshInterval: tc.refreshInterval})
 			defaultBranch := tc.defaultBranch
 			if defaultBranch == "" {
 				defaultBranch = "main"

@@ -22,6 +22,7 @@ const (
 
 type GClient struct {
 	Token  string
+	ctx    context.Context
 	client *github.Client
 }
 
@@ -37,12 +38,12 @@ func GH(ctx context.Context, t T) *GClient {
 	With(t).Verify(err).Will(BeNil()).OrFail()
 	With(t).Verify(response.StatusCode).Will(EqualTo(http.StatusOK)).OrFail()
 
-	return &GClient{Token: token, client: c}
+	return &GClient{Token: token, ctx: ctx, client: c}
 }
 
-func (gh *GClient) CreateRepository(ctx context.Context, t T, fs embed.FS, embeddedPath string) *GitHubRepositoryInfo {
+func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitHubRepositoryInfo {
 	// Create the repository
-	ghRepo, _, err := gh.client.Repositories.Create(ctx, GitHubOwner, &github.Repository{
+	ghRepo, _, err := gh.client.Repositories.Create(gh.ctx, GitHubOwner, &github.Repository{
 		Name:          &[]string{stringsutil.Name()}[0],
 		DefaultBranch: github.String("main"),
 		Visibility:    &[]string{"public"}[0],
@@ -53,7 +54,7 @@ func (gh *GClient) CreateRepository(ctx context.Context, t T, fs embed.FS, embed
 	repoOwner := ghRepo.Owner.GetLogin()
 	repoName := ghRepo.GetName()
 	t.Cleanup(func() {
-		With(t).Verify(gh.client.Repositories.Delete(ctx, repoOwner, repoName)).Will(Succeed()).OrFail()
+		With(t).Verify(gh.client.Repositories.Delete(gh.ctx, repoOwner, repoName)).Will(Succeed()).OrFail()
 	})
 
 	// Create the repository contents locally
@@ -90,7 +91,7 @@ func (gh *GClient) CreateRepository(ctx context.Context, t T, fs embed.FS, embed
 
 	// Push changes to the repository
 	// Corresponds to: git push -u origin main
-	With(t).Verify(localRepo.PushContext(ctx, &git.PushOptions{
+	With(t).Verify(localRepo.PushContext(gh.ctx, &git.PushOptions{
 		RemoteName: "origin",
 		RefSpecs:   []config.RefSpec{"refs/heads/main:refs/heads/main"},
 		Progress:   os.Stderr,

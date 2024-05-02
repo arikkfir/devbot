@@ -3,7 +3,6 @@ package e2e_test
 import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	. "github.com/arikkfir/devbot/backend/e2e/expectations"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -18,11 +17,12 @@ import (
 
 func TestMultiRepoApplicationDeployment(t *testing.T) {
 	t.Parallel()
+	e2e := NewE2E(t)
+	ns := e2e.K.CreateNamespace(t)
 
-	ns := K(t).CreateNamespace(t)
-	ghCommonRepo, kCommonRepoName := createGitHubAndK8sRepository(t, ns, "common")
-	ghPortalRepo, kPortalRepoName := createGitHubAndK8sRepository(t, ns, "portal")
-	ghServerRepo, kServerRepoName := createGitHubAndK8sRepository(t, ns, "server")
+	ghCommonRepo, kCommonRepoName := e2e.CreateGitHubAndK8sRepository(t, ns, "common", "5s")
+	ghPortalRepo, kPortalRepoName := e2e.CreateGitHubAndK8sRepository(t, ns, "portal", "5s")
+	ghServerRepo, kServerRepoName := e2e.CreateGitHubAndK8sRepository(t, ns, "server", "5s")
 
 	appName := ns.CreateApplication(t, apiv1.ApplicationSpec{
 		Repositories: []apiv1.ApplicationSpecRepository{
@@ -34,7 +34,7 @@ func TestMultiRepoApplicationDeployment(t *testing.T) {
 	})
 
 	// Validate initial deployment
-	With(t).Expect(func(t TT) {
+	With(t).Verify(func(t T) {
 
 		// Prepare fresh expectations
 		applicationExpectations := []AppE{
@@ -74,16 +74,16 @@ func TestMultiRepoApplicationDeployment(t *testing.T) {
 									},
 									LastAttemptedRevision: ghCommonRepo.GetBranchSHA(t, "main"),
 									LastAppliedRevision:   ghCommonRepo.GetBranchSHA(t, "main"),
-									ResolvedRepository:    ghCommonRepo.Owner + "/" + ghCommonRepo.Name,
+									ResolvedRepository:    ns.Name + "/" + kCommonRepoName,
 								},
 								Resources: []ResourceE{
 									{
 										Object:    &v1.ConfigMap{},
 										Name:      "main-configuration",
 										Namespace: ns.Name,
-										Validator: func(t TT, r ResourceE) {
+										Validator: func(t T, r ResourceE) {
 											cm := r.Object.(*v1.ConfigMap)
-											With(t).Expect(cm.Data["env"]).Will(BeEqualTo("main"))
+											With(t).Verify(cm.Data["env"]).Will(EqualTo("main")).OrFail()
 										},
 									},
 								},
@@ -102,7 +102,7 @@ func TestMultiRepoApplicationDeployment(t *testing.T) {
 									},
 									LastAttemptedRevision: ghServerRepo.GetBranchSHA(t, "main"),
 									LastAppliedRevision:   ghServerRepo.GetBranchSHA(t, "main"),
-									ResolvedRepository:    ghServerRepo.Owner + "/" + ghServerRepo.Name,
+									ResolvedRepository:    ns.Name + "/" + kServerRepoName,
 								},
 								Resources: []ResourceE{
 									{
@@ -114,22 +114,22 @@ func TestMultiRepoApplicationDeployment(t *testing.T) {
 										Object:    &v1.Service{},
 										Name:      "main-server",
 										Namespace: ns.Name,
-										Validator: func(t TT, r ResourceE) {
+										Validator: func(t T, r ResourceE) {
 											svc := r.Object.(*v1.Service)
-											With(t).Expect(len(svc.Spec.Ports)).Will(BeEqualTo(1))
-											With(t).Expect(svc.Spec.Ports[0].Port).Will(BeEqualTo(80))
-											With(t).Expect(svc.Spec.Ports[0].TargetPort.Type).Will(BeEqualTo(intstr.String))
-											With(t).Expect(svc.Spec.Ports[0].TargetPort.StrVal).Will(BeEqualTo("http"))
+											With(t).Verify(len(svc.Spec.Ports)).Will(EqualTo(1)).OrFail()
+											With(t).Verify(int(svc.Spec.Ports[0].Port)).Will(EqualTo(80)).OrFail()
+											With(t).Verify(svc.Spec.Ports[0].TargetPort.Type).Will(EqualTo(intstr.String)).OrFail()
+											With(t).Verify(svc.Spec.Ports[0].TargetPort.StrVal).Will(EqualTo("http")).OrFail()
 										},
 									},
 									{
 										Object:    &appsv1.Deployment{},
 										Name:      "main-server",
 										Namespace: ns.Name,
-										Validator: func(t TT, r ResourceE) {
+										Validator: func(t T, r ResourceE) {
 											d := r.Object.(*appsv1.Deployment)
-											With(t).Expect(len(d.Spec.Template.Spec.Containers)).Will(BeEqualTo(1))
-											With(t).Expect(len(d.Spec.Template.Spec.Containers[0].Image)).Will(BeEqualTo("ealen/echo-server:latest"))
+											With(t).Verify(len(d.Spec.Template.Spec.Containers)).Will(EqualTo(1)).OrFail()
+											With(t).Verify(d.Spec.Template.Spec.Containers[0].Image).Will(EqualTo("ealen/echo-server:latest")).OrFail()
 										},
 									},
 								},
@@ -148,7 +148,7 @@ func TestMultiRepoApplicationDeployment(t *testing.T) {
 									},
 									LastAttemptedRevision: ghPortalRepo.GetBranchSHA(t, "main"),
 									LastAppliedRevision:   ghPortalRepo.GetBranchSHA(t, "main"),
-									ResolvedRepository:    ghPortalRepo.Owner + "/" + ghPortalRepo.Name,
+									ResolvedRepository:    ns.Name + "/" + kPortalRepoName,
 								},
 								Resources: []ResourceE{
 									{
@@ -160,22 +160,22 @@ func TestMultiRepoApplicationDeployment(t *testing.T) {
 										Object:    &v1.Service{},
 										Name:      "main-portal",
 										Namespace: ns.Name,
-										Validator: func(t TT, r ResourceE) {
+										Validator: func(t T, r ResourceE) {
 											svc := r.Object.(*v1.Service)
-											With(t).Expect(len(svc.Spec.Ports)).Will(BeEqualTo(1))
-											With(t).Expect(svc.Spec.Ports[0].Port).Will(BeEqualTo(80))
-											With(t).Expect(svc.Spec.Ports[0].TargetPort.Type).Will(BeEqualTo(intstr.String))
-											With(t).Expect(svc.Spec.Ports[0].TargetPort.StrVal).Will(BeEqualTo("http"))
+											With(t).Verify(len(svc.Spec.Ports)).Will(EqualTo(1)).OrFail()
+											With(t).Verify(int(svc.Spec.Ports[0].Port)).Will(EqualTo(80)).OrFail()
+											With(t).Verify(svc.Spec.Ports[0].TargetPort.Type).Will(EqualTo(intstr.String)).OrFail()
+											With(t).Verify(svc.Spec.Ports[0].TargetPort.StrVal).Will(EqualTo("http")).OrFail()
 										},
 									},
 									{
 										Object:    &appsv1.Deployment{},
 										Name:      "main-portal",
 										Namespace: ns.Name,
-										Validator: func(t TT, r ResourceE) {
+										Validator: func(t T, r ResourceE) {
 											d := r.Object.(*appsv1.Deployment)
-											With(t).Expect(len(d.Spec.Template.Spec.Containers)).Will(BeEqualTo(1))
-											With(t).Expect(len(d.Spec.Template.Spec.Containers[0].Image)).Will(BeEqualTo("nginx"))
+											With(t).Verify(len(d.Spec.Template.Spec.Containers)).Will(EqualTo(1)).OrFail()
+											With(t).Verify(d.Spec.Template.Spec.Containers[0].Image).Will(EqualTo("nginx")).OrFail()
 										},
 									},
 								},
@@ -188,10 +188,10 @@ func TestMultiRepoApplicationDeployment(t *testing.T) {
 
 		// Fetch applications & verify them
 		appList := &apiv1.ApplicationList{}
-		With(t).Expect(K(t).Client.List(t, appList, client.InNamespace(ns.Name))).Will(Succeed())
-		With(t).Expect(appList.Items).Will(CompareTo(applicationExpectations).Using(ApplicationsComparator))
+		With(t).Verify(e2e.K.Client.List(e2e.Ctx, appList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		With(t).Verify(appList.Items).Will(EqualTo(applicationExpectations).Using(CreateApplicationsComparator(e2e.K.Client, e2e.Ctx))).OrFail()
 
-	}).Will(Eventually(Succeed()).Within(10 * time.Second).ProbingEvery(100 * time.Millisecond))
+	}).Will(Succeed()).Within(1*time.Minute, 100*time.Millisecond)
 
 	// Create new branches
 	// _ = ghCommonRepo.CreateBranch(t, ctx, "feature1")

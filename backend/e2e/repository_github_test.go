@@ -155,7 +155,7 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 			t.Parallel()
 
 			e2e := NewE2E(t)
-			ns := e2e.K.CreateNamespace(e2e.Ctx, t)
+			ns := e2e.K.CreateNamespace(t)
 
 			var ghRepo *GitHubRepositoryInfo
 			var ghAuthSecretName, ghAuthSecretKeyName string
@@ -165,8 +165,8 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 				if tc.owner != "" || tc.name != "" {
 					t.Fatalf("owner and name must be empty when repoContents is not empty")
 				}
-				ghRepo = e2e.GH.CreateRepository(e2e.Ctx, t, repositoriesFS, "repositories/"+tc.repoContents)
-				ghAuthSecretName, ghAuthSecretKeyName = ns.CreateGitHubAuthSecret(e2e.Ctx, t, e2e.GH.Token, tc.restrictSecretRole)
+				ghRepo = e2e.GH.CreateRepository(t, repositoriesFS, "repositories/"+tc.repoContents)
+				ghAuthSecretName, ghAuthSecretKeyName = ns.CreateGitHubAuthSecret(t, e2e.GH.Token, tc.restrictSecretRole)
 				tc.owner = ghRepo.Owner
 				tc.name = ghRepo.Name
 				pat = tc.patProvider(ns.Name, ghAuthSecretName, ghAuthSecretKeyName)
@@ -174,7 +174,7 @@ func TestRepositoryGitHubConnection(t *testing.T) {
 				pat = tc.patProvider(ns.Name, "", "")
 			}
 
-			kRepoName := ns.CreateRepository(e2e.Ctx, t, apiv1.RepositorySpec{
+			kRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{
 				GitHub: &apiv1.GitHubRepositorySpec{
 					Owner:               tc.owner,
 					Name:                tc.name,

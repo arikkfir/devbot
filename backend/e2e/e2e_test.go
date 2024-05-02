@@ -29,15 +29,15 @@ func NewE2E(t T) *E2E {
 	}
 }
 
-func (e *E2E) CreateGitHubAndK8sRepository(t T, ns *testing.KNamespace, name string) (*testing.GitHubRepositoryInfo, string) {
-	ghRepo := e.GH.CreateRepository(e.Ctx, t, repositoriesFS, "repositories/"+name)
-	kRepoName := ns.CreateRepository(e.Ctx, t, apiv1.RepositorySpec{
+func (e *E2E) CreateGitHubAndK8sRepository(t T, ns *testing.KNamespace, name string, refreshInterval string) (*testing.GitHubRepositoryInfo, string) {
+	ghRepo := e.GH.CreateRepository(t, repositoriesFS, "repositories/"+name)
+	kRepoName := ns.CreateRepository(t, apiv1.RepositorySpec{
 		GitHub: &apiv1.GitHubRepositorySpec{
 			Owner:               ghRepo.Owner,
 			Name:                ghRepo.Name,
-			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(e.Ctx, t, e.GH.Token, true),
+			PersonalAccessToken: ns.CreateGitHubAuthSecretSpec(t, e.GH.Token, true),
 		},
-		RefreshInterval: "30s",
+		RefreshInterval: refreshInterval,
 	})
 	return ghRepo, kRepoName
 }

@@ -3,7 +3,6 @@ package e2e_test
 import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	. "github.com/arikkfir/devbot/backend/e2e/expectations"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,9 +14,10 @@ import (
 
 func TestSingleRepoApplicationDeployment(t *testing.T) {
 	t.Parallel()
+	e2e := NewE2E(t)
+	ns := e2e.K.CreateNamespace(t)
 
-	ns := K(t).CreateNamespace(t)
-	ghRepo, kRepoName := createGitHubAndK8sRepository(t, ns, "common")
+	ghCommonRepo, kRepoName := e2e.CreateGitHubAndK8sRepository(t, ns, "common", "5s")
 	appName := ns.CreateApplication(t, apiv1.ApplicationSpec{
 		Repositories: []apiv1.ApplicationSpecRepository{
 			{Name: kRepoName, Namespace: ns.Name, MissingBranchStrategy: apiv1.UseDefaultBranchStrategy},
@@ -25,7 +25,7 @@ func TestSingleRepoApplicationDeployment(t *testing.T) {
 		ServiceAccountName: "devbot-gitops",
 	})
 
-	With(t).Expect(func(t TT) {
+	With(t).Verify(func(t T) {
 
 		// Prepare fresh expectations
 		applicationExpectations := []AppE{
@@ -63,18 +63,18 @@ func TestSingleRepoApplicationDeployment(t *testing.T) {
 										apiv1.FailedToInitialize: nil,
 										apiv1.Stale:              nil,
 									},
-									LastAttemptedRevision: ghRepo.GetBranchSHA(t, "main"),
-									LastAppliedRevision:   ghRepo.GetBranchSHA(t, "main"),
-									ResolvedRepository:    ghRepo.Owner + "/" + ghRepo.Name,
+									LastAttemptedRevision: ghCommonRepo.GetBranchSHA(t, "main"),
+									LastAppliedRevision:   ghCommonRepo.GetBranchSHA(t, "main"),
+									ResolvedRepository:    ns.Name + "/" + kRepoName,
 								},
 								Resources: []ResourceE{
 									{
 										Object:    &v1.ConfigMap{},
 										Name:      "main-configuration",
 										Namespace: ns.Name,
-										Validator: func(t TT, r ResourceE) {
+										Validator: func(t T, r ResourceE) {
 											cm := r.Object.(*v1.ConfigMap)
-											With(t).Expect(cm.Data["env"]).Will(BeEqualTo("main"))
+											With(t).Verify(cm.Data["env"]).Will(EqualTo("main")).OrFail()
 										},
 									},
 								},
@@ -87,10 +87,10 @@ func TestSingleRepoApplicationDeployment(t *testing.T) {
 
 		// Fetch applications & verify them
 		appList := &apiv1.ApplicationList{}
-		With(t).Expect(K(t).Client.List(t, appList, client.InNamespace(ns.Name))).Will(Succeed())
-		With(t).Expect(appList.Items).Will(CompareTo(applicationExpectations).Using(ApplicationsComparator))
+		With(t).Verify(e2e.K.Client.List(e2e.Ctx, appList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
+		With(t).Verify(appList.Items).Will(EqualTo(applicationExpectations).Using(CreateApplicationsComparator(e2e.K.Client, e2e.Ctx))).OrFail()
 
-	}).Will(Eventually(Succeed()).Within(1 * time.Minute).ProbingEvery(100 * time.Millisecond))
+	}).Will(Succeed()).Within(1*time.Minute, 100*time.Millisecond)
 
 	//	// Now create a new branch, expecting a new environment & deployment will occur
 	//	_ = ghRepo.CreateBranch(t, ctx, "feature1")
