@@ -2,6 +2,7 @@ package justest
 
 import (
 	"github.com/google/go-cmp/cmp"
+	"strings"
 )
 
 type Comparator func(t T, expected any, actual any)
@@ -50,7 +51,7 @@ func EqualTo(expected ...any) EqualToMatcher {
 		expected: expectedWithoutOpts,
 		comparator: func(t T, expected, actual any) {
 			if !cmp.Equal(expected, actual, opts...) {
-				t.Fatalf("Unexpected difference:\n%s", cmp.Diff(expected, actual))
+				t.Fatalf("Unexpected difference (\"-\" lines are expected values; \"+\" lines are actual values):\n%s", strings.TrimSpace(cmp.Diff(expected, actual)))
 			}
 		},
 	}
