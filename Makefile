@@ -11,13 +11,13 @@ generate:
 	rm -vrf backend/api/v1/zz_* deploy/app/crd/*.yaml
 	cd backend && go generate ./...
 
-.PHONY: delete-github-test-repositories
-delete-github-test-repositories:
+.PHONY: delete-e2e-leftovers
+delete-e2e-leftovers:
+	kubectl get ns -oname | grep -v -E 'default|devbot|kube|local' | sort | xargs -I@ kubectl delete @
 	gh repo list devbot-testing --json=nameWithOwner \
       | jq '.[]|.nameWithOwner' -r \
       | sort \
       | xargs -I@ gh repo delete --yes @
-#      | xargs -I@ op plugin run -- gh repo delete --yes @
 
 .PHONY: delete-local-cluster
 delete-local-cluster:

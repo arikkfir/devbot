@@ -33,9 +33,11 @@ echo -e "${RED}===[ v1/Pods ]===${NORMAL}"
 kubectl get -A pods --sort-by='{.metadata.creationTimestamp}' -owide | grep -v kube-system | grep -v local-path-storage
 echo -e
 echo -e
-for j in $(kubectl get -A jobs --sort-by='{.metadata.creationTimestamp}' -oname | cut -d'/' -f2); do
-  echo -e "${RED}===[ job/${j} ]===${NORMAL}"
-  kubectl logs -A jobs.batch/${j}
+for j in $(kubectl get -A jobs --sort-by='{.metadata.creationTimestamp}' -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name} {end}'); do
+  echo -e "${RED}===[ jobs.batch/${j} ]===${NORMAL}"
+  NS=$(echo "${j}" | cut -d/ -f1)
+  NAME=$(echo "${j}" | cut -d/ -f2)
+  kubectl logs "jobs.batch/${NAME}" -n "${NS}"
   echo -e
   echo -e
 done
