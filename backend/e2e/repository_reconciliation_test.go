@@ -4,7 +4,7 @@ import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	. "github.com/arikkfir/devbot/backend/e2e/expectations"
 	. "github.com/arikkfir/devbot/backend/internal/util/testing"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	. "github.com/arikkfir/justest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 	"time"

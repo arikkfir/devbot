@@ -4,7 +4,7 @@ import (
 	"context"
 	"embed"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	. "github.com/arikkfir/justest"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"

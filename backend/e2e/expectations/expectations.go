@@ -2,7 +2,7 @@ package expectations
 
 import (
 	v1 "github.com/arikkfir/devbot/backend/api/v1"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	. "github.com/arikkfir/justest"
 	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

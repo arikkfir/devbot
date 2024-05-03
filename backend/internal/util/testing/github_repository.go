@@ -3,7 +3,7 @@ package testing
 import (
 	"bytes"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	. "github.com/arikkfir/justest"
 	"github.com/google/go-github/v56/github"
 	"os"
 	"os/exec"

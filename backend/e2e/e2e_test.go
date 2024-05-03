@@ -5,7 +5,7 @@ import (
 	"embed"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/testing"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	. "github.com/arikkfir/justest"
 )
 
 var (

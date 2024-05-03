@@ -3,7 +3,7 @@ package e2e_test
 import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	. "github.com/arikkfir/devbot/backend/e2e/expectations"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	. "github.com/arikkfir/justest"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"

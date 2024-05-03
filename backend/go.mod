@@ -5,7 +5,7 @@ go 1.22
 replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
 
 require (
-	github.com/alecthomas/chroma/v2 v2.13.0
+	github.com/arikkfir/justest v0.0.1
 	github.com/distribution/reference v0.5.0
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-logr/logr v1.4.1
@@ -26,6 +26,7 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
+	github.com/alecthomas/chroma/v2 v2.13.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect

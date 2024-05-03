@@ -2,7 +2,7 @@ package expectations
 
 import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	. "github.com/arikkfir/devbot/backend/internal/util/testing/justest"
+	. "github.com/arikkfir/justest"
 )
 
 func RepositoriesComparator(t T, e, a any) {
