@@ -18,20 +18,18 @@ COPY go.sum go.sum
 RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
-COPY cmd/github-webhook/main.go cmd/github-webhook/
+COPY cmd/deployment-clone/main.go cmd/deployment-clone/
 COPY internal/util/configuration/environment_variables.go internal/util/configuration/
-COPY internal/util/k8s/conditions.go internal/util/k8s/
 COPY internal/util/logging/initialization.go internal/util/logging/
 COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
-COPY internal/webhooks/github internal/webhooks/github/
-COPY internal/webhooks/util internal/webhooks/util/
 RUN --mount=type=cache,target=/go/pkg \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" -a -o github-webhook cmd/github-webhook/main.go
+    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" \
+    -a -o deployment-clone cmd/deployment-clone/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/github-webhook /usr/local/bin/
+COPY --from=builder /workspace/deployment-clone /usr/local/bin/
 USER 65532:65532
 ENV GOTRACEBACK=single
-ENTRYPOINT ["/usr/local/bin/github-webhook"]
+ENTRYPOINT ["/usr/local/bin/deployment-clone"]

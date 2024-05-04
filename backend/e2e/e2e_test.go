@@ -22,11 +22,7 @@ type E2E struct {
 func NewE2E(t T) *E2E {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	return &E2E{
-		Ctx: ctx,
-		GH:  testing.GH(ctx, t),
-		K:   testing.K(ctx, t),
-	}
+	return &E2E{Ctx: ctx, GH: testing.GH(ctx, t), K: testing.K(ctx, t)}
 }
 
 func (e *E2E) CreateGitHubAndK8sRepository(t T, ns *testing.KNamespace, name string, refreshInterval string) (*testing.GitHubRepositoryInfo, string) {

@@ -1,17 +1,16 @@
-package repository
+package controller
 
 import (
 	"context"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/config"
+	"github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/lang"
 	"github.com/google/go-github/v56/github"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -20,21 +19,20 @@ import (
 )
 
 var (
-	Finalizer = "repository.finalizers." + apiv1.GroupVersion.Group
+	RepositoryFinalizer = "repository.finalizers." + v1.GroupVersion.Group
 )
 
-type Reconciler struct {
+type RepositoryReconciler struct {
 	client.Client
-	Config config.CommandConfig
 	Scheme *runtime.Scheme
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *RepositoryReconciler) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	return r.executeReconciliation(ctx, req).ToResultAndError()
 }
 
-func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
-	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Repository{}, Finalizer, nil)
+func (r *RepositoryReconciler) executeReconciliation(ctx context.Context, req controllerruntime.Request) *k8s.Result {
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &v1.Repository{}, RepositoryFinalizer, nil)
 	if result != nil {
 		return result
 	}
@@ -69,8 +67,8 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 	return rec.UpdateStatus()
 }
 
-func (r *Reconciler) parseRefreshInterval(rec *k8s.Reconciliation[*apiv1.Repository]) (time.Duration, *k8s.Result) {
-	if interval, err := lang.ParseDuration(apiv1.MinRepositoryRefreshInterval, rec.Object.Spec.RefreshInterval); err != nil {
+func (r *RepositoryReconciler) parseRefreshInterval(rec *k8s.Reconciliation[*v1.Repository]) (time.Duration, *k8s.Result) {
+	if interval, err := lang.ParseDuration(v1.MinRepositoryRefreshInterval, rec.Object.Spec.RefreshInterval); err != nil {
 		rec.Object.Status.SetInvalidDueToInvalidRefreshInterval(err.Error())
 		rec.Object.Status.SetMaybeStaleDueToInvalid(rec.Object.Status.GetInvalidMessage())
 		if result := rec.UpdateStatus(); result != nil {
@@ -78,13 +76,13 @@ func (r *Reconciler) parseRefreshInterval(rec *k8s.Reconciliation[*apiv1.Reposit
 		}
 		return 0, k8s.DoNotRequeue()
 	} else {
-		rec.Object.Status.SetValidIfInvalidDueToAnyOf(apiv1.InvalidRefreshInterval)
-		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.Invalid)
+		rec.Object.Status.SetValidIfInvalidDueToAnyOf(v1.InvalidRefreshInterval)
+		rec.Object.Status.SetCurrentIfStaleDueToAnyOf(v1.Invalid)
 		return interval, rec.UpdateStatus()
 	}
 }
 
-func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Repository], refreshInterval time.Duration) *k8s.Result {
+func (r *RepositoryReconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*v1.Repository], refreshInterval time.Duration) *k8s.Result {
 	status := &rec.Object.Status
 
 	// Validate GitHub owner & name
@@ -110,9 +108,9 @@ func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Re
 
 	// Revert invalid status if owner & name are valid
 	status.ResolvedName = rec.Object.Spec.GitHub.Owner + "/" + rec.Object.Spec.GitHub.Name
-	status.SetValidIfInvalidDueToAnyOf(apiv1.RepositoryNameMissing, apiv1.RepositoryOwnerMissing)
-	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.Invalid)
-	status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated)
+	status.SetValidIfInvalidDueToAnyOf(v1.RepositoryNameMissing, v1.RepositoryOwnerMissing)
+	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(v1.Invalid)
+	status.SetCurrentIfStaleDueToAnyOf(v1.Unauthenticated)
 	if result := rec.UpdateStatus(); result != nil {
 		return result
 	}
@@ -144,7 +142,7 @@ func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Re
 			return result
 		}
 	}
-	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.DefaultBranchOutOfSync)
+	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(v1.DefaultBranchOutOfSync)
 	if result := rec.UpdateStatus(); result != nil {
 		return result
 	}
@@ -172,7 +170,7 @@ func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Re
 		branchesListOptions.Page = response.NextPage
 	}
 	status.Revisions = branchesToRevisionsMap
-	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.BranchesOutOfSync)
+	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(v1.BranchesOutOfSync)
 	if result := rec.UpdateStatus(); result != nil {
 		return result
 	}
@@ -181,7 +179,7 @@ func (r *Reconciler) reconcileGitHubRepository(rec *k8s.Reconciliation[*apiv1.Re
 	return k8s.RequeueAfter(refreshInterval)
 }
 
-func (r *Reconciler) connectToGitHub(rec *k8s.Reconciliation[*apiv1.Repository], refreshInterval time.Duration) (*github.Client, *k8s.Result) {
+func (r *RepositoryReconciler) connectToGitHub(rec *k8s.Reconciliation[*v1.Repository], refreshInterval time.Duration) (*github.Client, *k8s.Result) {
 	status := &rec.Object.Status
 
 	// The GitHub client, to be initialized based on the authentication configuration selected
@@ -210,25 +208,25 @@ func (r *Reconciler) connectToGitHub(rec *k8s.Reconciliation[*apiv1.Repository],
 		}
 
 		// Revert invalid status if auth secret name & key are valid
-		status.SetValidIfInvalidDueToAnyOf(apiv1.AuthSecretKeyMissing, apiv1.AuthSecretNameMissing)
-		status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.Invalid)
-		status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated)
+		status.SetValidIfInvalidDueToAnyOf(v1.AuthSecretKeyMissing, v1.AuthSecretNameMissing)
+		status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(v1.Invalid)
+		status.SetCurrentIfStaleDueToAnyOf(v1.Unauthenticated)
 		if result := rec.UpdateStatus(); result != nil {
 			return nil, result
 		}
 
 		// Fetch secret
-		authSecret := &corev1.Secret{}
+		authSecret := &v12.Secret{}
 		secretObjKey := patCfg.Secret.GetObjectKey(rec.Object.Namespace)
 		if err := r.Client.Get(rec.Ctx, secretObjKey, authSecret); err != nil {
-			if apierrors.IsNotFound(err) {
+			if errors.IsNotFound(err) {
 				status.SetUnauthenticatedDueToAuthSecretNotFound("Secret '%s' not found", secretObjKey)
 				status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
 				if result := rec.UpdateStatus(); result != nil {
 					return nil, result
 				}
 				return nil, k8s.RequeueAfter(refreshInterval)
-			} else if apierrors.IsForbidden(err) {
+			} else if errors.IsForbidden(err) {
 				status.SetUnauthenticatedDueToAuthSecretForbidden("Secret '%s' is not accessible: %+v", secretObjKey, err)
 				status.SetMaybeStaleDueToUnauthenticated(status.GetUnauthenticatedMessage())
 				if result := rec.UpdateStatus(); result != nil {
@@ -246,8 +244,8 @@ func (r *Reconciler) connectToGitHub(rec *k8s.Reconciliation[*apiv1.Repository],
 		}
 
 		// Revert status if auth secret fetched successfully
-		status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.AuthSecretNotFound, apiv1.AuthSecretForbidden, apiv1.InternalError)
-		status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated)
+		status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(v1.AuthSecretNotFound, v1.AuthSecretForbidden, v1.InternalError)
+		status.SetCurrentIfStaleDueToAnyOf(v1.Unauthenticated)
 		if result := rec.UpdateStatus(); result != nil {
 			return nil, result
 		}
@@ -271,8 +269,8 @@ func (r *Reconciler) connectToGitHub(rec *k8s.Reconciliation[*apiv1.Repository],
 		}
 
 		// Revert status if auth secret fetched successfully
-		status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.AuthSecretKeyNotFound, apiv1.AuthTokenEmpty)
-		status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated)
+		status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(v1.AuthSecretKeyNotFound, v1.AuthTokenEmpty)
+		status.SetCurrentIfStaleDueToAnyOf(v1.Unauthenticated)
 		if result := rec.UpdateStatus(); result != nil {
 			return nil, result
 		}
@@ -292,9 +290,9 @@ func (r *Reconciler) connectToGitHub(rec *k8s.Reconciliation[*apiv1.Repository],
 	}
 
 	// Revert invalid status if set due to missing auth configuration
-	status.SetValidIfInvalidDueToAnyOf(apiv1.AuthConfigMissing)
-	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.Invalid)
-	status.SetCurrentIfStaleDueToAnyOf(apiv1.Invalid)
+	status.SetValidIfInvalidDueToAnyOf(v1.AuthConfigMissing)
+	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(v1.Invalid)
+	status.SetCurrentIfStaleDueToAnyOf(v1.Invalid)
 	if result := rec.UpdateStatus(); result != nil {
 		return nil, result
 	}
@@ -317,8 +315,8 @@ func (r *Reconciler) connectToGitHub(rec *k8s.Reconciliation[*apiv1.Repository],
 	}
 
 	// Revert status if GitHub client is authenticated
-	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(apiv1.AuthenticationFailed)
-	status.SetCurrentIfStaleDueToAnyOf(apiv1.Unauthenticated)
+	status.SetAuthenticatedIfUnauthenticatedDueToAnyOf(v1.AuthenticationFailed)
+	status.SetCurrentIfStaleDueToAnyOf(v1.Unauthenticated)
 	if result := rec.UpdateStatus(); result != nil {
 		return nil, result
 	}
@@ -326,7 +324,7 @@ func (r *Reconciler) connectToGitHub(rec *k8s.Reconciliation[*apiv1.Repository],
 	return ghc, k8s.Continue()
 }
 
-func (r *Reconciler) fetchRepository(rec *k8s.Reconciliation[*apiv1.Repository], refreshInterval time.Duration, ghc *github.Client) (*github.Repository, *k8s.Result) {
+func (r *RepositoryReconciler) fetchRepository(rec *k8s.Reconciliation[*v1.Repository], refreshInterval time.Duration, ghc *github.Client) (*github.Repository, *k8s.Result) {
 	owner := rec.Object.Spec.GitHub.Owner
 	name := rec.Object.Spec.GitHub.Name
 
@@ -348,7 +346,7 @@ func (r *Reconciler) fetchRepository(rec *k8s.Reconciliation[*apiv1.Repository],
 	}
 
 	// Revert status if set due to repository not found or internal error
-	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(apiv1.RepositoryNotFound, apiv1.InternalError)
+	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(v1.RepositoryNotFound, v1.InternalError)
 	if result := rec.UpdateStatus(); result != nil {
 		return nil, result
 	}
@@ -357,9 +355,9 @@ func (r *Reconciler) fetchRepository(rec *k8s.Reconciliation[*apiv1.Repository],
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&apiv1.Repository{}, builder.WithPredicates(predicate.Funcs{
+func (r *RepositoryReconciler) SetupWithManager(mgr controllerruntime.Manager) error {
+	return controllerruntime.NewControllerManagedBy(mgr).
+		For(&v1.Repository{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
 				// Only reconcile if the generation has changed
 				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()

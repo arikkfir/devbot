@@ -13,89 +13,6 @@ func (s *EnvironmentStatus) GetCondition(conditionType string) *v1.Condition {
 	return GetCondition(s.Conditions, conditionType)
 }
 
-func (s *EnvironmentStatus) SetFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+InternalError {
-		s.PrivateArea[Initialized] = "No: " + InternalError
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, FailedToInitialize, v1.ConditionTrue, InternalError, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetMaybeFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+InternalError {
-		s.PrivateArea[Initialized] = "No: " + InternalError
-		changed = true
-	}
-	changed = SetCondition(&s.Conditions, FailedToInitialize, v1.ConditionUnknown, InternalError, message, args...) || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) SetInitializedIfFailedToInitializeDueToAnyOf(reasons ...string) bool {
-	changed := false
-	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, FailedToInitialize, reasons...) || changed
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if s.IsInitialized() {
-		if v, ok := s.PrivateArea[Initialized]; !ok || v != "Yes" {
-			s.PrivateArea[Initialized] = "Yes"
-			changed = true
-		}
-	} else {
-		if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+s.GetFailedToInitializeReason() {
-			s.PrivateArea[Initialized] = "No: " + s.GetFailedToInitializeReason()
-			changed = true
-		}
-	}
-	return changed
-}
-
-func (s *EnvironmentStatus) SetInitialized() bool {
-	changed := false
-	if s.PrivateArea == nil {
-		s.PrivateArea = make(map[string]string)
-	}
-	if v, ok := s.PrivateArea[Initialized]; !ok || v != "Yes" {
-		s.PrivateArea[Initialized] = "Yes"
-		changed = true
-	}
-	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, FailedToInitialize, InternalError, "NonExistent") || changed
-	return changed
-}
-
-func (s *EnvironmentStatus) IsInitialized() bool {
-	return !HasCondition(s.Conditions, FailedToInitialize) || IsConditionStatusOneOf(s.Conditions, FailedToInitialize, v1.ConditionFalse)
-}
-
-func (s *EnvironmentStatus) IsFailedToInitialize() bool {
-	return IsConditionStatusOneOf(s.Conditions, FailedToInitialize, v1.ConditionTrue, v1.ConditionUnknown)
-}
-
-func (s *EnvironmentStatus) GetFailedToInitializeCondition() *v1.Condition {
-	return GetCondition(s.Conditions, FailedToInitialize)
-}
-
-func (s *EnvironmentStatus) GetFailedToInitializeReason() string {
-	return GetConditionReason(s.Conditions, FailedToInitialize)
-}
-
-func (s *EnvironmentStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
-	return GetConditionStatus(s.Conditions, FailedToInitialize)
-}
-
-func (s *EnvironmentStatus) GetFailedToInitializeMessage() string {
-	return GetConditionMessage(s.Conditions, FailedToInitialize)
-}
-
 func (s *EnvironmentStatus) SetInvalidDueToControllerNotAccessible(message string, args ...interface{}) bool {
 	changed := false
 	if s.PrivateArea == nil {
@@ -390,6 +307,89 @@ func (s *EnvironmentStatus) GetFinalizingStatus() *v1.ConditionStatus {
 
 func (s *EnvironmentStatus) GetFinalizingMessage() string {
 	return GetConditionMessage(s.Conditions, Finalizing)
+}
+
+func (s *EnvironmentStatus) SetFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Initialized] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, FailedToInitialize, v1.ConditionTrue, InternalError, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetMaybeFailedToInitializeDueToInternalError(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+InternalError {
+		s.PrivateArea[Initialized] = "No: " + InternalError
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, FailedToInitialize, v1.ConditionUnknown, InternalError, message, args...) || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) SetInitializedIfFailedToInitializeDueToAnyOf(reasons ...string) bool {
+	changed := false
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, FailedToInitialize, reasons...) || changed
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if s.IsInitialized() {
+		if v, ok := s.PrivateArea[Initialized]; !ok || v != "Yes" {
+			s.PrivateArea[Initialized] = "Yes"
+			changed = true
+		}
+	} else {
+		if v, ok := s.PrivateArea[Initialized]; !ok || v != "No: "+s.GetFailedToInitializeReason() {
+			s.PrivateArea[Initialized] = "No: " + s.GetFailedToInitializeReason()
+			changed = true
+		}
+	}
+	return changed
+}
+
+func (s *EnvironmentStatus) SetInitialized() bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Initialized]; !ok || v != "Yes" {
+		s.PrivateArea[Initialized] = "Yes"
+		changed = true
+	}
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, FailedToInitialize, InternalError, "NonExistent") || changed
+	return changed
+}
+
+func (s *EnvironmentStatus) IsInitialized() bool {
+	return !HasCondition(s.Conditions, FailedToInitialize) || IsConditionStatusOneOf(s.Conditions, FailedToInitialize, v1.ConditionFalse)
+}
+
+func (s *EnvironmentStatus) IsFailedToInitialize() bool {
+	return IsConditionStatusOneOf(s.Conditions, FailedToInitialize, v1.ConditionTrue, v1.ConditionUnknown)
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeCondition() *v1.Condition {
+	return GetCondition(s.Conditions, FailedToInitialize)
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeReason() string {
+	return GetConditionReason(s.Conditions, FailedToInitialize)
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeStatus() *v1.ConditionStatus {
+	return GetConditionStatus(s.Conditions, FailedToInitialize)
+}
+
+func (s *EnvironmentStatus) GetFailedToInitializeMessage() string {
+	return GetConditionMessage(s.Conditions, FailedToInitialize)
 }
 
 func (s *EnvironmentStatus) SetStaleDueToDeploymentsAreStale(message string, args ...interface{}) bool {

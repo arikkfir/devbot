@@ -3,35 +3,82 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/arikkfir/devbot/backend/internal/util/configuration"
+	. "github.com/arikkfir/devbot/backend/internal/util/configuration"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
+	"github.com/spf13/pflag"
 	"os"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	devbotconfig "github.com/arikkfir/devbot/backend/internal/config"
 )
 
+const (
+	disableJSONLoggingKey = "disable-json-logging"
+	logLevelKey           = "log-level"
+	branchKey             = "branch"
+	gitURLKey             = "git-url"
+	shaKey                = "sha"
+)
+
+// Version represents the version of the controller. This variable gets its value by injection from the build process.
+//
+//goland:noinspection GoUnusedGlobalVariable
+var Version = "0.0.0-unknown"
+
+// Config is the configuration for this job.
 type Config struct {
-	devbotconfig.CommandConfig
-	Branch string `env:"BRANCH" long:"branch" description:"Git branch to checkout" required:"true"`
-	GitURL string `env:"GIT_URL" long:"git-url" description:"Git URL" required:"true"`
-	SHA    string `env:"SHA" long:"sha" description:"Commit SHA to checkout" required:"true"`
+	DisableJSONLogging bool
+	LogLevel           string
+	Branch             string
+	GitURL             string
+	SHA                string
 }
 
-var (
-	cfg Config
-)
+// cfg is the configuration of the job. It is populated in the init function.
+var cfg = Config{
+	DisableJSONLogging: false,
+	LogLevel:           "info",
+}
 
 func init() {
-	configuration.Parse(&cfg)
-	logging.Configure(os.Stderr, cfg.DevMode, cfg.LogLevel)
+
+	// Configure & parse CLI flags
+	pflag.BoolVar(&cfg.DisableJSONLogging, disableJSONLoggingKey, cfg.DisableJSONLogging, "Disable JSON logging")
+	pflag.StringVar(&cfg.LogLevel, logLevelKey, cfg.LogLevel, "Log level, must be one of: trace,debug,info,warn,error,fatal,panic")
+	pflag.StringVar(&cfg.Branch, branchKey, cfg.Branch, "Git branch to checkout")
+	pflag.StringVar(&cfg.GitURL, gitURLKey, cfg.GitURL, "Git URL")
+	pflag.StringVar(&cfg.SHA, shaKey, cfg.SHA, "Commit SHA to checkout")
+	pflag.Parse()
+
+	// Allow the user to override configuration values using environment variables
+	ApplyBoolEnvironmentVariableTo(&cfg.DisableJSONLogging, FlagNameToEnvironmentVariable(disableJSONLoggingKey))
+	ApplyStringEnvironmentVariableTo(&cfg.LogLevel, FlagNameToEnvironmentVariable(logLevelKey))
+	ApplyStringEnvironmentVariableTo(&cfg.Branch, FlagNameToEnvironmentVariable(branchKey))
+	ApplyStringEnvironmentVariableTo(&cfg.GitURL, FlagNameToEnvironmentVariable(gitURLKey))
+	ApplyStringEnvironmentVariableTo(&cfg.SHA, FlagNameToEnvironmentVariable(shaKey))
+
+	// Validate configuration
+	if cfg.LogLevel == "" {
+		log.Fatal().Msg("Log level cannot be empty")
+	}
+	if cfg.Branch == "" {
+		log.Fatal().Msg("Branch cannot be empty")
+	}
+	if cfg.GitURL == "" {
+		log.Fatal().Msg("Git URL cannot be empty")
+	}
+	if cfg.SHA == "" {
+		log.Fatal().Msg("SHA cannot be empty")
+	}
+
+	// Configure logging
+	logging.Configure(os.Stderr, !cfg.DisableJSONLogging, cfg.LogLevel, Version)
+
 }
 
 func main() {

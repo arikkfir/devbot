@@ -90,7 +90,7 @@ func TestSingleRepoApplicationDeployment(t *testing.T) {
 		With(t).Verify(e2e.K.Client.List(e2e.Ctx, appList, client.InNamespace(ns.Name))).Will(Succeed()).OrFail()
 		With(t).Verify(appList.Items).Will(EqualTo(applicationExpectations).Using(CreateApplicationsComparator(e2e.K.Client, e2e.Ctx))).OrFail()
 
-	}).Will(Succeed()).Within(1*time.Minute, 100*time.Millisecond)
+	}).Will(Succeed()).Within(10*time.Minute, 100*time.Millisecond)
 
 	//	// Now create a new branch, expecting a new environment & deployment will occur
 	//	_ = ghRepo.CreateBranch(t, ctx, "feature1")

@@ -1,9 +1,8 @@
-package environment
+package controller
 
 import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/config"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,7 +20,7 @@ import (
 )
 
 var (
-	Finalizer = "environments.finalizers." + apiv1.GroupVersion.Group
+	EnvironmentFinalizer = "environments.finalizers." + apiv1.GroupVersion.Group
 )
 
 type (
@@ -30,19 +29,18 @@ type (
 		BranchRef  *apiv1.NamespacedReference
 	}
 
-	Reconciler struct {
+	EnvironmentReconciler struct {
 		client.Client
-		Config config.CommandConfig
 		Scheme *runtime.Scheme
 	}
 )
 
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *EnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.executeReconciliation(ctx, req).ToResultAndError()
 }
 
-func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
-	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Environment{}, Finalizer, nil)
+func (r *EnvironmentReconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Environment{}, EnvironmentFinalizer, nil)
 	if result != nil {
 		return result
 	}
@@ -166,7 +164,7 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *EnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Environment{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {

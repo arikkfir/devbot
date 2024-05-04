@@ -18,7 +18,7 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/env/-
         value:
-          name: DEV_MODE
+          name: DISABLE_JSON_LOGGING
           value: "true"
       - op: add
         path: /spec/template/spec/containers/0/env/-
@@ -38,12 +38,11 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-      labelSelector: app.kubernetes.io/std-logger=true
   - patch: |
       - op: add
         path: /spec/template/spec/containers/0/env/-
         value:
-          name: SECRET
+          name: WEBHOOK_SECRET
           valueFrom:
             secretKeyRef:
               key: GITHUB_WEBHOOK_SECRET

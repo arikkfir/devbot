@@ -1,9 +1,8 @@
-package application
+package controller
 
 import (
 	"context"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/config"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/secureworks/errors"
@@ -23,26 +22,25 @@ import (
 )
 
 var (
-	Finalizer = "applications.finalizers." + apiv1.GroupVersion.Group
+	ApplicationFinalizer = "applications.finalizers." + apiv1.GroupVersion.Group
 )
 
-// Reconciler reconciles an Application object
-type Reconciler struct {
+// ApplicationReconciler reconciles an Application object
+type ApplicationReconciler struct {
 	client.Client
-	Config config.CommandConfig
 	Scheme *runtime.Scheme
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.executeReconciliation(ctx, req).ToResultAndError()
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
-	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Application{}, Finalizer, nil)
+func (r *ApplicationReconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Application{}, ApplicationFinalizer, nil)
 	if result != nil {
 		return result
 	}
@@ -190,7 +188,7 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Application{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {

@@ -1,8 +1,13 @@
 # syntax=docker/dockerfile:1
 
+FROM alpine:3.19 as kubectl
+ARG KUBECTL_VERSION="v1.29.3"
+WORKDIR /workspace
+RUN apk --no-cache add curl
+RUN curl -sSL -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && chmod +x kubectl
+
 FROM golang:1.22 as builder
 
-# no default value, to default to the environment's architecture (e.g. linux/amd64)
 ARG TARGETOS="linux"
 ARG TARGETARCH
 
@@ -18,20 +23,19 @@ COPY go.sum go.sum
 RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
-COPY cmd/github-webhook/main.go cmd/github-webhook/
+COPY cmd/deployment-apply/main.go cmd/deployment-apply/
 COPY internal/util/configuration/environment_variables.go internal/util/configuration/
-COPY internal/util/k8s/conditions.go internal/util/k8s/
 COPY internal/util/logging/initialization.go internal/util/logging/
 COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
-COPY internal/webhooks/github internal/webhooks/github/
-COPY internal/webhooks/util internal/webhooks/util/
 RUN --mount=type=cache,target=/go/pkg \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" -a -o github-webhook cmd/github-webhook/main.go
+    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" \
+    -a -o deployment-apply cmd/deployment-apply/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/github-webhook /usr/local/bin/
+COPY --from=builder /workspace/deployment-apply /usr/local/bin/
+COPY --from=kubectl /workspace/kubectl /usr/local/bin/
 USER 65532:65532
 ENV GOTRACEBACK=single
-ENTRYPOINT ["/usr/local/bin/github-webhook"]
+ENTRYPOINT ["/usr/local/bin/deployment-apply"]

@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/arikkfir/devbot/backend/internal/util/configuration"
+	. "github.com/arikkfir/devbot/backend/internal/util/configuration"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
+	"github.com/spf13/pflag"
 	"io"
 	"os"
 	"os/exec"
@@ -15,35 +16,114 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
-	devbotconfig "github.com/arikkfir/devbot/backend/internal/config"
 )
 
 const (
-	kustomizeBinaryFilePath = "/usr/local/bin/kustomize"
-	yqBinaryFilePath        = "/usr/local/bin/yq"
+	disableJSONLoggingKey = "disable-json-logging"
+	logLevelKey           = "log-level"
+	actualBranchKey       = "actual-branch"
+	applicationNameKey    = "application-name"
+	baseDeployKey         = "base-deploy-dir"
+	environmentNameKey    = "environment-name"
+	deploymentNameKey     = "deployment-name"
+	manifestFileKey       = "manifest-file"
+	preferredBranchKey    = "preferred-branch"
+	repoDefaultBranchKey  = "repo-default-branch"
+	shaKey                = "sha"
 )
 
+const (
+	// kustomizeBinaryFilePath is the path to the kustomize binary.
+	kustomizeBinaryFilePath = "/usr/local/bin/kustomize"
+
+	// yqBinaryFilePath is the path to the yq binary.
+	yqBinaryFilePath = "/usr/local/bin/yq"
+)
+
+// Version represents the version of the controller. This variable gets its value by injection from the build process.
+//
+//goland:noinspection GoUnusedGlobalVariable
+var Version = "0.0.0-unknown"
+
+// Config is the configuration for this job.
 type Config struct {
-	devbotconfig.CommandConfig
-	ActualBranch      string `env:"ACTUAL_BRANCH" long:"actual-branch" description:"Git branch serving as a default, in case the preferred branch was missing" required:"true"`
-	ApplicationName   string `env:"APPLICATION_OBJECT_NAME" long:"application" description:"Kubernetes Application object name" required:"true"`
-	BaseDeployDir     string `env:"BASE_DEPLOY_DIR" long:"base-deploy-dir" description:"Base directory Directory holding the Kustomize overlay to build" required:"true"`
-	EnvironmentName   string `env:"ENVIRONMENT_OBJECT_NAME" long:"environment" description:"Kubernetes Environment object name" required:"true"`
-	DeploymentName    string `env:"DEPLOYMENT_OBJECT_NAME" long:"deployment" description:"Kubernetes Deployment object name" required:"true"`
-	ManifestFile      string `env:"MANIFEST_FILE" long:"manifest-file" description:"Target file to write resources YAML manifest to" required:"true"`
-	PreferredBranch   string `env:"PREFERRED_BRANCH" long:"preferred-branch" description:"Git branch preferred for baking, if it exists" required:"true"`
-	RepoDefaultBranch string `env:"REPO_DEFAULT_BRANCH" long:"repo-default-branch" description:"The default branch of the repository being deployed" required:"true"`
-	SHA               string `env:"SHA" long:"sha" description:"Commit SHA to checkout" required:"true"`
+	DisableJSONLogging bool
+	LogLevel           string
+	ActualBranch       string
+	ApplicationName    string
+	BaseDeployDir      string
+	EnvironmentName    string
+	DeploymentName     string
+	ManifestFile       string
+	PreferredBranch    string
+	RepoDefaultBranch  string
+	SHA                string
 }
 
-var (
-	cfg Config
-)
+// cfg is the configuration of the job. It is populated in the init function.
+var cfg = Config{
+	DisableJSONLogging: false,
+	LogLevel:           "info",
+}
 
 func init() {
-	configuration.Parse(&cfg)
-	logging.Configure(os.Stderr, cfg.DevMode, cfg.LogLevel)
+
+	// Configure & parse CLI flags
+	pflag.BoolVar(&cfg.DisableJSONLogging, disableJSONLoggingKey, cfg.DisableJSONLogging, "Disable JSON logging")
+	pflag.StringVar(&cfg.LogLevel, logLevelKey, cfg.LogLevel, "Log level, must be one of: trace,debug,info,warn,error,fatal,panic")
+	pflag.StringVar(&cfg.ActualBranch, actualBranchKey, cfg.ActualBranch, "Git branch serving as a default, in case the preferred branch was missing")
+	pflag.StringVar(&cfg.ApplicationName, applicationNameKey, cfg.ApplicationName, "Kubernetes Application object name")
+	pflag.StringVar(&cfg.BaseDeployDir, baseDeployKey, cfg.BaseDeployDir, "Base directory Directory holding the Kustomize overlay to build")
+	pflag.StringVar(&cfg.EnvironmentName, environmentNameKey, cfg.EnvironmentName, "Kubernetes Environment object name")
+	pflag.StringVar(&cfg.DeploymentName, deploymentNameKey, cfg.DeploymentName, "Kubernetes Deployment object name")
+	pflag.StringVar(&cfg.ManifestFile, manifestFileKey, cfg.ManifestFile, "Target file to write resources YAML manifest to")
+	pflag.StringVar(&cfg.PreferredBranch, preferredBranchKey, cfg.PreferredBranch, "Git branch preferred for baking, if it exists")
+	pflag.StringVar(&cfg.RepoDefaultBranch, repoDefaultBranchKey, cfg.RepoDefaultBranch, "The default branch of the repository being deployed")
+	pflag.StringVar(&cfg.SHA, shaKey, cfg.SHA, "Commit SHA to checkout")
+	pflag.Parse()
+
+	// Allow the user to override configuration values using environment variables
+	ApplyBoolEnvironmentVariableTo(&cfg.DisableJSONLogging, FlagNameToEnvironmentVariable(disableJSONLoggingKey))
+	ApplyStringEnvironmentVariableTo(&cfg.LogLevel, FlagNameToEnvironmentVariable(logLevelKey))
+	ApplyStringEnvironmentVariableTo(&cfg.ActualBranch, FlagNameToEnvironmentVariable(actualBranchKey))
+	ApplyStringEnvironmentVariableTo(&cfg.ApplicationName, FlagNameToEnvironmentVariable(applicationNameKey))
+	ApplyStringEnvironmentVariableTo(&cfg.BaseDeployDir, FlagNameToEnvironmentVariable(baseDeployKey))
+	ApplyStringEnvironmentVariableTo(&cfg.EnvironmentName, FlagNameToEnvironmentVariable(environmentNameKey))
+	ApplyStringEnvironmentVariableTo(&cfg.DeploymentName, FlagNameToEnvironmentVariable(deploymentNameKey))
+	ApplyStringEnvironmentVariableTo(&cfg.ManifestFile, FlagNameToEnvironmentVariable(manifestFileKey))
+	ApplyStringEnvironmentVariableTo(&cfg.PreferredBranch, FlagNameToEnvironmentVariable(preferredBranchKey))
+	ApplyStringEnvironmentVariableTo(&cfg.RepoDefaultBranch, FlagNameToEnvironmentVariable(repoDefaultBranchKey))
+	ApplyStringEnvironmentVariableTo(&cfg.SHA, FlagNameToEnvironmentVariable(shaKey))
+
+	// Validate configuration
+	if cfg.LogLevel == "" {
+		log.Fatal().Msg("Log level cannot be empty")
+	}
+	if cfg.ActualBranch == "" {
+		log.Fatal().Msg("Actual branch cannot be empty")
+	}
+	if cfg.ApplicationName == "" {
+		log.Fatal().Msg("Application name cannot be empty")
+	}
+	if cfg.EnvironmentName == "" {
+		log.Fatal().Msg("Environment name cannot be empty")
+	}
+	if cfg.DeploymentName == "" {
+		log.Fatal().Msg("Deployment name cannot be empty")
+	}
+	if cfg.ManifestFile == "" {
+		log.Fatal().Msg("Manifest file name cannot be empty")
+	}
+	if cfg.PreferredBranch == "" {
+		log.Fatal().Msg("Preferred branch name cannot be empty")
+	}
+	if cfg.RepoDefaultBranch == "" {
+		log.Fatal().Msg("Repository default branch name cannot be empty")
+	}
+
+	// Configure logging
+	logging.Configure(os.Stderr, !cfg.DisableJSONLogging, cfg.LogLevel, Version)
+
 }
 
 func main() {
@@ -62,7 +142,7 @@ func main() {
 		Logger()
 
 	// Create target resources file
-	resourcesFile, err := os.Create(filepath.Join("/data", cfg.ManifestFile))
+	resourcesFile, err := os.Create(cfg.ManifestFile)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed creating target manifest file")
 	}

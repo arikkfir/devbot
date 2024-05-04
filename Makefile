@@ -1,3 +1,9 @@
+## Setup
+-include .env
+export $(shell sed 's/=.*//' .env)
+
+## Tasks
+
 .PHONY: print-resources
 print-resources:
 	./hack/bin/debug-deployments.sh

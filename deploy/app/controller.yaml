@@ -1,26 +1,51 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: application-controller
+  name: controller
 rules:
+
+  # Controller reads its own pod information to infer its own container image name - to use it for the deployment jobs
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get"]
+
+  # Application CRD reconciliation
   - apiGroups: [devbot.kfirs.com]
     resources: [applications]
     verbs: [get, list, patch, update, watch]
   - apiGroups: [devbot.kfirs.com]
     resources: [applications/status]
     verbs: [create, delete, get, patch, update]
+
+  # Environment CRD reconciliation
   - apiGroups: [devbot.kfirs.com]
     resources: [environments]
     verbs: [create, delete, get, list, patch, update, watch]
   - apiGroups: [devbot.kfirs.com]
+    resources: [ environments/status ]
+    verbs: [ create, delete, get, patch, update ]
+
+  # Deployment CRD reconciliation
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ deployments ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ deployments/status ]
+    verbs: [ create, delete, get, patch, update ]
+  - apiGroups: [ "batch" ]
+    resources: [ "jobs" ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+  - apiGroups: [ "" ]
+    resources: [ "persistentvolumeclaims" ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+
+  # Repository CRD reconciliation
+  - apiGroups: [ devbot.kfirs.com ]
     resources: [repositories]
-    verbs: [get, list, watch]
+    verbs: [ get, list, patch, update, watch ]
   - apiGroups: [devbot.kfirs.com]
     resources: [repositories/status]
-    verbs: [get]
+    verbs: [ create, delete, get, patch, update ]
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -28,58 +53,56 @@ metadata:
   annotations:
     iam.gke.io/gcp-service-account: application-controller@arikkfir.iam.gserviceaccount.com
   labels:
-    app.kubernetes.io/component: application-controller
-  name: application-controller
+    app.kubernetes.io/component: controller
+  name: controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: application-controller
-  name: application-controller
+    app.kubernetes.io/component: controller
+  name: controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: application-controller
+  name: controller
 subjects:
   - kind: ServiceAccount
-    name: application-controller
+    name: controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/component: application-controller
-  name: application-controller-leader-election
+    app.kubernetes.io/component: controller
+  name: controller-leader-election
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: leader-election
 subjects:
   - kind: ServiceAccount
-    name: application-controller
+    name: controller
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: application-controller
-    app.kubernetes.io/component-type: controller
-    app.kubernetes.io/std-logger: "true"
-  name: application-controller
+    app.kubernetes.io/component: controller
+  name: controller
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/component: application-controller
+      app.kubernetes.io/component: controller
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: application-controller
+        app.kubernetes.io/component: controller
     spec:
       containers:
-        - image: ghcr.io/arikkfir/devbot/application-controller
+        - image: ghcr.io/arikkfir/devbot/controller
           args: []
           env:
             - name: POD_NAME
@@ -90,7 +113,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          name: application-controller
+          name: controller
           ports:
             - containerPort: 8000
               name: metrics
@@ -98,10 +121,10 @@ spec:
               name: health
           resources:
             limits:
-              cpu: 50m
-              memory: 32Mi
+              cpu: 2048m
+              memory: 128Mi
             requests:
-              cpu: 50m
-              memory: 32Mi
+              cpu: 512m
+              memory: 64Mi
       enableServiceLinks: false
-      serviceAccountName: application-controller
+      serviceAccountName: controller

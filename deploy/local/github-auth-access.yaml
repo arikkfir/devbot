@@ -20,5 +20,5 @@ roleRef:
   name: devbot-github-auth
 subjects:
   - kind: ServiceAccount
-    name: devbot-github-controller
+    name: devbot-github-webhook
     namespace: devbot

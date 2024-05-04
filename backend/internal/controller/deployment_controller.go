@@ -1,10 +1,9 @@
-package deployment
+package controller
 
 import (
 	"context"
 	"fmt"
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	internalconfig "github.com/arikkfir/devbot/backend/internal/config"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/lang"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
@@ -28,27 +27,29 @@ import (
 )
 
 var (
-	Finalizer = "deployments.finalizers." + apiv1.GroupVersion.Group
+	DeploymentFinalizer = "deployments.finalizers." + apiv1.GroupVersion.Group
+	ApplyJobImage       = ""
+	BakeJobImage        = ""
+	CloneJobImage       = ""
 )
 
-type Reconciler struct {
+type DeploymentReconciler struct {
 	client.Client
-	Config    internalconfig.CommandConfig
-	Scheme    *runtime.Scheme
-	csiDriver string
+	Config Config
+	Scheme *runtime.Scheme
 }
 
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	return r.executeReconciliation(ctx, req).ToResultAndError()
 }
 
-func (r *Reconciler) finalizeObject(_ *k8s.Reconciliation[*apiv1.Deployment]) error {
+func (r *DeploymentReconciler) finalizeObject(_ *k8s.Reconciliation[*apiv1.Deployment]) error {
 	// TODO: delete all resources created by this deployment
 	return nil
 }
 
-func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
-	rec, result := k8s.NewReconciliation(ctx, r.Config, r.Client, req, &apiv1.Deployment{}, Finalizer, r.finalizeObject)
+func (r *DeploymentReconciler) executeReconciliation(ctx context.Context, req ctrl.Request) *k8s.Result {
+	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &apiv1.Deployment{}, DeploymentFinalizer, r.finalizeObject)
 	if result != nil {
 		return result
 	}
@@ -273,7 +274,7 @@ func (r *Reconciler) executeReconciliation(ctx context.Context, req ctrl.Request
 	return k8s.DoNotRequeue()
 }
 
-func (r *Reconciler) getApplication(rec *k8s.Reconciliation[*apiv1.Deployment], env *apiv1.Environment, appTarget **apiv1.Application) *k8s.Result {
+func (r *DeploymentReconciler) getApplication(rec *k8s.Reconciliation[*apiv1.Deployment], env *apiv1.Environment, appTarget **apiv1.Application) *k8s.Result {
 	appRef := metav1.GetControllerOf(env)
 	if appRef == nil {
 		rec.Object.Status.SetInvalidDueToInternalError("Could not find application controller for parent environment '%s/%s'", env.Namespace, env.Name)
@@ -319,7 +320,7 @@ func (r *Reconciler) getApplication(rec *k8s.Reconciliation[*apiv1.Deployment], 
 	return k8s.Continue()
 }
 
-func (r *Reconciler) ensurePersistentVolumeClaim(rec *k8s.Reconciliation[*apiv1.Deployment]) *k8s.Result {
+func (r *DeploymentReconciler) ensurePersistentVolumeClaim(rec *k8s.Reconciliation[*apiv1.Deployment]) *k8s.Result {
 	if rec.Object.Status.PersistentVolumeClaimName == "" {
 		rec.Object.Status.SetMaybeStaleDueToPersistentVolumeMissing("Persistent volume claim name not set yet")
 		if result := rec.UpdateStatus(); result != nil {
@@ -369,7 +370,7 @@ func (r *Reconciler) ensurePersistentVolumeClaim(rec *k8s.Reconciliation[*apiv1.
 	return nil
 }
 
-func (r *Reconciler) getCurrentJob(rec *k8s.Reconciliation[*apiv1.Deployment], target **batchv1.Job) *k8s.Result {
+func (r *DeploymentReconciler) getCurrentJob(rec *k8s.Reconciliation[*apiv1.Deployment], target **batchv1.Job) *k8s.Result {
 	jobs := &batchv1.JobList{}
 	nsFilter := client.InNamespace(rec.Object.Namespace)
 	ownershipFilter := k8s.OwnedBy(r.Client.Scheme(), rec.Object)
@@ -400,7 +401,7 @@ func (r *Reconciler) getCurrentJob(rec *k8s.Reconciliation[*apiv1.Deployment], t
 	return nil
 }
 
-func (r *Reconciler) createNewJobSpec(rec *k8s.Reconciliation[*apiv1.Deployment], phase Phase, app *apiv1.Application, envVars ...corev1.EnvVar) batchv1.Job {
+func (r *DeploymentReconciler) createNewJobSpec(rec *k8s.Reconciliation[*apiv1.Deployment], image string, phase Phase, app *apiv1.Application, envVars ...corev1.EnvVar) (batchv1.Job, error) {
 	log.FromContext(rec.Ctx).WithValues("phase", phase).Info("Creating new job")
 	return batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -417,12 +418,11 @@ func (r *Reconciler) createNewJobSpec(rec *k8s.Reconciliation[*apiv1.Deployment]
 					Containers: []corev1.Container{
 						{
 							Name:       string(phase),
-							Image:      internalconfig.Image,
-							Command:    []string{fmt.Sprintf("/usr/local/bin/deployment-%s", phase)},
+							Image:      image,
 							WorkingDir: "/data",
 							Env: append(
 								envVars,
-								corev1.EnvVar{Name: "DEV_MODE", Value: strconv.FormatBool(r.Config.DevMode)},
+								corev1.EnvVar{Name: "DISABLE_JSON_LOGGING", Value: strconv.FormatBool(r.Config.DisableJSONLogging)},
 								corev1.EnvVar{Name: "LOG_LEVEL", Value: r.Config.LogLevel},
 								corev1.EnvVar{
 									Name: "POD_NAME",
@@ -465,10 +465,10 @@ func (r *Reconciler) createNewJobSpec(rec *k8s.Reconciliation[*apiv1.Deployment]
 				},
 			},
 		},
-	}
+	}, nil
 }
 
-func (r *Reconciler) createNewCloneJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, repo *apiv1.Repository) *k8s.Result {
+func (r *DeploymentReconciler) createNewCloneJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, repo *apiv1.Repository) *k8s.Result {
 	var url string
 
 	// Calculate Git URL based on repository type
@@ -490,7 +490,14 @@ func (r *Reconciler) createNewCloneJob(rec *k8s.Reconciliation[*apiv1.Deployment
 	}
 
 	// Create the job object
-	job := r.createNewJobSpec(rec, PhaseClone, app, corev1.EnvVar{Name: "BRANCH", Value: rec.Object.Status.Branch}, corev1.EnvVar{Name: "GIT_URL", Value: url}, corev1.EnvVar{Name: "SHA", Value: rec.Object.Status.LastAttemptedRevision})
+	job, err := r.createNewJobSpec(rec, CloneJobImage, PhaseClone, app, corev1.EnvVar{Name: "BRANCH", Value: rec.Object.Status.Branch}, corev1.EnvVar{Name: "GIT_URL", Value: url}, corev1.EnvVar{Name: "SHA", Value: rec.Object.Status.LastAttemptedRevision})
+	if err != nil {
+		rec.Object.Status.SetMaybeStaleDueToInternalError("Failed creating clone job spec: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
 
 	// Create the job in the cluster
 	log.FromContext(rec.Ctx).WithValues("jobName", job.Name).Info("Creating clone job")
@@ -512,22 +519,30 @@ func (r *Reconciler) createNewCloneJob(rec *k8s.Reconciliation[*apiv1.Deployment
 	return k8s.DoNotRequeue()
 }
 
-func (r *Reconciler) createNewBakeJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, repo *apiv1.Repository, repoSettings apiv1.ApplicationSpecRepository) *k8s.Result {
+func (r *DeploymentReconciler) createNewBakeJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment, repo *apiv1.Repository, repoSettings apiv1.ApplicationSpecRepository) *k8s.Result {
 	// Create the job object
-	job := r.createNewJobSpec(
+	job, err := r.createNewJobSpec(
 		rec,
+		BakeJobImage,
 		PhaseBake,
 		app,
 		corev1.EnvVar{Name: "ACTUAL_BRANCH", Value: rec.Object.Status.Branch},
-		corev1.EnvVar{Name: "APPLICATION_OBJECT_NAME", Value: app.Name},
+		corev1.EnvVar{Name: "APPLICATION_NAME", Value: app.Name},
 		corev1.EnvVar{Name: "BASE_DEPLOY_DIR", Value: repoSettings.Path},
-		corev1.EnvVar{Name: "ENVIRONMENT_OBJECT_NAME", Value: env.Name},
-		corev1.EnvVar{Name: "DEPLOYMENT_OBJECT_NAME", Value: rec.Object.Name},
+		corev1.EnvVar{Name: "ENVIRONMENT_NAME", Value: env.Name},
+		corev1.EnvVar{Name: "DEPLOYMENT_NAME", Value: rec.Object.Name},
 		corev1.EnvVar{Name: "MANIFEST_FILE", Value: ".devbot.yaml"},
 		corev1.EnvVar{Name: "PREFERRED_BRANCH", Value: env.Spec.PreferredBranch},
 		corev1.EnvVar{Name: "REPO_DEFAULT_BRANCH", Value: repo.Status.DefaultBranch},
 		corev1.EnvVar{Name: "SHA", Value: rec.Object.Status.LastAttemptedRevision},
 	)
+	if err != nil {
+		rec.Object.Status.SetMaybeStaleDueToInternalError("Failed creating bake job spec: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
 
 	// Set cloning status
 	rec.Object.Status.SetMaybeStaleDueToCloning("Launching bake job")
@@ -555,14 +570,21 @@ func (r *Reconciler) createNewBakeJob(rec *k8s.Reconciliation[*apiv1.Deployment]
 	return k8s.DoNotRequeue()
 }
 
-func (r *Reconciler) createNewApplyJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment) *k8s.Result {
+func (r *DeploymentReconciler) createNewApplyJob(rec *k8s.Reconciliation[*apiv1.Deployment], app *apiv1.Application, env *apiv1.Environment) *k8s.Result {
 	// Create the job object
-	job := r.createNewJobSpec(rec, PhaseApply, app,
-		corev1.EnvVar{Name: "APPLICATION_OBJECT_NAME", Value: app.Name},
-		corev1.EnvVar{Name: "ENVIRONMENT_OBJECT_NAME", Value: env.Name},
-		corev1.EnvVar{Name: "DEPLOYMENT_OBJECT_NAME", Value: rec.Object.Name},
+	job, err := r.createNewJobSpec(rec, ApplyJobImage, PhaseApply, app,
+		corev1.EnvVar{Name: "APPLICATION_NAME", Value: app.Name},
+		corev1.EnvVar{Name: "ENVIRONMENT_NAME", Value: env.Name},
+		corev1.EnvVar{Name: "DEPLOYMENT_NAME", Value: rec.Object.Name},
 		corev1.EnvVar{Name: "MANIFEST_FILE", Value: ".devbot.yaml"},
 	)
+	if err != nil {
+		rec.Object.Status.SetMaybeStaleDueToInternalError("Failed creating apply job spec: %+v", err)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+		return k8s.Requeue()
+	}
 
 	// Set cloning status
 	rec.Object.Status.SetMaybeStaleDueToCloning("Launching apply job")
@@ -591,7 +613,10 @@ func (r *Reconciler) createNewApplyJob(rec *k8s.Reconciliation[*apiv1.Deployment
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *DeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	fmt.Printf("ApplyJobImage: %s\n", ApplyJobImage)
+	fmt.Printf("BakeJobImage: %s\n", BakeJobImage)
+	fmt.Printf("CloneJobImage: %s\n", CloneJobImage)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Deployment{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {

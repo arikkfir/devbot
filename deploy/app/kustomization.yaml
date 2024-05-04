@@ -11,9 +11,6 @@ resources:
   - crd/devbot.kfirs.com_environments.yaml
   - crd/devbot.kfirs.com_repositories.yaml
   - namespace.yaml
-  - application-controller.yaml
-  - deployment-controller.yaml
-  - environment-controller.yaml
-  - repository-controller.yaml
-  - webhook-github.yaml
   - leader-election.yaml
+  - controller.yaml
+  - webhook-github.yaml

@@ -5,26 +5,43 @@ metadata:
   name: devbot
 build:
   artifacts:
-    - image: ghcr.io/arikkfir/devbot/application-controller
+    - image: ghcr.io/arikkfir/devbot/apply-job
       context: backend
       docker:
-        dockerfile: Dockerfile.application-controller
-    - image: ghcr.io/arikkfir/devbot/deployment-controller
+        dockerfile: Dockerfile.apply-job
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+    - image: ghcr.io/arikkfir/devbot/bake-job
       context: backend
       docker:
-        dockerfile: Dockerfile.deployment-controller
-    - image: ghcr.io/arikkfir/devbot/environment-controller
+        dockerfile: Dockerfile.bake-job
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+    - image: ghcr.io/arikkfir/devbot/clone-job
       context: backend
       docker:
-        dockerfile: Dockerfile.environment-controller
+        dockerfile: Dockerfile.clone-job
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+    - image: ghcr.io/arikkfir/devbot/controller
+      context: backend
+      docker:
+        dockerfile: Dockerfile.controller
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+      requires:
+        - image: ghcr.io/arikkfir/devbot/apply-job
+          alias: APPLY_JOB
+        - image: ghcr.io/arikkfir/devbot/bake-job
+          alias: BAKE_JOB
+        - image: ghcr.io/arikkfir/devbot/clone-job
+          alias: CLONE_JOB
     - image: ghcr.io/arikkfir/devbot/github-webhook
       context: backend
       docker:
         dockerfile: Dockerfile.github-webhook
-    - image: ghcr.io/arikkfir/devbot/repository-controller
-      context: backend
-      docker:
-        dockerfile: Dockerfile.repository-controller
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
   local:
     push: false
     useBuildkit: true
