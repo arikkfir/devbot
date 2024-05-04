@@ -15,6 +15,7 @@
         <method importPath="bytes" receiver="*Buffer" name="WriteString" />
         <method importPath="os" receiver="*File" name="Close" />
         <method importPath="os" receiver="*Process" name="Kill" />
+        <method importPath="io" receiver="ReadCloser" name="Close" />
       </methods>
     </inspection_tool>
     <inspection_tool class="GoUnitSpecificDurationSuffix" enabled="false" level="WEAK WARNING" enabled_by_default="false" />
