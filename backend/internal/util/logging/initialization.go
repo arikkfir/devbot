@@ -3,10 +3,11 @@ package logging
 import (
 	"bytes"
 	"fmt"
+	"io"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
-	"io"
 )
 
 func ErrorStackMarshaler(err error) interface{} {

@@ -1,8 +1,9 @@
 package lang
 
 import (
-	"github.com/secureworks/errors"
 	"time"
+
+	"github.com/secureworks/errors"
 )
 
 func ParseDuration(minDuration time.Duration, value string) (time.Duration, error) {

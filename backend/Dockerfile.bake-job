@@ -31,7 +31,6 @@ RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
 COPY cmd/deployment-bake/main.go cmd/deployment-bake/
-COPY internal/util/configuration/environment_variables.go internal/util/configuration/
 COPY internal/util/logging/initialization.go internal/util/logging/
 COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
 COPY internal/util/strings/slug.go internal/util/strings/

@@ -3,9 +3,11 @@ package e2e_test
 import (
 	"context"
 	"embed"
+
+	. "github.com/arikkfir/justest"
+
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/testing"
-	. "github.com/arikkfir/justest"
 )
 
 var (

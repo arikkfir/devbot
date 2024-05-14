@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+
 	"github.com/secureworks/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"

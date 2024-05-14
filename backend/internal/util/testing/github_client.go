@@ -3,17 +3,19 @@ package testing
 import (
 	"context"
 	"embed"
-	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
 	. "github.com/arikkfir/justest"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v56/github"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
+
+	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 )
 
 const (

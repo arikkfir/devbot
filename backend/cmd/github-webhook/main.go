@@ -2,29 +2,27 @@ package main
 
 import (
 	"context"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	. "github.com/arikkfir/devbot/backend/internal/util/configuration"
-	"github.com/arikkfir/devbot/backend/internal/util/logging"
-	"github.com/arikkfir/devbot/backend/internal/webhooks/github"
-	webhooksutil "github.com/arikkfir/devbot/backend/internal/webhooks/util"
+
+	"github.com/arikkfir/command"
+	"github.com/go-logr/logr"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
-	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/util/logging"
+	"github.com/arikkfir/devbot/backend/internal/webhooks/github"
+	webhooksutil "github.com/arikkfir/devbot/backend/internal/webhooks/util"
+
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
-)
-
-const (
-	disableJSONLoggingKey = "disable-json-logging"
-	logLevelKey           = "log-level"
-	healthPortKey         = "health-port"
-	serverPortKey         = "server-port"
-	webhookSecretKey      = "webhook-secret"
 )
 
 // Version represents the version of the server. This variable gets its value by injection from the build process.
@@ -32,93 +30,73 @@ const (
 //goland:noinspection GoUnusedGlobalVariable
 var Version = "0.0.0-unknown"
 
-// cfg is the configuration of the server. It is populated in the init function.
-var cfg = github.WebhookConfig{
-	DisableJSONLogging: false,
-	LogLevel:           "info",
-	HealthPort:         9000,
-	ServerPort:         8000,
-}
+var rootCommand = command.New(command.Spec{
+	Name:             filepath.Base(os.Args[0]),
+	ShortDescription: "Devbot GitHub webhook connects GitHub events to Devbot installations.",
+	LongDescription:  `This webhook will receive events from GitHub and mark the corresponding GitHub repository accordingly.'`,
+	Config: &github.WebhookConfig{
+		DisableJSONLogging: false,
+		LogLevel:           "info",
+		HealthPort:         9000,
+		ServerPort:         8000,
+	},
+	Run: func(ctx context.Context, configAsAny any, usagePrinter command.UsagePrinter) error {
+		cfg := configAsAny.(*github.WebhookConfig)
 
-func init() {
+		// Configure logging
+		logging.Configure(os.Stderr, !cfg.DisableJSONLogging, cfg.LogLevel, Version)
+		logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
+		ctrl.SetLogger(logrLogger)
+		klog.SetLogger(logrLogger)
 
-	// Configure & parse CLI flags
-	pflag.BoolVar(&cfg.DisableJSONLogging, disableJSONLoggingKey, cfg.DisableJSONLogging, "Disable JSON logging")
-	pflag.StringVar(&cfg.LogLevel, logLevelKey, cfg.LogLevel, "Log level, must be one of: trace,debug,info,warn,error,fatal,panic")
-	pflag.IntVar(&cfg.HealthPort, healthPortKey, cfg.HealthPort, "Port to listen on for health checks")
-	pflag.IntVar(&cfg.ServerPort, serverPortKey, cfg.ServerPort, "Port to listen on")
-	pflag.StringVar(&cfg.WebhookSecret, webhookSecretKey, cfg.WebhookSecret, "Webhook secret")
-	pflag.Parse()
+		// Setup Kubernetes scheme
+		scheme := runtime.NewScheme()
+		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+		utilruntime.Must(apiv1.AddToScheme(scheme))
 
-	// Allow the user to override configuration values using environment variables
-	ApplyBoolEnvironmentVariableTo(&cfg.DisableJSONLogging, FlagNameToEnvironmentVariable(disableJSONLoggingKey))
-	ApplyStringEnvironmentVariableTo(&cfg.LogLevel, FlagNameToEnvironmentVariable(logLevelKey))
-	ApplyIntEnvironmentVariableTo(&cfg.HealthPort, FlagNameToEnvironmentVariable(healthPortKey))
-	ApplyIntEnvironmentVariableTo(&cfg.ServerPort, FlagNameToEnvironmentVariable(serverPortKey))
-	ApplyStringEnvironmentVariableTo(&cfg.WebhookSecret, FlagNameToEnvironmentVariable(webhookSecretKey))
+		// Setup health check
+		hc := webhooksutil.NewHealthCheckServer(cfg.HealthPort)
+		go hc.Start(ctx)
+		defer hc.Stop(ctx)
 
-	// Validate configuration
-	if cfg.LogLevel == "" {
-		log.Fatal().Msg("Log level cannot be empty")
-	}
-	if cfg.HealthPort == 0 {
-		log.Fatal().Msg("Health port cannot be zero")
-	}
-	if cfg.ServerPort == 0 {
-		log.Fatal().Msg("Server port cannot be zero")
-	}
-	if cfg.WebhookSecret == "" {
-		log.Fatal().Msg("Webhook secret cannot be empty")
-	}
+		// Create Kubernetes config
+		kubeConfig, err := rest.InClusterConfig()
+		if err != nil {
+			return errors.New("failed to create Kubernetes client: %w", err)
+		}
 
-	// Configure logging
-	logging.Configure(os.Stderr, !cfg.DisableJSONLogging, cfg.LogLevel, Version)
-}
+		// Setup push handler
+		handler, err := github.NewPushHandler(kubeConfig, scheme, cfg.WebhookSecret)
+		if err != nil {
+			return errors.New("failed to create push handler: %w", err)
+		}
+		if err := handler.Start(ctx); err != nil {
+			return errors.New("failed to start push handler: %w", err)
+		}
+		defer func(handler *github.PushHandler) {
+			err := handler.Close()
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to close push handler")
+			}
+		}(handler)
+
+		// Setup routing
+		mux := http.NewServeMux()
+		mux.HandleFunc("/github/webhook", handler.HandleWebhookRequest)
+
+		// Setup server
+		server := &http.Server{
+			Addr:    ":" + strconv.Itoa(cfg.ServerPort),
+			Handler: webhooksutil.AccessLogMiddleware(false, nil, mux),
+		}
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Err(err).Msg("HTTP server failed")
+		}
+
+		return nil
+	},
+})
 
 func main() {
-	ctx := context.Background()
-
-	// Setup Kubernetes scheme
-	scheme := runtime.NewScheme()
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(apiv1.AddToScheme(scheme))
-
-	// Setup health check
-	hc := webhooksutil.NewHealthCheckServer(cfg.HealthPort)
-	go hc.Start(ctx)
-	defer hc.Stop(ctx)
-
-	// Create Kubernetes config
-	kubeConfig, err := rest.InClusterConfig()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create Kubernetes client")
-	}
-
-	// Setup push handler
-	handler, err := github.NewPushHandler(kubeConfig, scheme, cfg.WebhookSecret)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create push handler")
-	}
-	if err := handler.Start(ctx); err != nil {
-		log.Fatal().Err(err).Msg("Failed to start push handler")
-	}
-	defer func(handler *github.PushHandler) {
-		err := handler.Close()
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to close push handler")
-		}
-	}(handler)
-
-	// Setup routing
-	mux := http.NewServeMux()
-	mux.HandleFunc("/github/webhook", handler.HandleWebhookRequest)
-
-	// Setup server
-	server := &http.Server{
-		Addr:    ":" + strconv.Itoa(cfg.ServerPort),
-		Handler: webhooksutil.AccessLogMiddleware(false, nil, mux),
-	}
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Err(err).Msg("HTTP server failed")
-	}
+	command.Execute(rootCommand, os.Args, command.EnvVarsArrayToMap(os.Environ()))
 }

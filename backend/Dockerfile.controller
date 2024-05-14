@@ -28,11 +28,9 @@ COPY internal/controller/deployment_controller.go internal/controller/
 COPY internal/controller/environment_controller.go internal/controller/
 COPY internal/controller/phase.go internal/controller/
 COPY internal/controller/repository_controller.go internal/controller/
-COPY internal/util/configuration/environment_variables.go internal/util/configuration/
 COPY internal/util/k8s/conditions.go internal/util/k8s/
 COPY internal/util/k8s/owned_by.go internal/util/k8s/
 COPY internal/util/k8s/reconciliation.go internal/util/k8s/
-COPY internal/util/k8s/reflection.go internal/util/k8s/
 COPY internal/util/k8s/result.go internal/util/k8s/
 COPY internal/util/k8s/status.go internal/util/k8s/
 COPY internal/util/lang/duration.go internal/util/lang/

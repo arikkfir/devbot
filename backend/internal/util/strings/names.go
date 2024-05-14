@@ -1,9 +1,10 @@
 package strings
 
 import (
+	"math/rand"
+
 	"github.com/lucasepe/codename"
 	"github.com/secureworks/errors"
-	"math/rand"
 )
 
 var (

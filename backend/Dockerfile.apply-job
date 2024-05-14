@@ -24,7 +24,6 @@ RUN --mount=type=cache,target=/go/pkg go mod download
 
 COPY api api/
 COPY cmd/deployment-apply/main.go cmd/deployment-apply/
-COPY internal/util/configuration/environment_variables.go internal/util/configuration/
 COPY internal/util/logging/initialization.go internal/util/logging/
 COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
 RUN --mount=type=cache,target=/go/pkg \

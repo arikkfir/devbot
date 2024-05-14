@@ -3,26 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
-	. "github.com/arikkfir/devbot/backend/internal/util/configuration"
-	"github.com/arikkfir/devbot/backend/internal/util/logging"
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/pflag"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/arikkfir/command"
+	"github.com/go-logr/logr"
+	"github.com/rs/zerolog/log"
+	"github.com/secureworks/errors"
+	"k8s.io/klog/v2"
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/arikkfir/devbot/backend/internal/util/logging"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-)
-
-const (
-	disableJSONLoggingKey = "disable-json-logging"
-	logLevelKey           = "log-level"
-	applicationNameKey    = "application-name"
-	environmentNameKey    = "environment-name"
-	deploymentNameKey     = "deployment-name"
-	manifestFileKey       = "manifest-file"
 )
 
 const (
@@ -37,88 +33,61 @@ var Version = "0.0.0-unknown"
 
 // Config is the configuration for this job.
 type Config struct {
-	DisableJSONLogging bool
-	LogLevel           string
-	ApplicationName    string
-	EnvironmentName    string
-	DeploymentName     string
-	ManifestFile       string
+	DisableJSONLogging bool   `desc:"Disable JSON logging."`
+	LogLevel           string `config:"required" desc:"Log level, must be one of: trace,debug,info,warn,error,fatal,panic"`
+	ApplicationName    string `config:"required" desc:"Kubernetes Application object name."`
+	EnvironmentName    string `config:"required" desc:"Kubernetes Environment object name."`
+	DeploymentName     string `config:"required" desc:"Kubernetes Deployment object name."`
+	ManifestFile       string `config:"required" desc:"Target file to write resources YAML manifest to."`
 }
 
-// cfg is the configuration of the job. It is populated in the init function.
-var cfg = Config{
-	DisableJSONLogging: false,
-	LogLevel:           "info",
-}
+var rootCommand = command.New(command.Spec{
+	Name:             filepath.Base(os.Args[0]),
+	ShortDescription: "Devbot apply job deploys a pre-baked manifest to the cluster.",
+	LongDescription: `This job applies, via 'kubectl', a pre-baked manifest to the
+kubernetes cluster, thereby deploying a repository to a given environment.'`,
+	Config: &Config{
+		DisableJSONLogging: false,
+		LogLevel:           "info",
+	},
+	Run: func(ctx context.Context, configAsAny any, usagePrinter command.UsagePrinter) error {
+		cfg := configAsAny.(*Config)
 
-func init() {
+		// Configure logging
+		logging.Configure(os.Stderr, !cfg.DisableJSONLogging, cfg.LogLevel, Version)
+		logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
+		ctrl.SetLogger(logrLogger)
+		klog.SetLogger(logrLogger)
+		log.Logger = log.With().
+			Str("appName", cfg.ApplicationName).
+			Str("envName", cfg.EnvironmentName).
+			Str("deploymentName", cfg.DeploymentName).
+			Str("outputManifest", cfg.ManifestFile).
+			Logger()
 
-	// Configure & parse CLI flags
-	pflag.BoolVar(&cfg.DisableJSONLogging, disableJSONLoggingKey, cfg.DisableJSONLogging, "Disable JSON logging")
-	pflag.StringVar(&cfg.LogLevel, logLevelKey, cfg.LogLevel, "Log level, must be one of: trace,debug,info,warn,error,fatal,panic")
-	pflag.StringVar(&cfg.ApplicationName, applicationNameKey, cfg.ApplicationName, "Kubernetes Application object name")
-	pflag.StringVar(&cfg.EnvironmentName, environmentNameKey, cfg.EnvironmentName, "Kubernetes Environment object name")
-	pflag.StringVar(&cfg.DeploymentName, deploymentNameKey, cfg.DeploymentName, "Kubernetes Deployment object name")
-	pflag.StringVar(&cfg.ManifestFile, manifestFileKey, cfg.ManifestFile, "Target file to write resources YAML manifest to")
-	pflag.Parse()
+		// Create the apply command
+		cmd := exec.CommandContext(ctx, kubectlBinaryFilePath,
+			"apply",
+			fmt.Sprintf("--filename=%s", cfg.ManifestFile),
+			fmt.Sprintf("--server-side=%v", true),
+		)
+		cmd.Dir = filepath.Dir(cfg.ManifestFile)
+		cmd.Stderr = log.With().Str("output", "stderr").Logger()
+		cmd.Stdout = log.With().Str("output", "stdout").Logger()
 
-	// Allow the user to override configuration values using environment variables
-	ApplyBoolEnvironmentVariableTo(&cfg.DisableJSONLogging, FlagNameToEnvironmentVariable(disableJSONLoggingKey))
-	ApplyStringEnvironmentVariableTo(&cfg.LogLevel, FlagNameToEnvironmentVariable(logLevelKey))
-	ApplyStringEnvironmentVariableTo(&cfg.ApplicationName, FlagNameToEnvironmentVariable(applicationNameKey))
-	ApplyStringEnvironmentVariableTo(&cfg.EnvironmentName, FlagNameToEnvironmentVariable(environmentNameKey))
-	ApplyStringEnvironmentVariableTo(&cfg.DeploymentName, FlagNameToEnvironmentVariable(deploymentNameKey))
-	ApplyStringEnvironmentVariableTo(&cfg.ManifestFile, FlagNameToEnvironmentVariable(manifestFileKey))
+		log.Info().Str("command", cmd.String()).Msg("Running kubectl command")
+		if err := cmd.Start(); err != nil {
+			return errors.New("failed starting kubectl command: %w", err)
+		}
 
-	// Validate configuration
-	if cfg.LogLevel == "" {
-		log.Fatal().Msg("Log level cannot be empty")
-	}
-	if cfg.ApplicationName == "" {
-		log.Fatal().Msg("Application name cannot be empty")
-	}
-	if cfg.EnvironmentName == "" {
-		log.Fatal().Msg("Environment name cannot be empty")
-	}
-	if cfg.DeploymentName == "" {
-		log.Fatal().Msg("Deployment name cannot be empty")
-	}
-	if cfg.ManifestFile == "" {
-		log.Fatal().Msg("Manifest file name cannot be empty")
-	}
+		if err := cmd.Wait(); err != nil {
+			return errors.New("failed running kubectl command: %w", err)
+		}
 
-	// Configure logging
-	logging.Configure(os.Stderr, !cfg.DisableJSONLogging, cfg.LogLevel, Version)
-
-}
+		return nil
+	},
+})
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	log.Logger = log.With().
-		Str("appName", cfg.ApplicationName).
-		Str("envName", cfg.EnvironmentName).
-		Str("deploymentName", cfg.DeploymentName).
-		Str("outputManifest", cfg.ManifestFile).
-		Logger()
-
-	// Create the apply command
-	cmd := exec.CommandContext(ctx, kubectlBinaryFilePath,
-		"apply",
-		fmt.Sprintf("--filename=%s", cfg.ManifestFile),
-		fmt.Sprintf("--server-side=%v", true),
-	)
-	cmd.Dir = filepath.Dir(cfg.ManifestFile)
-	cmd.Stderr = log.With().Str("output", "stderr").Logger()
-	cmd.Stdout = log.With().Str("output", "stdout").Logger()
-
-	log.Info().Str("command", cmd.String()).Msg("Running kubectl command")
-	if err := cmd.Start(); err != nil {
-		log.Fatal().Err(err).Msg("Failed starting kubectl command")
-	}
-
-	if err := cmd.Wait(); err != nil {
-		log.Fatal().Err(err).Msg("Failed running kubectl command")
-	}
+	command.Execute(rootCommand, os.Args, command.EnvVarsArrayToMap(os.Environ()))
 }

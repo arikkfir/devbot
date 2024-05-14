@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"net/http"
+	"time"
+
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/retry"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
+
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 )
 
 type PushHandler struct {

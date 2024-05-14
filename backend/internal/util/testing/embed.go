@@ -2,6 +2,7 @@ package testing
 
 import (
 	"embed"
+
 	"github.com/secureworks/errors"
 )
 

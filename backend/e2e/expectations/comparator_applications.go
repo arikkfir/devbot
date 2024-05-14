@@ -2,10 +2,12 @@ package expectations
 
 import (
 	"context"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/util/k8s"
+
 	. "github.com/arikkfir/justest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 )
 
 func CreateApplicationsComparator(c client.Client, ctx context.Context) Comparator {

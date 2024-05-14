@@ -3,11 +3,13 @@ package testing
 import (
 	"bytes"
 	"context"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/util/k8s"
-	"github.com/arikkfir/devbot/backend/internal/util/strings"
-	. "github.com/arikkfir/justest"
 	"io"
+	"os"
+	"path/filepath"
+	"reflect"
+	"time"
+
+	. "github.com/arikkfir/justest"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -16,14 +18,14 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"path/filepath"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"time"
+
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
+	"github.com/arikkfir/devbot/backend/internal/util/strings"
 )
 
 const (

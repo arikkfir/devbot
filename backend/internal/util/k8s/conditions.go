@@ -2,8 +2,9 @@ package k8s
 
 import (
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"slices"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func HasCondition(conditions []metav1.Condition, conditionType string) bool {

@@ -1,11 +1,13 @@
 package testing
 
 import (
-	"github.com/arikkfir/devbot/backend/internal/util/logging"
+	"os"
+
 	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/arikkfir/devbot/backend/internal/util/logging"
 )
 
 func init() {

@@ -1,8 +1,9 @@
 package k8s
 
 import (
-	"github.com/secureworks/errors"
 	"reflect"
+
+	"github.com/secureworks/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 

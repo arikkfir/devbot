@@ -3,10 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/util/k8s"
-	"github.com/arikkfir/devbot/backend/internal/util/lang"
-	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
+	"slices"
+	"strconv"
+	"time"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,9 +21,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"slices"
-	"strconv"
-	"time"
+
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
+	"github.com/arikkfir/devbot/backend/internal/util/lang"
+	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
 )
 
 var (
@@ -614,9 +616,6 @@ func (r *DeploymentReconciler) createNewApplyJob(rec *k8s.Reconciliation[*apiv1.
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *DeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	fmt.Printf("ApplyJobImage: %s\n", ApplyJobImage)
-	fmt.Printf("BakeJobImage: %s\n", BakeJobImage)
-	fmt.Printf("CloneJobImage: %s\n", CloneJobImage)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&apiv1.Deployment{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {

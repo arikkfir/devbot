@@ -1,13 +1,15 @@
 package e2e_test
 
 import (
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	. "github.com/arikkfir/devbot/backend/e2e/expectations"
+	"testing"
+	"time"
+
 	. "github.com/arikkfir/justest"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
-	"time"
+
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	. "github.com/arikkfir/devbot/backend/e2e/expectations"
 )
 
 // TODO: add test case for a repository with the "IgnoreStrategy" of missing branches

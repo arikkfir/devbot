@@ -1,15 +1,17 @@
 package e2e_test
 
 import (
+	"regexp"
+	"testing"
+	"time"
+
+	. "github.com/arikkfir/justest"
+	. "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	. "github.com/arikkfir/devbot/backend/e2e/expectations"
 	"github.com/arikkfir/devbot/backend/internal/util/lang"
-	. "github.com/arikkfir/justest"
-	. "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"regexp"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
-	"time"
 )
 
 func TestRepositoryRefreshIntervalParsing(t *testing.T) {

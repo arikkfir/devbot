@@ -2,10 +2,11 @@ package util
 
 import (
 	"context"
-	"github.com/rs/zerolog/log"
-	"github.com/secureworks/errors"
 	"net/http"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
+	"github.com/secureworks/errors"
 )
 
 type HealthCheckServer struct {

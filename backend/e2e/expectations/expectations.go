@@ -1,10 +1,12 @@
 package expectations
 
 import (
-	v1 "github.com/arikkfir/devbot/backend/api/v1"
-	. "github.com/arikkfir/justest"
 	"regexp"
+
+	. "github.com/arikkfir/justest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1 "github.com/arikkfir/devbot/backend/api/v1"
 )
 
 type (
