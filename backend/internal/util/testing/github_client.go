@@ -54,6 +54,7 @@ func (gh *GClient) CloneRepository(t T, name string) (*GitHubRepositoryInfo, *gi
 		ReferenceName: "refs/heads/main",
 		URL:           *ghRepo.CloneURL,
 	})
+	With(t).Verify(err).Will(BeNil()).OrFail()
 
 	return &GitHubRepositoryInfo{
 		Owner: *ghRepo.GetOwner().Login,
