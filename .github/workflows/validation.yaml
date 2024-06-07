@@ -2,7 +2,7 @@ name: Validation
 
 on:
   push:
-    branches:
+    branches: [main]
     tags:
   pull_request:
 
@@ -25,6 +25,7 @@ jobs:
         with:
           version: latest
           working-directory: backend
+
       # TODO: Only run unit tests here
 #      - run: go test ./...
 #        working-directory: backend
