@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="go generate api conditions" type="GoApplicationRunConfiguration" factoryName="Go Application">
+  <configuration default="false" name="crd conditions generator" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="backend" />
     <working_directory value="$PROJECT_DIR$/backend/api/v1" />
     <parameters value="../../scripts/generators/conditions ." />
@@ -14,6 +14,7 @@
       </ENTRIES>
     </EXTENSION>
     <kind value="FILE" />
+    <package value="github.com/arikkfir/devbot/backend/api/v1" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/backend/scripts/generators/conditions/main.go" />
     <method v="2" />

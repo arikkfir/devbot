@@ -1,0 +1,25 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="devctl bootstrap github" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="backend" />
+    <working_directory value="$PROJECT_DIR$/backend" />
+    <parameters value="bootstrap github --owner=devbot-testing --name=local-2" />
+    <EXTENSION ID="net.ashald.envfile">
+      <option name="IS_ENABLED" value="true" />
+      <option name="IS_SUBST" value="false" />
+      <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+      <option name="IS_IGNORE_MISSING_FILES" value="false" />
+      <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+      <ENTRIES>
+        <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+        <ENTRY IS_ENABLED="true" PARSER="env" IS_EXECUTABLE="false" PATH="local.devctl.env" />
+      </ENTRIES>
+    </EXTENSION>
+    <kind value="PACKAGE" />
+    <package value="github.com/arikkfir/devbot/backend/cmd/devctl" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/backend/cmd/devctl/main.go" />
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="make load-images-to-kind" run_configuration_type="MAKEFILE_TARGET_RUN_CONFIGURATION" />
+    </method>
+  </configuration>
+</component>

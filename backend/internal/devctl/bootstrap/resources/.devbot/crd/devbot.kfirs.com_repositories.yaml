@@ -103,6 +103,38 @@ spec:
                     - key
                     - secret
                     type: object
+                  webhookSecret:
+                    description: WebhookSecret specifies where to find the webhook
+                      secret used to validate incoming webhook requests from GitHub.
+                    properties:
+                      key:
+                        description: Key is the key in the secret containing the GitHub
+                          webhook secret.
+                        maxLength: 253
+                        minLength: 1
+                        pattern: ^[a-zA-Z0-9][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
+                        type: string
+                      secret:
+                        description: Secret is the reference to the secret containing
+                          the GitHub webhook secret.
+                        properties:
+                          name:
+                            maxLength: 63
+                            minLength: 1
+                            pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
+                            type: string
+                          namespace:
+                            maxLength: 63
+                            minLength: 1
+                            pattern: ^[a-z0-9]+(\-[a-z0-9]+)*$
+                            type: string
+                        required:
+                        - name
+                        type: object
+                    required:
+                    - key
+                    - secret
+                    type: object
                 required:
                 - name
                 - owner
@@ -194,6 +226,10 @@ spec:
                 maxLength: 250
                 minLength: 1
                 pattern: ^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$
+                type: string
+              lastWebhookPing:
+                description: LastWebhookPing is the last time a successful
+                format: date-time
                 type: string
               privateArea:
                 additionalProperties:

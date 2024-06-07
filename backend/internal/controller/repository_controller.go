@@ -2,7 +2,9 @@ package controller
 
 import (
 	"context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/go-github/v56/github"
@@ -26,7 +28,8 @@ var (
 
 type RepositoryReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme           *runtime.Scheme
+	GitHubWebhookURL string
 }
 
 func (r *RepositoryReconciler) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
@@ -34,6 +37,7 @@ func (r *RepositoryReconciler) Reconcile(ctx context.Context, req controllerrunt
 }
 
 func (r *RepositoryReconciler) executeReconciliation(ctx context.Context, req controllerruntime.Request) *k8s.Result {
+	// TODO: set finalizer that removes our webhook
 	rec, result := k8s.NewReconciliation(ctx, r.Client, req, &v1.Repository{}, RepositoryFinalizer, nil)
 	if result != nil {
 		return result
@@ -174,6 +178,11 @@ func (r *RepositoryReconciler) reconcileGitHubRepository(rec *k8s.Reconciliation
 	status.Revisions = branchesToRevisionsMap
 	rec.Object.Status.SetCurrentIfStaleDueToAnyOf(v1.BranchesOutOfSync)
 	if result := rec.UpdateStatus(); result != nil {
+		return result
+	}
+
+	// Ensure webhook installed
+	if result := r.ensureWebhook(rec, refreshInterval, ghc, ghRepo); result != nil {
 		return result
 	}
 
@@ -354,6 +363,180 @@ func (r *RepositoryReconciler) fetchRepository(rec *k8s.Reconciliation[*v1.Repos
 	}
 
 	return ghr, nil
+}
+
+func (r *RepositoryReconciler) ensureWebhook(rec *k8s.Reconciliation[*v1.Repository], refreshInterval time.Duration, ghc *github.Client, repo *github.Repository) *k8s.Result {
+	status := &rec.Object.Status
+
+	if webhookCfg := rec.Object.Spec.GitHub.WebhookSecret; webhookCfg != nil {
+		if r.GitHubWebhookURL == "" {
+			status.SetInvalidDueToWebhooksNotEnabled("Webhooks not enabled - must provide webhooks URL to controller")
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.DoNotRequeue()
+		}
+
+		// Validate auth secret name & key
+		if webhookCfg.Secret.Name == "" {
+			status.SetInvalidDueToWebhookSecretNameMissing("Webhook secret name is empty")
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.DoNotRequeue()
+		} else if webhookCfg.Key == "" {
+			status.SetInvalidDueToWebhookSecretKeyMissing("Webhook secret key is missing")
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.DoNotRequeue()
+		}
+
+		// Revert invalid status if auth secret name & key are valid
+		status.SetValidIfInvalidDueToAnyOf(v1.WebhookSecretKeyMissing, v1.WebhookSecretNameMissing)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+
+		// Fetch secret
+		webhookSecret := &v12.Secret{}
+		secretObjKey := webhookCfg.Secret.GetObjectKey(rec.Object.Namespace)
+		if err := r.Client.Get(rec.Ctx, secretObjKey, webhookSecret); err != nil {
+			if errors.IsNotFound(err) {
+				status.SetInvalidDueToWebhookSecretNotFound("Secret '%s' not found", secretObjKey)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+				return k8s.RequeueAfter(refreshInterval)
+			} else if errors.IsForbidden(err) {
+				status.SetInvalidDueToWebhookSecretForbidden("Secret '%s' is not accessible: %+v", secretObjKey, err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+				return k8s.RequeueAfter(refreshInterval)
+			} else {
+				status.SetInvalidDueToInternalError("Failed reading secret '%s': %+v", secretObjKey, err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+				return k8s.RequeueAfter(refreshInterval)
+			}
+		}
+
+		// Revert status if auth secret fetched successfully
+		status.SetValidIfInvalidDueToAnyOf(v1.WebhookSecretNotFound, v1.WebhookSecretForbidden, v1.InternalError)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+
+		// Extract & validate personal access token
+		secretValue, ok := webhookSecret.Data[webhookCfg.Key]
+		if !ok {
+			status.SetInvalidDueToWebhookSecretKeyNotFound("Key '%s' not found in secret '%s'", webhookCfg.Key, secretObjKey)
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.RequeueAfter(refreshInterval)
+		} else if string(secretValue) == "" {
+			status.SetInvalidDueToWebhookSecretEmpty("Key '%s' in secret '%s' is empty", webhookCfg.Key, secretObjKey)
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			return k8s.RequeueAfter(refreshInterval)
+		}
+
+		// Revert status if auth secret fetched successfully
+		status.SetValidIfInvalidDueToAnyOf(v1.WebhookSecretKeyNotFound, v1.WebhookSecretEmpty)
+		if result := rec.UpdateStatus(); result != nil {
+			return result
+		}
+
+		// Search for our webhook in the repository
+		opts := &github.ListOptions{PerPage: 50}
+		var webhook *github.Hook
+		for webhook == nil {
+			hooks, resp, err := ghc.Repositories.ListHooks(rec.Ctx, *repo.Owner.Login, *repo.Name, opts)
+			if err != nil {
+				status.SetInvalidDueToInternalError("Failed to list repository webhooks: %+v", err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+				return k8s.Requeue()
+			}
+			for _, hook := range hooks {
+				if webhookURL, ok := hook.Config["url"]; ok {
+					if webhookURL == r.GitHubWebhookURL {
+						webhook = hook
+						break
+					}
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			} else {
+				opts.Page = resp.NextPage
+			}
+		}
+
+		// If webhook not found, create it
+		if webhook == nil {
+			webhook = &github.Hook{
+				Name: lang.Ptr("web"),
+				Config: map[string]any{
+					"url":          r.GitHubWebhookURL,
+					"content_type": "json",
+					"secret":       secretValue,
+				},
+				Events: []string{"push"},
+				Active: lang.Ptr(true),
+			}
+			if _, _, err := ghc.Repositories.CreateHook(rec.Ctx, *repo.Owner.Login, *repo.Name, webhook); err != nil {
+				status.SetInvalidDueToInternalError("Failed to create webhook: %+v", err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+			}
+			return k8s.Requeue()
+		} else if contentType, ok := webhook.Config["content_type"]; !ok || contentType != "json" {
+			config := &github.HookConfig{ContentType: lang.Ptr("json")}
+			if _, _, err := ghc.Repositories.EditHookConfiguration(rec.Ctx, *repo.Owner.Login, *repo.Name, *webhook.ID, config); err != nil {
+				status.SetInvalidDueToInternalError("Failed to update webhook config: %+v", err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+			}
+			return k8s.Requeue()
+		} else if !slices.Contains(webhook.Events, "push") {
+			webhook = &github.Hook{
+				Config: map[string]any{
+					"url":          r.GitHubWebhookURL,
+					"content_type": "json",
+					"secret":       secretValue,
+				},
+				Events: []string{"push"},
+			}
+			if _, _, err := ghc.Repositories.EditHook(rec.Ctx, *repo.Owner.Login, *repo.Name, *webhook.ID, webhook); err != nil {
+				status.SetInvalidDueToInternalError("Failed to update webhook config: %+v", err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+			}
+			return k8s.Requeue()
+		} else if status.LastWebhookPing == nil || time.Since(status.LastWebhookPing.Time) > 5*time.Minute {
+			status.LastWebhookPing = lang.Ptr(metav1.NewTime(time.Now()))
+			if result := rec.UpdateStatus(); result != nil {
+				return result
+			}
+			if _, err := ghc.Repositories.PingHook(rec.Ctx, *repo.Owner.Login, *repo.Name, *webhook.ID); err != nil {
+				status.SetInvalidDueToInternalError("Failed to ping webhook: %+v", err)
+				if result := rec.UpdateStatus(); result != nil {
+					return result
+				}
+			}
+			return k8s.Requeue()
+		}
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

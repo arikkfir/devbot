@@ -3,43 +3,27 @@ package main
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-
 	"github.com/arikkfir/command"
+	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-logr/logr"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
-	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/arikkfir/devbot/backend/internal/util/logging"
-	"github.com/arikkfir/devbot/backend/internal/util/version"
-
 	"os"
+	"path/filepath"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-type Executor struct {
-	DisableJSONLogging bool   `desc:"Disable JSON logging."`
-	LogLevel           string `required:"true" desc:"Log level, must be one of: trace,debug,info,warn,error,fatal,panic"`
-	Branch             string `required:"true" desc:"Git branch to checkout."`
-	GitURL             string `required:"true" desc:"Git URL."`
-	SHA                string `required:"true" desc:"Commit SHA to checkout."`
+type Action struct {
+	Branch string `required:"true" desc:"Git branch to checkout."`
+	GitURL string `required:"true" desc:"Git URL."`
+	SHA    string `required:"true" desc:"Commit SHA to checkout."`
 }
 
-func (e *Executor) PreRun(_ context.Context) error { return nil }
-func (e *Executor) Run(ctx context.Context) error {
-
-	// Configure logging
-	logging.Configure(os.Stderr, !e.DisableJSONLogging, e.LogLevel, version.Version)
-	logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
-	ctrl.SetLogger(logrLogger)
-	klog.SetLogger(logrLogger)
+func (e *Action) Run(ctx context.Context) error {
 	log.Logger = log.With().
 		Str("gitURL", e.GitURL).
 		Str("branch", e.Branch).
@@ -102,10 +86,9 @@ func main() {
 		filepath.Base(os.Args[0]),
 		"Devbot clone job clones the given Git repository.",
 		`This job clones the given Git repository.'`,
-		&Executor{
-			DisableJSONLogging: false,
-			LogLevel:           "info",
-		},
+		&Action{},
+		[]command.PreRunHook{&logging.InitHook{LogLevel: "info"}, &logging.SentryInitHook{}},
+		[]command.PostRunHook{&logging.SentryFlushHook{}},
 	)
 
 	// Prepare a context that gets canceled if OS termination signals are sent
@@ -113,6 +96,6 @@ func main() {
 	defer cancel()
 
 	// Execute the correct command
-	command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))
+	os.Exit(int(command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))))
 
 }

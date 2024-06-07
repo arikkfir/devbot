@@ -2,30 +2,37 @@
 
 FROM golang:1.22.3 as builder
 
-# no default value, to default to the environment's architecture (e.g. linux/amd64)
+# Compiler arguments:
+#   - Custom Go flags are meant for additional flags, usually set in our Skaffold configuration to disable optimizations
+#   - Skaffold Go flags are sent by Skaffold to enable debugging, when debugging
+#   - Target OS and arch are used to control the Go build output
+ARG CUSTOM_GO_GCFLAGS=""
+ARG SKAFFOLD_GO_GCFLAGS=""
 ARG TARGETOS="linux"
 ARG TARGETARCH
 
-# When running in Skaffold, this variable is going to be provided by it to enable/disable debugging and other features
-# When running elsewhere (e.g. GitHub Actions), the default value is going to be used
-ARG CUSTOM_GO_GCFLAGS=""
-ARG SKAFFOLD_GO_GCFLAGS=""
-ARG VERSION="0.0.0-local+unknown"
+# Application variables
+ARG VERSION="0.0.0+local"
 
 WORKDIR /workspace
 COPY go.mod go.mod
 COPY go.sum go.sum
-RUN --mount=type=cache,target=/go/pkg go mod download
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY api api/
 COPY cmd/deployment-clone/main.go cmd/deployment-clone/
-COPY internal/util/logging/initialization.go internal/util/logging/
+COPY internal/util/logging/configure.go internal/util/logging/
+COPY internal/util/logging/init_hook.go internal/util/logging/
+COPY internal/util/logging/sentry_init.go internal/util/logging/
 COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
 COPY internal/util/version/version.go internal/util/version/
-RUN --mount=type=cache,target=/go/pkg \
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X github.com/arikkfir/devbot/backend/internal/util/version.Version=${VERSION}" \
-    -a -o deployment-clone cmd/deployment-clone/main.go
+    go build \
+      -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" \
+      -ldflags "-X github.com/arikkfir/devbot/backend/internal/util/version.Version=${VERSION}" \
+      -o deployment-clone \
+      cmd/deployment-clone/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
