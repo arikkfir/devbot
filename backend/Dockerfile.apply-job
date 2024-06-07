@@ -29,7 +29,7 @@ COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
 COPY internal/util/version/version.go internal/util/version/
 RUN --mount=type=cache,target=/go/pkg \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" \
+    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X github.com/arikkfir/devbot/backend/internal/util/version.Version=${VERSION}" \
     -a -o deployment-apply cmd/deployment-apply/main.go
 
 FROM gcr.io/distroless/static:nonroot

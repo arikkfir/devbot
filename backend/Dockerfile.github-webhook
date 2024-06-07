@@ -27,7 +27,7 @@ COPY internal/webhooks/github internal/webhooks/github/
 COPY internal/webhooks/util internal/webhooks/util/
 RUN --mount=type=cache,target=/go/pkg \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" -a -o github-webhook cmd/github-webhook/main.go
+    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X github.com/arikkfir/devbot/backend/internal/util/version.Version=${VERSION}" -a -o github-webhook cmd/github-webhook/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

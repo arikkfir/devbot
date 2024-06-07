@@ -44,7 +44,7 @@ RUN --mount=type=cache,target=/go/pkg \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build \
       -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" \
-      -ldflags "-X main.Version=${VERSION} -X github.com/arikkfir/devbot/backend/internal/controller.ApplyJobImage=${APPLY_JOB} -X github.com/arikkfir/devbot/backend/internal/controller.BakeJobImage=${BAKE_JOB} -X github.com/arikkfir/devbot/backend/internal/controller.CloneJobImage=${CLONE_JOB}" \
+      -ldflags "-X github.com/arikkfir/devbot/backend/internal/util/version.Version=${VERSION} -X github.com/arikkfir/devbot/backend/internal/controller.ApplyJobImage=${APPLY_JOB} -X github.com/arikkfir/devbot/backend/internal/controller.BakeJobImage=${BAKE_JOB} -X github.com/arikkfir/devbot/backend/internal/controller.CloneJobImage=${CLONE_JOB}" \
       -a -o controller cmd/controller/main.go
 
 FROM gcr.io/distroless/static:nonroot
