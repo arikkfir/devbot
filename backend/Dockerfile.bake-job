@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1
+
+FROM alpine:3.19 as kustomize
+ARG KUSTOMIZE_VERSION="v5.3.0"
+WORKDIR /workspace
+RUN apk --no-cache add curl
+RUN curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" | tar xzf -
+
+FROM alpine:3.19 as yq
+ARG YQ_VERSION="v4.40.7"
+WORKDIR /workspace
+RUN apk --no-cache add curl
+RUN curl -sSL -o yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" && chmod +x yq
+
+FROM golang:1.22 as builder
+
+# no default value, to default to the environment's architecture (e.g. linux/amd64)
+ARG TARGETOS="linux"
+ARG TARGETARCH
+
+# When running in Skaffold, this variable is going to be provided by it to enable/disable debugging and other features
+# When running elsewhere (e.g. GitHub Actions), the default value is going to be used
+ARG CUSTOM_GO_GCFLAGS=""
+ARG SKAFFOLD_GO_GCFLAGS=""
+ARG VERSION="0.0.0-local+unknown"
+
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN --mount=type=cache,target=/go/pkg go mod download
+
+COPY api api/
+COPY cmd/deployment-bake/main.go cmd/deployment-bake/
+COPY internal/util/logging/initialization.go internal/util/logging/
+COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
+COPY internal/util/strings/slug.go internal/util/strings/
+COPY internal/util/version/version.go internal/util/version/
+RUN --mount=type=cache,target=/go/pkg \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" \
+    -a -o deployment-bake cmd/deployment-bake/main.go
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/deployment-bake /usr/local/bin/
+COPY --from=kustomize /workspace/kustomize /usr/local/bin/
+COPY --from=yq /workspace/yq /usr/local/bin/
+USER 65532:65532
+ENV GOTRACEBACK=single
+ENTRYPOINT ["/usr/local/bin/deployment-bake"]

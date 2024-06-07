@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+
+FROM alpine:3.19 as kubectl
+ARG KUBECTL_VERSION="v1.29.3"
+WORKDIR /workspace
+RUN apk --no-cache add curl
+RUN curl -sSL -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && chmod +x kubectl
+
+FROM golang:1.22 as builder
+
+ARG TARGETOS="linux"
+ARG TARGETARCH
+
+# When running in Skaffold, this variable is going to be provided by it to enable/disable debugging and other features
+# When running elsewhere (e.g. GitHub Actions), the default value is going to be used
+ARG CUSTOM_GO_GCFLAGS=""
+ARG SKAFFOLD_GO_GCFLAGS=""
+ARG VERSION="0.0.0-local+unknown"
+
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN --mount=type=cache,target=/go/pkg go mod download
+
+COPY api api/
+COPY cmd/deployment-apply/main.go cmd/deployment-apply/
+COPY internal/util/logging/initialization.go internal/util/logging/
+COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
+COPY internal/util/version/version.go internal/util/version/
+RUN --mount=type=cache,target=/go/pkg \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" \
+    -a -o deployment-apply cmd/deployment-apply/main.go
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/deployment-apply /usr/local/bin/
+COPY --from=kubectl /workspace/kubectl /usr/local/bin/
+USER 65532:65532
+ENV GOTRACEBACK=single
+ENTRYPOINT ["/usr/local/bin/deployment-apply"]

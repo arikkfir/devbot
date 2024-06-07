@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../backend/internal/devctl/resources/.devbot
+  - github-auth-access.yaml
+secretGenerator:
+  - type: Opaque
+    behavior: create
+    name: devbot-github-auth
+    namespace: devbot
+    options:
+      disableNameSuffixHash: true
+      immutable: true
+    envs:
+      - github-auth.env
+patches:
+  - patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DISABLE_JSON_LOGGING
+          value: "true"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: LOG_LEVEL
+          value: "trace"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 1000m
+            memory: 1Gi
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+  - patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: GITHUB_WEBHOOK_SECRET
+              name: devbot-github-auth
+              optional: false
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: devbot-github-webhook

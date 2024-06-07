@@ -1,70 +1,66 @@
-apiVersion: skaffold/v2beta26
+# nonk8s
+apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
   name: devbot
 build:
   artifacts:
-  - image: europe-docker.pkg.dev/arikkfir/public/devbot/api
-    context: ./api
-    docker:
-      dockerfile: Dockerfile
-  - image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
-    context: ./portal
-    docker:
-      dockerfile: Dockerfile
-    sync:
-      manual:
-        - src: public/**
-          dest: /workspace/public/
-        - src: src/**
-          dest: /workspace/src/
-          strip: src/
+    - image: ghcr.io/arikkfir/devbot/apply-job
+      context: backend
+      docker:
+        dockerfile: Dockerfile.apply-job
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+    - image: ghcr.io/arikkfir/devbot/bake-job
+      context: backend
+      docker:
+        dockerfile: Dockerfile.bake-job
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+    - image: ghcr.io/arikkfir/devbot/clone-job
+      context: backend
+      docker:
+        dockerfile: Dockerfile.clone-job
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+    - image: ghcr.io/arikkfir/devbot/controller
+      context: backend
+      docker:
+        dockerfile: Dockerfile.controller
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
+      requires:
+        - image: ghcr.io/arikkfir/devbot/apply-job
+          alias: APPLY_JOB
+        - image: ghcr.io/arikkfir/devbot/bake-job
+          alias: BAKE_JOB
+        - image: ghcr.io/arikkfir/devbot/clone-job
+          alias: CLONE_JOB
+    - image: ghcr.io/arikkfir/devbot/github-webhook
+      context: backend
+      docker:
+        dockerfile: Dockerfile.github-webhook
+        buildArgs:
+          CUSTOM_GO_GCFLAGS: "all=-N -l"
   tagPolicy:
     gitCommit:
-      variant: Tags
+      variant: CommitSha
+      ignoreChanges: true
   local:
-    tryImportMissing: true
-    useBuildkit: true
     push: false
-    concurrency: 3
+    useBuildkit: true
+    concurrency: 0
+manifests:
+  kustomize:
+    paths:
+      - deploy/local
 deploy:
-  helm:
-    releases:
-      - name: local
-        chartPath: ./chart
-        artifactOverrides:
-          api:
-            image: europe-docker.pkg.dev/arikkfir/public/devbot/api
-          portal:
-            image: europe-docker.pkg.dev/arikkfir/public/devbot/portal
-        imageStrategy:
-          helm: {}
-        valuesFiles:
-          - values-dev.yaml
+  kubectl:
+    defaultNamespace: devbot
+  kubeContext: kind-devbot
 portForward:
   - resourceType: service
-    namespace: default
-    resourceName: devbot-local-portal
-    port: http
+    resourceName: devbot-github-webhook
+    namespace: devbot
+    port: 80
     localPort: 8080
-  - resourceType: service
-    namespace: default
-    resourceName: devbot-local-api
-    port: http
-    localPort: 8081
-profiles:
-  - name: dev
-    activation:
-      - command: dev
-    patches:
-      - op: replace
-        path: /build/artifacts/0/docker/dockerfile
-        value: Dockerfile.dev
-      - op: replace
-        path: /build/artifacts/1/docker/dockerfile
-        value: Dockerfile.dev
-  - name: push
-    patches:
-      - op: replace
-        path: /build/local/push
-        value: true
