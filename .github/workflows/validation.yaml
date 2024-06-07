@@ -28,3 +28,5 @@ jobs:
       # TODO: Only run unit tests here
       - run: go test ./...
         working-directory: backend
+
+# TODO: validate Go version in `go.mod` is identical to the version in Docker files
