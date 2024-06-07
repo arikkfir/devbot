@@ -37,7 +37,7 @@ jobs:
         with:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: |
-            VERSION=${{ github.sha }}
+            VERSION=0.0.0+${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           context: backend
