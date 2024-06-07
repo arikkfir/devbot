@@ -14,7 +14,7 @@ require (
 	github.com/google/go-github/v62 v62.0.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/lucasepe/codename v0.2.0
-	github.com/rs/zerolog v1.32.0
+	github.com/rs/zerolog v1.33.0
 	github.com/secureworks/errors v0.1.2
 	golang.org/x/crypto v0.21.0
 	k8s.io/api v0.30.1
