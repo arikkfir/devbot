@@ -123,7 +123,7 @@ func TestRepositoryRefreshIntervalParsing(t *testing.T) {
 							apiv1.Stale:              tc.stale,
 							apiv1.Unauthenticated:    tc.unauthenticated,
 						},
-						DefaultBranch: tc.defaultBranch,
+						DefaultBranch: defaultBranch,
 					},
 				}
 				repo := &apiv1.Repository{}
