@@ -1,0 +1,27 @@
+name: Validation
+
+on:
+  push:
+    branches:
+    tags:
+  pull_request:
+
+jobs:
+
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+      - run: go mod download -x
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+      # TODO: Only run unit tests here
+      - run: go test ./...
