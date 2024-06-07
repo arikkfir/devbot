@@ -385,11 +385,6 @@ func (r *DeploymentReconciler) getCurrentJob(rec *k8s.Reconciliation[*apiv1.Depl
 		return k8s.Requeue()
 	}
 
-	var jobNames []string
-	for _, job := range jobs.Items {
-		jobNames = append(jobNames, job.Name)
-	}
-
 	// If no jobs found, return nil
 	if len(jobs.Items) == 0 {
 		*target = nil
