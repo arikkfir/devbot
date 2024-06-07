@@ -8,7 +8,7 @@ require (
 	github.com/arikkfir/command v0.3.0
 	github.com/arikkfir/justest v0.3.1
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/go-playground/webhooks/v6 v6.3.0
 	github.com/google/go-github/v56 v56.0.0
 	github.com/google/go-github/v62 v62.0.0
@@ -25,6 +25,7 @@ require (
 	sigs.k8s.io/e2e-framework v0.4.0
 	sigs.k8s.io/kustomize/api v0.17.2
 	sigs.k8s.io/kustomize/kyaml v0.17.1
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -111,5 +112,4 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
