@@ -42,10 +42,6 @@ jobs:
           cache-to: type=gha,mode=max
           context: backend
           file: backend/Dockerfile.${{ matrix.image }}
-          platforms: |
-            darwin
-            linux/amd64
-            linux/arm64
-            linux/arm/v7
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
