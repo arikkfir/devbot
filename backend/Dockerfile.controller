@@ -23,7 +23,6 @@ RUN --mount=type=cache,target=/go/pkg go mod download
 COPY api api/
 COPY cmd/controller/main.go cmd/controller/
 COPY internal/controller/application_controller.go internal/controller/
-COPY internal/controller/config.go internal/controller/
 COPY internal/controller/deployment_controller.go internal/controller/
 COPY internal/controller/environment_controller.go internal/controller/
 COPY internal/controller/phase.go internal/controller/
@@ -40,6 +39,7 @@ COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
 COPY internal/util/strings/hash.go internal/util/strings/
 COPY internal/util/strings/names.go internal/util/strings/
 COPY internal/util/strings/slug.go internal/util/strings/
+COPY internal/util/version/version.go internal/util/version/
 RUN --mount=type=cache,target=/go/pkg \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build \

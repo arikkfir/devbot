@@ -34,6 +34,7 @@ COPY cmd/deployment-bake/main.go cmd/deployment-bake/
 COPY internal/util/logging/initialization.go internal/util/logging/
 COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
 COPY internal/util/strings/slug.go internal/util/strings/
+COPY internal/util/version/version.go internal/util/version/
 RUN --mount=type=cache,target=/go/pkg \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -gcflags="${CUSTOM_GO_GCFLAGS} ${SKAFFOLD_GO_GCFLAGS}" -ldflags "-X main.Version=${VERSION}" \

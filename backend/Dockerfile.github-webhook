@@ -22,6 +22,7 @@ COPY cmd/github-webhook/main.go cmd/github-webhook/
 COPY internal/util/k8s/conditions.go internal/util/k8s/
 COPY internal/util/logging/initialization.go internal/util/logging/
 COPY internal/util/logging/zerolog_logr_adapter.go internal/util/logging/
+COPY internal/util/version/version.go internal/util/version/
 COPY internal/webhooks/github internal/webhooks/github/
 COPY internal/webhooks/util internal/webhooks/util/
 RUN --mount=type=cache,target=/go/pkg \
