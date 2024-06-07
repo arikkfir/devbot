@@ -12,7 +12,7 @@ WORKDIR /workspace
 RUN apk --no-cache add curl
 RUN curl -sSL -o yq "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" && chmod +x yq
 
-FROM golang:1.22 as builder
+FROM golang:1.22.3 as builder
 
 # no default value, to default to the environment's architecture (e.g. linux/amd64)
 ARG TARGETOS="linux"
