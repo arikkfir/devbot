@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  validate:
+  validate-backend:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,8 +20,11 @@ jobs:
         with:
           go-version-file: backend/go.mod
       - run: go mod download -x
+        working-directory: backend
       - uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          working-directory: backend
       # TODO: Only run unit tests here
       - run: go test ./...
+        working-directory: backend
