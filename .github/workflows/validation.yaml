@@ -24,6 +24,7 @@ jobs:
         working-directory: backend
       - uses: golangci/golangci-lint-action@v6
         with:
+          args: --timeout=30m
           version: latest
           working-directory: backend
 
