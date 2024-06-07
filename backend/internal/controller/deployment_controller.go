@@ -37,8 +37,9 @@ var (
 
 type DeploymentReconciler struct {
 	client.Client
-	Config Config
-	Scheme *runtime.Scheme
+	Scheme             *runtime.Scheme
+	DisableJSONLogging bool
+	LogLevel           string
 }
 
 func (r *DeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -424,8 +425,8 @@ func (r *DeploymentReconciler) createNewJobSpec(rec *k8s.Reconciliation[*apiv1.D
 							WorkingDir: "/data",
 							Env: append(
 								envVars,
-								corev1.EnvVar{Name: "DISABLE_JSON_LOGGING", Value: strconv.FormatBool(r.Config.DisableJSONLogging)},
-								corev1.EnvVar{Name: "LOG_LEVEL", Value: r.Config.LogLevel},
+								corev1.EnvVar{Name: "DISABLE_JSON_LOGGING", Value: strconv.FormatBool(r.DisableJSONLogging)},
+								corev1.EnvVar{Name: "LOG_LEVEL", Value: r.LogLevel},
 								corev1.EnvVar{
 									Name: "POD_NAME",
 									ValueFrom: &corev1.EnvVarSource{

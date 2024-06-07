@@ -16,6 +16,7 @@ import (
 
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
+	"github.com/arikkfir/devbot/backend/internal/util/version"
 	"github.com/arikkfir/devbot/backend/internal/webhooks/github"
 	webhooksutil "github.com/arikkfir/devbot/backend/internal/webhooks/util"
 
@@ -25,78 +26,90 @@ import (
 	"strconv"
 )
 
-// Version represents the version of the server. This variable gets its value by injection from the build process.
-//
-//goland:noinspection GoUnusedGlobalVariable
-var Version = "0.0.0-unknown"
+type Executor struct {
+	DisableJSONLogging bool   `desc:"Disable JSON logging."`
+	LogLevel           string `required:"true" desc:"Log level, must be one of: trace,debug,info,warn,error,fatal,panic"`
+	HealthPort         int    `required:"true" desc:"Health endpoint port."`
+	ServerPort         int    `required:"true" desc:"Webhook server port."`
+	WebhookSecret      string `required:"true" desc:"Webhook secret shared by this server and GitHub."`
+}
 
-var rootCommand = command.New(command.Spec{
-	Name:             filepath.Base(os.Args[0]),
-	ShortDescription: "Devbot GitHub webhook connects GitHub events to Devbot installations.",
-	LongDescription:  `This webhook will receive events from GitHub and mark the corresponding GitHub repository accordingly.'`,
-	Config: &github.WebhookConfig{
-		DisableJSONLogging: false,
-		LogLevel:           "info",
-		HealthPort:         9000,
-		ServerPort:         8000,
-	},
-	Run: func(ctx context.Context, configAsAny any, usagePrinter command.UsagePrinter) error {
-		cfg := configAsAny.(*github.WebhookConfig)
+func (e *Executor) PreRun(_ context.Context) error { return nil }
+func (e *Executor) Run(ctx context.Context) error {
 
-		// Configure logging
-		logging.Configure(os.Stderr, !cfg.DisableJSONLogging, cfg.LogLevel, Version)
-		logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
-		ctrl.SetLogger(logrLogger)
-		klog.SetLogger(logrLogger)
+	// Configure logging
+	logging.Configure(os.Stderr, !e.DisableJSONLogging, e.LogLevel, version.Version)
+	logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
+	ctrl.SetLogger(logrLogger)
+	klog.SetLogger(logrLogger)
 
-		// Setup Kubernetes scheme
-		scheme := runtime.NewScheme()
-		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-		utilruntime.Must(apiv1.AddToScheme(scheme))
+	// Setup Kubernetes scheme
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(apiv1.AddToScheme(scheme))
 
-		// Setup health check
-		hc := webhooksutil.NewHealthCheckServer(cfg.HealthPort)
-		go hc.Start(ctx)
-		defer hc.Stop(ctx)
+	// Setup health check
+	hc := webhooksutil.NewHealthCheckServer(e.HealthPort)
+	go hc.Start(ctx)
+	defer hc.Stop(ctx)
 
-		// Create Kubernetes config
-		kubeConfig, err := rest.InClusterConfig()
+	// Create Kubernetes config
+	kubeConfig, err := rest.InClusterConfig()
+	if err != nil {
+		return errors.New("failed to create Kubernetes client: %w", err)
+	}
+
+	// Setup push handler
+	handler, err := github.NewPushHandler(kubeConfig, scheme, e.WebhookSecret)
+	if err != nil {
+		return errors.New("failed to create push handler: %w", err)
+	}
+	if err := handler.Start(ctx); err != nil {
+		return errors.New("failed to start push handler: %w", err)
+	}
+	defer func(handler *github.PushHandler) {
+		err := handler.Close()
 		if err != nil {
-			return errors.New("failed to create Kubernetes client: %w", err)
+			log.Error().Err(err).Msg("Failed to close push handler")
 		}
+	}(handler)
 
-		// Setup push handler
-		handler, err := github.NewPushHandler(kubeConfig, scheme, cfg.WebhookSecret)
-		if err != nil {
-			return errors.New("failed to create push handler: %w", err)
-		}
-		if err := handler.Start(ctx); err != nil {
-			return errors.New("failed to start push handler: %w", err)
-		}
-		defer func(handler *github.PushHandler) {
-			err := handler.Close()
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to close push handler")
-			}
-		}(handler)
+	// Setup routing
+	mux := http.NewServeMux()
+	mux.HandleFunc("/github/webhook", handler.HandleWebhookRequest)
 
-		// Setup routing
-		mux := http.NewServeMux()
-		mux.HandleFunc("/github/webhook", handler.HandleWebhookRequest)
+	// Setup server
+	server := &http.Server{
+		Addr:    ":" + strconv.Itoa(e.ServerPort),
+		Handler: webhooksutil.AccessLogMiddleware(false, nil, mux),
+	}
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Err(err).Msg("HTTP server failed")
+	}
 
-		// Setup server
-		server := &http.Server{
-			Addr:    ":" + strconv.Itoa(cfg.ServerPort),
-			Handler: webhooksutil.AccessLogMiddleware(false, nil, mux),
-		}
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Err(err).Msg("HTTP server failed")
-		}
-
-		return nil
-	},
-})
+	return nil
+}
 
 func main() {
-	command.Execute(rootCommand, os.Args, command.EnvVarsArrayToMap(os.Environ()))
+
+	// Create command structure
+	cmd := command.MustNew(
+		filepath.Base(os.Args[0]),
+		"Devbot GitHub webhook connects GitHub events to Devbot installations.",
+		`This webhook will receive events from GitHub and mark the corresponding GitHub repository accordingly.'`,
+		&Executor{
+			DisableJSONLogging: false,
+			LogLevel:           "info",
+			HealthPort:         8000,
+			ServerPort:         9000,
+		},
+	)
+
+	// Prepare a context that gets canceled if OS termination signals are sent
+	ctx, cancel := context.WithCancel(command.SetupSignalHandler())
+	defer cancel()
+
+	// Execute the correct command
+	command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))
+
 }

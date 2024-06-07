@@ -43,6 +43,25 @@ func GH(ctx context.Context, t T) *GClient {
 	return &GClient{Token: token, ctx: ctx, client: c}
 }
 
+func (gh *GClient) CloneRepository(t T, name string) (*GitHubRepositoryInfo, *git.Repository) {
+	ghRepo, _, err := gh.client.Repositories.Get(gh.ctx, GitHubOwner, name)
+	With(t).Verify(err).Will(BeNil()).OrFail()
+
+	clonePath := filepath.Join(os.TempDir(), stringsutil.RandomHash(7))
+	t.Cleanup(func() { os.RemoveAll(clonePath) })
+
+	cloneRepo, err := git.PlainCloneContext(gh.ctx, clonePath, false, &git.CloneOptions{
+		ReferenceName: "refs/heads/main",
+		URL:           *ghRepo.CloneURL,
+	})
+
+	return &GitHubRepositoryInfo{
+		Owner: *ghRepo.GetOwner().Login,
+		Name:  ghRepo.GetName(),
+		gh:    gh,
+	}, cloneRepo
+}
+
 func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitHubRepositoryInfo {
 	// Create the repository
 	ghRepo, _, err := gh.client.Repositories.Create(gh.ctx, GitHubOwner, &github.Repository{
@@ -55,9 +74,6 @@ func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitH
 	cloneURL := ghRepo.GetCloneURL()
 	repoOwner := ghRepo.Owner.GetLogin()
 	repoName := ghRepo.GetName()
-	t.Cleanup(func() {
-		With(t).Verify(gh.client.Repositories.Delete(gh.ctx, repoOwner, repoName)).Will(Succeed()).OrFail()
-	})
 
 	// Create the repository contents locally
 	// Corresponds to: git init
@@ -105,6 +121,7 @@ func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitH
 		Name:  repoName,
 		gh:    gh,
 	}
+	t.Cleanup(func() { repoInfo.Delete(t) })
 
 	return repoInfo
 }

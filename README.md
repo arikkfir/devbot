@@ -13,6 +13,21 @@ most inclusive interpretation of the term:
 
 Please see the [contributing guide](.github/CONTRIBUTING.md) for details.
 
+## Installation
+
+1. User runs `devctl bootstrap github --owner=OWNER --repo=REPO --pat=PAT`
+   1. Repository created or updated
+   2. Deploy key is created in the given repository (using the given PAT)
+      1. Public key is stored in the repository
+      2. Private key is stored as a secret in the `devbot` namespace
+   3. Devbot deployment manifests committed to `/.devbot` directory in the repository
+   4. Devbot deployment manifests applied to the current cluster
+      1. Wait loop until Devbot becomes healthy & active
+   5. Save deploy-key in a secret in the `devbot` namespace
+   6. `Repository` and `Application` manifests created, pointing to the
+7. 
+3. User runs `devctl bootstrap`
+
 ## Status
 
 Alpha. Do not use.

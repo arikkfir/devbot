@@ -25,6 +25,10 @@ type GitHubRepositoryInfo struct {
 	gh            *GClient
 }
 
+func (r *GitHubRepositoryInfo) Delete(t T) {
+	With(t).Verify(r.gh.client.Repositories.Delete(r.gh.ctx, r.Owner, r.Name)).Will(Succeed()).OrFail()
+}
+
 func (r *GitHubRepositoryInfo) SetupWebhook(t T) {
 	if r.WebhookSecret != "" {
 		return
