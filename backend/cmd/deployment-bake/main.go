@@ -2,18 +2,11 @@ package main
 
 import (
 	"context"
-
 	"github.com/arikkfir/command"
-	"github.com/go-logr/logr"
-	"github.com/rs/zerolog/log"
-	"github.com/secureworks/errors"
-	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
-
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	stringsutil "github.com/arikkfir/devbot/backend/internal/util/strings"
-	"github.com/arikkfir/devbot/backend/internal/util/version"
-
+	"github.com/rs/zerolog/log"
+	"github.com/secureworks/errors"
 	"io"
 	"os"
 	"os/exec"
@@ -32,28 +25,19 @@ const (
 	yqBinaryFilePath = "/usr/local/bin/yq"
 )
 
-type Executor struct {
-	DisableJSONLogging bool   `desc:"Disable JSON logging."`
-	LogLevel           string `required:"true" desc:"Log level, must be one of: trace,debug,info,warn,error,fatal,panic"`
-	ActualBranch       string `required:"true" desc:"Git branch serving as a default, in case the preferred branch was missing."`
-	ApplicationName    string `required:"true" desc:"Kubernetes Application object name."`
-	BaseDeployDir      string `required:"true" desc:"Base directory Directory holding the Kustomize overlay to build."`
-	EnvironmentName    string `required:"true" desc:"Kubernetes Environment object name."`
-	DeploymentName     string `required:"true" desc:"Kubernetes Deployment object name."`
-	ManifestFile       string `required:"true" desc:"Target file to write resources YAML manifest to."`
-	PreferredBranch    string `required:"true" desc:"Git branch preferred for baking, if it exists."`
-	RepoDefaultBranch  string `required:"true" desc:"The default branch of the repository being deployed."`
-	SHA                string `required:"true" desc:"Commit SHA to checkout."`
+type Action struct {
+	ActualBranch      string `required:"true" desc:"Git branch serving as a default, in case the preferred branch was missing."`
+	ApplicationName   string `required:"true" desc:"Kubernetes Application object name."`
+	BaseDeployDir     string `required:"true" desc:"Base directory Directory holding the Kustomize overlay to build."`
+	EnvironmentName   string `required:"true" desc:"Kubernetes Environment object name."`
+	DeploymentName    string `required:"true" desc:"Kubernetes Deployment object name."`
+	ManifestFile      string `required:"true" desc:"Target file to write resources YAML manifest to."`
+	PreferredBranch   string `required:"true" desc:"Git branch preferred for baking, if it exists."`
+	RepoDefaultBranch string `required:"true" desc:"The default branch of the repository being deployed."`
+	SHA               string `required:"true" desc:"Commit SHA to checkout."`
 }
 
-func (e *Executor) PreRun(_ context.Context) error { return nil }
-func (e *Executor) Run(ctx context.Context) error {
-
-	// Configure logging
-	logging.Configure(os.Stderr, !e.DisableJSONLogging, e.LogLevel, version.Version)
-	logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
-	ctrl.SetLogger(logrLogger)
-	klog.SetLogger(logrLogger)
+func (e *Action) Run(ctx context.Context) error {
 	log.Logger = log.With().
 		Str("actualBranch", e.ActualBranch).
 		Str("appName", e.ApplicationName).
@@ -153,10 +137,9 @@ func main() {
 		"Devbot bake job prepares the resource manifest of a repository.",
 		`This job prepares the Kubernetes resource manifest for a given repository
 in preparation for deployment into an environment.'`,
-		&Executor{
-			DisableJSONLogging: false,
-			LogLevel:           "info",
-		},
+		&Action{},
+		[]command.PreRunHook{&logging.InitHook{LogLevel: "info"}, &logging.SentryInitHook{}},
+		[]command.PostRunHook{&logging.SentryFlushHook{}},
 	)
 
 	// Prepare a context that gets canceled if OS termination signals are sent
@@ -164,6 +147,6 @@ in preparation for deployment into an environment.'`,
 	defer cancel()
 
 	// Execute the correct command
-	command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))
+	os.Exit(int(command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))))
 
 }

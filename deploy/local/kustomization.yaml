@@ -38,18 +38,3 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-  - patch: |
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: WEBHOOK_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: GITHUB_WEBHOOK_SECRET
-              name: devbot-github-auth
-              optional: false
-    target:
-      group: apps
-      version: v1
-      kind: Deployment
-      name: devbot-github-webhook

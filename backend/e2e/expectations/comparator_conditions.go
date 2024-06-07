@@ -20,7 +20,10 @@ func ConditionsComparator(t T, e, a any) {
 			}
 		}
 		if expectedConditionProperties != nil {
-			With(t).Verify(found).Will(EqualTo(true)).OrFail()
+			With(t).
+				Ensure("condition '%s' is found", expectedConditionType).
+				Verify(found).
+				Will(EqualTo(true)).OrFail()
 		} else {
 			With(t).Verify(found).Will(EqualTo(false)).OrFail()
 		}
@@ -32,18 +35,18 @@ func ConditionComparator(t T, e, a any) {
 	actual := a.(*metav1.Condition)
 	expectation := e.(*ConditionE)
 	if expectation != nil {
-		With(t).Verify(actual).Will(Not(BeNil())).OrFail()
-		With(t).Verify(actual.Type).Will(EqualTo(expectation.Type)).OrFail()
+		With(t).Ensure("condition '%s' must not be nil", expectation.Type).Verify(actual).Will(Not(BeNil())).OrFail()
+		With(t).Ensure("condition type '%s' must match", expectation.Type).Verify(actual.Type).Will(EqualTo(expectation.Type)).OrFail()
 		if expectation.Status != nil {
-			With(t).Verify(actual.Status).Will(EqualTo(metav1.ConditionStatus(*expectation.Status))).OrFail()
+			With(t).Ensure("condition status '%s' must match", expectation.Type).Verify(actual.Status).Will(EqualTo(metav1.ConditionStatus(*expectation.Status))).OrFail()
 		}
 		if expectation.Reason != nil {
-			With(t).Verify(actual.Reason).Will(Say(expectation.Reason)).OrFail()
+			With(t).Ensure("condition reason '%s' must match", expectation.Type).Verify(actual.Reason).Will(Say(expectation.Reason)).OrFail()
 		}
 		if expectation.Message != nil {
-			With(t).Verify(actual.Message).Will(Say(expectation.Message)).OrFail()
+			With(t).Ensure("condition message '%s' must match", expectation.Type).Verify(actual.Message).Will(Say(expectation.Message)).OrFail()
 		}
 	} else {
-		With(t).Verify(actual).Will(BeNil()).OrFail()
+		With(t).Ensure("condition '%s' must be nil", expectation.Type).Verify(actual).Will(BeNil()).OrFail()
 	}
 }

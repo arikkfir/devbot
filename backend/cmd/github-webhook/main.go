@@ -2,23 +2,17 @@ package main
 
 import (
 	"context"
-
 	"github.com/arikkfir/command"
-	"github.com/go-logr/logr"
+	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
+	"github.com/arikkfir/devbot/backend/internal/util/logging"
+	"github.com/arikkfir/devbot/backend/internal/webhooks/github"
+	webhooksutil "github.com/arikkfir/devbot/backend/internal/webhooks/util"
 	"github.com/rs/zerolog/log"
 	"github.com/secureworks/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
-	"github.com/arikkfir/devbot/backend/internal/util/logging"
-	"github.com/arikkfir/devbot/backend/internal/util/version"
-	"github.com/arikkfir/devbot/backend/internal/webhooks/github"
-	webhooksutil "github.com/arikkfir/devbot/backend/internal/webhooks/util"
 
 	"net/http"
 	"os"
@@ -26,22 +20,12 @@ import (
 	"strconv"
 )
 
-type Executor struct {
-	DisableJSONLogging bool   `desc:"Disable JSON logging."`
-	LogLevel           string `required:"true" desc:"Log level, must be one of: trace,debug,info,warn,error,fatal,panic"`
-	HealthPort         int    `required:"true" desc:"Health endpoint port."`
-	ServerPort         int    `required:"true" desc:"Webhook server port."`
-	WebhookSecret      string `required:"true" desc:"Webhook secret shared by this server and GitHub."`
+type Action struct {
+	HealthPort int `required:"true" desc:"Health endpoint port."`
+	ServerPort int `required:"true" desc:"Webhook server port."`
 }
 
-func (e *Executor) PreRun(_ context.Context) error { return nil }
-func (e *Executor) Run(ctx context.Context) error {
-
-	// Configure logging
-	logging.Configure(os.Stderr, !e.DisableJSONLogging, e.LogLevel, version.Version)
-	logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
-	ctrl.SetLogger(logrLogger)
-	klog.SetLogger(logrLogger)
+func (e *Action) Run(ctx context.Context) error {
 
 	// Setup Kubernetes scheme
 	scheme := runtime.NewScheme()
@@ -60,7 +44,7 @@ func (e *Executor) Run(ctx context.Context) error {
 	}
 
 	// Setup push handler
-	handler, err := github.NewPushHandler(kubeConfig, scheme, e.WebhookSecret)
+	handler, err := github.NewPushHandler(kubeConfig, scheme)
 	if err != nil {
 		return errors.New("failed to create push handler: %w", err)
 	}
@@ -97,12 +81,12 @@ func main() {
 		filepath.Base(os.Args[0]),
 		"Devbot GitHub webhook connects GitHub events to Devbot installations.",
 		`This webhook will receive events from GitHub and mark the corresponding GitHub repository accordingly.'`,
-		&Executor{
-			DisableJSONLogging: false,
-			LogLevel:           "info",
-			HealthPort:         8000,
-			ServerPort:         9000,
+		&Action{
+			HealthPort: 8000,
+			ServerPort: 9000,
 		},
+		[]command.PreRunHook{&logging.InitHook{LogLevel: "info"}, &logging.SentryInitHook{}},
+		[]command.PostRunHook{&logging.SentryFlushHook{}},
 	)
 
 	// Prepare a context that gets canceled if OS termination signals are sent
@@ -110,6 +94,6 @@ func main() {
 	defer cancel()
 
 	// Execute the correct command
-	command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))
+	os.Exit(int(command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))))
 
 }

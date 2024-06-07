@@ -1,0 +1,43 @@
+deployEvents:
+  enabled: true
+logs:
+  enabled: true
+logzio-logs-collector:
+  secrets:
+    env_id: "${CLUSTER_NAME}"
+    logzioLogsToken: "${LOGZ_IO_LOGS_TOKEN}"
+    logzioRegion: "${LOGZ_IO_REGION}"
+logzio-k8s-events:
+  secrets:
+    env_id: "${CLUSTER_NAME}"
+    logzioListener: "listener.logz.io"
+    logzioShippingToken: "${LOGZ_IO_LOGS_TOKEN}"
+logzio-k8s-telemetry:
+  k8sObjectsConfig:
+    enabled: true
+  metrics:
+    enabled: true
+  secrets:
+    env_id: "${CLUSTER_NAME}"
+    k8sObjectsLogsToken: "${LOGZ_IO_LOGS_TOKEN}"
+    ListenerHost: "https://listener.logz.io:8053"
+    LogzioRegion: "${LOGZ_IO_REGION}"
+    MetricsToken: "${LOGZ_IO_METRICS_TOKEN}"
+    p8s_logzio_name: "${CLUSTER_NAME}"
+    SpmToken: "${LOGZ_IO_SPM_TOKEN}"
+    TracesToken: "${LOGZ_IO_TRACES_TOKEN}"
+  serviceGraph:
+    enabled: true
+  spm:
+    enabled: true
+  traces:
+    enabled: true
+logzio-trivy:
+  env_id: "${CLUSTER_NAME}"
+  secrets:
+    logzioShippingToken: "${LOGZ_IO_LOGS_TOKEN}"
+    logzioListener: "listener.logz.io"
+metricsOrTraces:
+  enabled: true
+securityReport:
+  enabled: true

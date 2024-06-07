@@ -10,7 +10,9 @@ import (
 // +condition:commons
 // +condition:Authenticated,Unauthenticated:AuthenticationFailed,AuthSecretForbidden,AuthSecretKeyNotFound,AuthSecretNotFound,AuthTokenEmpty,InternalError,Invalid
 // +condition:Current,Stale:BranchesOutOfSync,DefaultBranchOutOfSync,InternalError,Invalid,RepositoryNotFound,Unauthenticated
-// +condition:Valid,Invalid:AuthConfigMissing,AuthSecretKeyMissing,AuthSecretNameMissing,InvalidRefreshInterval,RepositoryNameMissing,RepositoryOwnerMissing,UnknownRepositoryType
+// +condition:Valid,Invalid:InvalidRefreshInterval,RepositoryNameMissing,RepositoryOwnerMissing,UnknownRepositoryType
+// +condition:Valid,Invalid:AuthConfigMissing,AuthSecretKeyMissing,AuthSecretNameMissing
+// +condition:Valid,Invalid:WebhookSecretEmpty,WebhookSecretForbidden,WebhookSecretKeyMissing,WebhookSecretKeyNotFound,WebhookSecretNameMissing,WebhookSecretNotFound,WebhooksNotEnabled
 // +kubebuilder:printcolumn:name="Refresh Interval",type=string,JSONPath=`.spec.refreshInterval`
 // +kubebuilder:printcolumn:name="Valid",type=string,JSONPath=`.status.privateArea.Valid`
 // +kubebuilder:printcolumn:name="Authenticated",type=string,JSONPath=`.status.privateArea.Authenticated`
@@ -67,6 +69,10 @@ type GitHubRepositorySpec struct {
 	// repository's namespace if missing).
 	// +kubebuilder:validation:Optional
 	PersonalAccessToken *GitHubRepositoryPersonalAccessToken `json:"personalAccessToken,omitempty"`
+
+	// WebhookSecret specifies where to find the webhook secret used to validate incoming webhook requests from GitHub.
+	// +kubebuilder:validation:Optional
+	WebhookSecret *GitHubRepositoryWebhookSecret `json:"webhookSecret,omitempty"`
 }
 
 // GitHubRepositoryPersonalAccessToken specifies the Kubernetes secret & key that house the GitHub personal access token
@@ -78,6 +84,22 @@ type GitHubRepositoryPersonalAccessToken struct {
 	Secret SecretReferenceWithOptionalNamespace `json:"secret"`
 
 	// Key is the key in the secret containing the GitHub personal access token.
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
+	// +kubebuilder:validation:Required
+	Key string `json:"key"`
+}
+
+// GitHubRepositoryWebhookSecret specifies the Kubernetes secret & key that house the GitHub webhook secret, used to
+// validate incoming webhook requests from GitHub.
+type GitHubRepositoryWebhookSecret struct {
+
+	// Secret is the reference to the secret containing the GitHub webhook secret.
+	// +kubebuilder:validation:Required
+	Secret SecretReferenceWithOptionalNamespace `json:"secret"`
+
+	// Key is the key in the secret containing the GitHub webhook secret.
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=^[a-zA-Z0-9][a-zA-Z0-9-_.]*[a-zA-Z0-9_.]$
@@ -107,6 +129,9 @@ type RepositoryStatus struct {
 	// Revisions is a map of branch names to their last detected revision.
 	// +kubebuilder:validation:Optional
 	Revisions map[string]string `json:"revisions,omitempty"`
+
+	// LastWebhookPing is the last time a successful
+	LastWebhookPing *metav1.Time `json:"lastWebhookPing,omitempty"`
 
 	// PrivateArea is not meant for public consumption, nor is it part of the public API. It is exposed due to Go and
 	// controller-runtime limitations but is an internal part of the implementation.

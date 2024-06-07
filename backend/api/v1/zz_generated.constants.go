@@ -42,4 +42,11 @@ const (
 	Unauthenticated                = "Unauthenticated"
 	UnknownRepositoryType          = "UnknownRepositoryType"
 	Valid                          = "Valid"
+	WebhookSecretEmpty             = "WebhookSecretEmpty"
+	WebhookSecretForbidden         = "WebhookSecretForbidden"
+	WebhookSecretKeyMissing        = "WebhookSecretKeyMissing"
+	WebhookSecretKeyNotFound       = "WebhookSecretKeyNotFound"
+	WebhookSecretNameMissing       = "WebhookSecretNameMissing"
+	WebhookSecretNotFound          = "WebhookSecretNotFound"
+	WebhooksNotEnabled             = "WebhooksNotEnabled"
 )

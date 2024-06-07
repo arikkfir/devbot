@@ -1,17 +1,3 @@
-## Setup
--include .env
-export $(shell sed 's/=.*//' .env)
-
-## Tasks
-
-.PHONY: print-resources
-print-resources:
-	./hack/bin/debug-deployments.sh
-
-.PHONY: watch-resources
-watch-resources:
-	watch -n1 -c 'make --no-print-directory print-resources'
-
 .PHONY: generate
 generate:
 	rm -vrf backend/api/v1/zz_* deploy/app/crd/*.yaml
@@ -37,14 +23,18 @@ create-local-cluster: delete-local-cluster
 ensure-local-cluster:
 	kind get clusters | grep -q devbot || kind create cluster -n devbot
 
-.PHONY: test
-test:
-	cd backend && go test ./...
-
-.PHONY: tidy
-tidy:
-	cd backend && go mod tidy
-
 .PHONY: skaffold-dev
 dev: ensure-local-cluster
 	skaffold dev
+
+.PHONY: build
+build: generate ensure-local-cluster
+	skaffold build --profile=ide
+
+.PHONY: load-images-to-kind
+load-images-to-kind: build
+	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/apply-job:sha-local ghcr.io/arikkfir/devbot/apply-job:sha-local
+	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/bake-job:sha-local ghcr.io/arikkfir/devbot/bake-job:sha-local
+	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/clone-job:sha-local ghcr.io/arikkfir/devbot/clone-job:sha-local
+	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/controller:sha-local ghcr.io/arikkfir/devbot/controller:sha-local
+	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/github-webhook:sha-local ghcr.io/arikkfir/devbot/github-webhook:sha-local

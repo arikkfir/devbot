@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
+	"github.com/arikkfir/command"
+	"github.com/arikkfir/devbot/backend/internal/devctl"
+	"github.com/arikkfir/devbot/backend/internal/util/logging"
 	"os"
 	"path/filepath"
-
-	"github.com/arikkfir/command"
-
-	"github.com/arikkfir/devbot/backend/internal/devctl"
 )
 
 func main() {
@@ -19,17 +18,23 @@ func main() {
 		`Devctl allows you to bootstrap & interact with Devbot installations in Kubernetes clusters.
 It provides commands for bootstrapping Devbot onto a new or existing GitOps repository, as well as inspecting &
 manipulating running Devbot installations.`,
-		&devctl.RootExecutor{},
+		nil,
+		[]command.PreRunHook{&logging.InitHook{DisableJSONLogging: true, LogLevel: "info"}, &logging.SentryInitHook{}},
+		[]command.PostRunHook{&logging.SentryFlushHook{}},
 		command.MustNew(
 			"bootstrap",
 			"BootstrapExecutor devbot",
 			`This command will create Devbot manifests.`,
-			&devctl.BootstrapExecutor{},
+			nil,
+			nil,
+			nil,
 			command.MustNew(
 				"github",
 				"BootstrapExecutor devbot in a GitHub repository",
 				`This command will create Devbot manifests in your GitHub repository.`,
-				&devctl.BootstrapGitHubExecutor{Visibility: "public"},
+				&devctl.GitHubBootstrapAction{Visibility: "public"},
+				nil,
+				nil,
 			),
 		),
 	)
@@ -39,5 +44,5 @@ manipulating running Devbot installations.`,
 	defer cancel()
 
 	// Execute the correct command
-	command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))
+	os.Exit(int(command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))))
 }

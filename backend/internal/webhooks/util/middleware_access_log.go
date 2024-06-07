@@ -91,8 +91,10 @@ func AccessLogMiddleware(excludeRemoteAddr bool, excludedHeaderPatterns []string
 		// Keep a copy of the request body
 		requestBody := bytes.Buffer{}
 		responseBody := bytes.Buffer{}
-		r.Body = &ReaderCloser{Reader: io.TeeReader(r.Body, &requestBody)}
-		responseRecorder := &responseRecorder{
+		origReqBody := r.Body
+		defer func() { r.Body = origReqBody }()
+		r.Body = io.NopCloser(io.TeeReader(r.Body, &requestBody))
+		rr := &responseRecorder{
 			ResponseWriter: w,
 			w:              io.MultiWriter(&responseBody, w),
 			status:         200,
@@ -100,7 +102,7 @@ func AccessLogMiddleware(excludeRemoteAddr bool, excludedHeaderPatterns []string
 
 		// Invoke & time the next handler
 		start := time.Now()
-		next.ServeHTTP(responseRecorder, r.WithContext(event.Logger().WithContext(r.Context())))
+		next.ServeHTTP(rr, r.WithContext(event.Logger().WithContext(r.Context())))
 		duration := time.Since(start)
 
 		// Add request & response bodies
@@ -109,7 +111,7 @@ func AccessLogMiddleware(excludeRemoteAddr bool, excludedHeaderPatterns []string
 
 		// Add invocation result
 		event = event.Dur("http:process:duration", duration)
-		event = event.Int("http:res:status", responseRecorder.status)
+		event = event.Int("http:res:status", rr.status)
 		event = event.Int("http:res:size", responseBody.Len())
 
 		// Add response headers
@@ -127,9 +129,9 @@ func AccessLogMiddleware(excludeRemoteAddr bool, excludedHeaderPatterns []string
 		// Perform the logging with all the information we've added so far
 		const message = "HTTP Request processed"
 		logger := &([]zerolog.Logger{event.Logger()}[0])
-		if responseRecorder.status >= 200 && responseRecorder.status <= 399 {
+		if rr.status >= 200 && rr.status <= 399 {
 			logger.Info().Msg(message)
-		} else if responseRecorder.status >= 400 && responseRecorder.status <= 499 {
+		} else if rr.status >= 400 && rr.status <= 499 {
 			logger.Warn().Msg(message)
 		} else {
 			logger.Error().Msg(message)

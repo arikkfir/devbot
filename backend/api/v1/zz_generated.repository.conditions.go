@@ -517,6 +517,188 @@ func (s *RepositoryStatus) SetMaybeInvalidDueToUnknownRepositoryType(message str
 	return changed
 }
 
+func (s *RepositoryStatus) SetInvalidDueToWebhookSecretEmpty(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretEmpty {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretEmpty
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, WebhookSecretEmpty, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetMaybeInvalidDueToWebhookSecretEmpty(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretEmpty {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretEmpty
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, WebhookSecretEmpty, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetInvalidDueToWebhookSecretForbidden(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretForbidden {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretForbidden
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, WebhookSecretForbidden, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetMaybeInvalidDueToWebhookSecretForbidden(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretForbidden {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretForbidden
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, WebhookSecretForbidden, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetInvalidDueToWebhookSecretKeyMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretKeyMissing {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretKeyMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, WebhookSecretKeyMissing, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetMaybeInvalidDueToWebhookSecretKeyMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretKeyMissing {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretKeyMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, WebhookSecretKeyMissing, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetInvalidDueToWebhookSecretKeyNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretKeyNotFound {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretKeyNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, WebhookSecretKeyNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetMaybeInvalidDueToWebhookSecretKeyNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretKeyNotFound {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretKeyNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, WebhookSecretKeyNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetInvalidDueToWebhookSecretNameMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretNameMissing {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretNameMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, WebhookSecretNameMissing, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetMaybeInvalidDueToWebhookSecretNameMissing(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretNameMissing {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretNameMissing
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, WebhookSecretNameMissing, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetInvalidDueToWebhookSecretNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretNotFound {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, WebhookSecretNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetMaybeInvalidDueToWebhookSecretNotFound(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhookSecretNotFound {
+		s.PrivateArea[Valid] = "No: " + WebhookSecretNotFound
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, WebhookSecretNotFound, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetInvalidDueToWebhooksNotEnabled(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhooksNotEnabled {
+		s.PrivateArea[Valid] = "No: " + WebhooksNotEnabled
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionTrue, WebhooksNotEnabled, message, args...) || changed
+	return changed
+}
+
+func (s *RepositoryStatus) SetMaybeInvalidDueToWebhooksNotEnabled(message string, args ...interface{}) bool {
+	changed := false
+	if s.PrivateArea == nil {
+		s.PrivateArea = make(map[string]string)
+	}
+	if v, ok := s.PrivateArea[Valid]; !ok || v != "No: "+WebhooksNotEnabled {
+		s.PrivateArea[Valid] = "No: " + WebhooksNotEnabled
+		changed = true
+	}
+	changed = SetCondition(&s.Conditions, Invalid, v1.ConditionUnknown, WebhooksNotEnabled, message, args...) || changed
+	return changed
+}
+
 func (s *RepositoryStatus) SetValidIfInvalidDueToAnyOf(reasons ...string) bool {
 	changed := false
 	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, reasons...) || changed
@@ -546,7 +728,7 @@ func (s *RepositoryStatus) SetValid() bool {
 		s.PrivateArea[Valid] = "Yes"
 		changed = true
 	}
-	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, AuthConfigMissing, AuthSecretKeyMissing, AuthSecretNameMissing, ControllerNotAccessible, ControllerNotFound, ControllerReferenceMissing, InternalError, InvalidRefreshInterval, RepositoryNameMissing, RepositoryOwnerMissing, UnknownRepositoryType, "NonExistent") || changed
+	changed = RemoveConditionIfReasonIsOneOf(&s.Conditions, Invalid, AuthConfigMissing, AuthSecretKeyMissing, AuthSecretNameMissing, ControllerNotAccessible, ControllerNotFound, ControllerReferenceMissing, InternalError, InvalidRefreshInterval, RepositoryNameMissing, RepositoryOwnerMissing, UnknownRepositoryType, WebhookSecretEmpty, WebhookSecretForbidden, WebhookSecretKeyMissing, WebhookSecretKeyNotFound, WebhookSecretNameMissing, WebhookSecretNotFound, WebhooksNotEnabled, "NonExistent") || changed
 	return changed
 }
 

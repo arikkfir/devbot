@@ -3,20 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/arikkfir/command"
+	"github.com/arikkfir/devbot/backend/internal/util/logging"
+	"github.com/rs/zerolog/log"
+	"github.com/secureworks/errors"
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"github.com/arikkfir/command"
-	"github.com/go-logr/logr"
-	"github.com/rs/zerolog/log"
-	"github.com/secureworks/errors"
-	"k8s.io/klog/v2"
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/arikkfir/devbot/backend/internal/util/logging"
-	"github.com/arikkfir/devbot/backend/internal/util/version"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -27,23 +20,14 @@ const (
 	kubectlBinaryFilePath = "/usr/local/bin/kubectl"
 )
 
-type Executor struct {
-	DisableJSONLogging bool   `desc:"Disable JSON logging."`
-	LogLevel           string `required:"true" desc:"Log level, must be one of: trace,debug,info,warn,error,fatal,panic"`
-	ApplicationName    string `required:"true" desc:"Kubernetes Application object name."`
-	EnvironmentName    string `required:"true" desc:"Kubernetes Environment object name."`
-	DeploymentName     string `required:"true" desc:"Kubernetes Deployment object name."`
-	ManifestFile       string `required:"true" desc:"Target file to write resources YAML manifest to."`
+type Action struct {
+	ApplicationName string `required:"true" desc:"Kubernetes Application object name."`
+	EnvironmentName string `required:"true" desc:"Kubernetes Environment object name."`
+	DeploymentName  string `required:"true" desc:"Kubernetes Deployment object name."`
+	ManifestFile    string `required:"true" desc:"Target file to write resources YAML manifest to."`
 }
 
-func (e *Executor) PreRun(_ context.Context) error { return nil }
-func (e *Executor) Run(ctx context.Context) error {
-
-	// Configure logging
-	logging.Configure(os.Stderr, !e.DisableJSONLogging, e.LogLevel, version.Version)
-	logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
-	ctrl.SetLogger(logrLogger)
-	klog.SetLogger(logrLogger)
+func (e *Action) Run(ctx context.Context) error {
 	log.Logger = log.With().
 		Str("appName", e.ApplicationName).
 		Str("envName", e.EnvironmentName).
@@ -81,10 +65,9 @@ func main() {
 		"Devbot apply job deploys a pre-baked manifest to the cluster.",
 		`This job applies, via 'kubectl', a pre-baked manifest to the
 kubernetes cluster, thereby deploying a repository to a given environment.'`,
-		&Executor{
-			DisableJSONLogging: false,
-			LogLevel:           "info",
-		},
+		&Action{},
+		[]command.PreRunHook{&logging.InitHook{LogLevel: "info"}, &logging.SentryInitHook{}},
+		[]command.PostRunHook{&logging.SentryFlushHook{}},
 	)
 
 	// Prepare a context that gets canceled if OS termination signals are sent
@@ -92,6 +75,6 @@ kubernetes cluster, thereby deploying a repository to a given environment.'`,
 	defer cancel()
 
 	// Execute the correct command
-	command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))
+	os.Exit(int(command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))))
 
 }

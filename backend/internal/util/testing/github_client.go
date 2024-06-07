@@ -7,11 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	. "github.com/arikkfir/justest"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v56/github"
 
@@ -95,7 +97,18 @@ func (gh *GClient) CreateRepository(t T, fs embed.FS, embeddedPath string) *GitH
 		With(t).Verify(worktree.Add(p)).Will(Succeed()).OrFail()
 		return nil
 	})).Will(Succeed()).OrFail()
-	With(t).Verify(worktree.Commit("Initial commit", &git.CommitOptions{})).Will(Succeed()).OrFail()
+	With(t).Verify(worktree.Commit("Initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "CI",
+			Email: "arik@kfirs.com",
+			When:  time.Now(),
+		},
+		Committer: &object.Signature{
+			Name:  "CI",
+			Email: "arik@kfirs.com",
+			When:  time.Now(),
+		},
+	})).Will(Succeed()).OrFail()
 
 	// Rename local HEAD to "main"
 	// Corresponds to:

@@ -5,9 +5,9 @@ metadata:
     app.kubernetes.io/component: github-webhook
   name: github-webhook
 rules:
-  - apiGroups: [devbot.kfirs.com]
-    resources: [repositories]
-    verbs: [get, list, patch, update, watch]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ repositories ]
+    verbs: [ get, list, patch, update, watch ]
 ---
 apiVersion: v1
 kind: ServiceAccount

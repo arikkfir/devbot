@@ -5,23 +5,23 @@ metadata:
 rules:
 
   # Controller reads its own pod information to infer its own container image name - to use it for the deployment jobs
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get"]
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "get" ]
 
   # Application CRD reconciliation
-  - apiGroups: [devbot.kfirs.com]
-    resources: [applications]
-    verbs: [get, list, patch, update, watch]
-  - apiGroups: [devbot.kfirs.com]
-    resources: [applications/status]
-    verbs: [create, delete, get, patch, update]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ applications ]
+    verbs: [ get, list, patch, update, watch ]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ applications/status ]
+    verbs: [ create, delete, get, patch, update ]
 
   # Environment CRD reconciliation
-  - apiGroups: [devbot.kfirs.com]
-    resources: [environments]
-    verbs: [create, delete, get, list, patch, update, watch]
-  - apiGroups: [devbot.kfirs.com]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ environments ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+  - apiGroups: [ devbot.kfirs.com ]
     resources: [ environments/status ]
     verbs: [ create, delete, get, patch, update ]
 
@@ -36,15 +36,15 @@ rules:
     resources: [ "jobs" ]
     verbs: [ create, delete, get, list, patch, update, watch ]
   - apiGroups: [ "" ]
-    resources: [ "persistentvolumeclaims" ]
+    resources: [ persistentvolumeclaims ]
     verbs: [ create, delete, get, list, patch, update, watch ]
 
   # Repository CRD reconciliation
   - apiGroups: [ devbot.kfirs.com ]
-    resources: [repositories]
+    resources: [ repositories ]
     verbs: [ get, list, patch, update, watch ]
-  - apiGroups: [devbot.kfirs.com]
-    resources: [repositories/status]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ repositories/status ]
     verbs: [ create, delete, get, patch, update ]
 ---
 apiVersion: v1
@@ -103,16 +103,9 @@ spec:
     spec:
       containers:
         - image: ghcr.io/arikkfir/devbot/controller
-          args: []
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+          args:
+            - "--leader-elect"
+          env: [ ]
           name: controller
           ports:
             - containerPort: 8000
@@ -126,5 +119,27 @@ spec:
             requests:
               cpu: 512m
               memory: 64Mi
+          livenessProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 5
+            terminationGracePeriodSeconds: 30
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
+          startupProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
       enableServiceLinks: false
       serviceAccountName: controller

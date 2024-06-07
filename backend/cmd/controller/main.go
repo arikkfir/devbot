@@ -2,22 +2,17 @@ package main
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-
 	"github.com/arikkfir/command"
-	"github.com/go-logr/logr"
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/klog/v2"
+	"os"
+	"path/filepath"
 
 	"github.com/arikkfir/devbot/backend/internal/controller"
 	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 	"github.com/arikkfir/devbot/backend/internal/util/logging"
-	"github.com/arikkfir/devbot/backend/internal/util/version"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -33,25 +28,15 @@ import (
 	apiv1 "github.com/arikkfir/devbot/backend/api/v1"
 )
 
-type Executor struct {
-	DisableJSONLogging   bool   `desc:"Disable JSON logging."`
-	LogLevel             string `required:"true" desc:"Log level, must be one of: trace,debug,info,warn,error,fatal,panic"`
+type Action struct {
+	JobsLogLevel         string `required:"true" desc:"Log level to use for the clone, bake and apply jobs."`
 	MetricsAddr          string `required:"true" desc:"Address the metrics endpoint should bind to."`
 	HealthProbeAddr      string `required:"true" desc:"Address the health endpoint should bind to"`
-	EnableLeaderElection bool   `required:"true" desc:"Enable leader election, ensuring only one controller is active"`
-	PodNamespace         string `required:"true" desc:"Namespace of the controller pod (usually provided via downward API)"`
-	PodName              string `required:"true" desc:"Name of the controller pod (usually provided via downward API)"`
-	ContainerName        string `required:"true" desc:"Name of the controller container"`
+	EnableLeaderElection bool   `desc:"Enable leader election, ensuring only one controller is active"`
+	GithubWebhooksURL    string `desc:"Base URL (host & port without trailing slash) of GitHub webhooks URLs."`
 }
 
-func (e *Executor) PreRun(_ context.Context) error { return nil }
-func (e *Executor) Run(ctx context.Context) error {
-
-	// Configure logging
-	logging.Configure(os.Stderr, !e.DisableJSONLogging, e.LogLevel, version.Version)
-	logrLogger := logr.New(&logging.ZeroLogLogrAdapter{}).V(0)
-	ctrl.SetLogger(logrLogger)
-	klog.SetLogger(logrLogger)
+func (e *Action) Run(ctx context.Context) error {
 
 	// Create & register CRD scheme
 	scheme := runtime.NewScheme()
@@ -95,7 +80,7 @@ func (e *Executor) Run(ctx context.Context) error {
 	}
 
 	// Create & register application controller
-	repositoryReconciler := &controller.RepositoryReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme()}
+	repositoryReconciler := &controller.RepositoryReconciler{Client: mgr.GetClient(), Scheme: mgr.GetScheme(), GitHubWebhookURL: e.GithubWebhooksURL}
 	if err := repositoryReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create repository controller")
 	}
@@ -116,8 +101,8 @@ func (e *Executor) Run(ctx context.Context) error {
 	deploymentReconciler := &controller.DeploymentReconciler{
 		Client:             mgr.GetClient(),
 		Scheme:             mgr.GetScheme(),
-		DisableJSONLogging: e.DisableJSONLogging,
-		LogLevel:           e.LogLevel,
+		DisableJSONLogging: false,
+		LogLevel:           e.JobsLogLevel,
 	}
 	if err := deploymentReconciler.SetupWithManager(mgr); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create deployment controller")
@@ -148,14 +133,14 @@ func main() {
 		`This controller runs the Kubernetes reconcilers that are in charge of continually reconciling
 applications' desired state into an actual state in a Kubernetes cluster. It is responsible for managing the lifecycle
 of repositories, applications, environments, and deployments.'`,
-		&Executor{
-			DisableJSONLogging:   false,
-			LogLevel:             "info",
+		&Action{
+			JobsLogLevel:         "info",
 			MetricsAddr:          ":8000",
 			HealthProbeAddr:      ":9000",
 			EnableLeaderElection: false,
-			ContainerName:        "controller",
 		},
+		[]command.PreRunHook{&logging.InitHook{LogLevel: "info"}, &logging.SentryInitHook{}},
+		[]command.PostRunHook{&logging.SentryFlushHook{}},
 	)
 
 	// Prepare a context that gets canceled if OS termination signals are sent
@@ -163,6 +148,5 @@ of repositories, applications, environments, and deployments.'`,
 	defer cancel()
 
 	// Execute the correct command
-	command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))
-
+	os.Exit(int(command.Execute(ctx, os.Stderr, cmd, os.Args, command.EnvVarsArrayToMap(os.Environ()))))
 }
