@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"cmp"
 	"embed"
 	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/doc"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"io/fs"
@@ -141,12 +143,8 @@ func parseObjectConditionTypes(object *ast.Object, commentLines []string) ([]Con
 
 func generateConditionsFile(tmpl *template.Template, src string, packageName string, object *ast.Object, conditions []Condition) error {
 	genFilename := fmt.Sprintf("%s/zz_generated.%s.conditions.go", filepath.Dir(src), strings.ToLower(object.Name))
-	genFile, err := os.Create(genFilename)
-	if err != nil {
-		return errors.New("failed to create file '%s': %w", genFilename, err)
-	}
-	defer genFile.Close()
 
+	// Sort data to prevent diffs due to unpredictable symbol parsing order
 	for _, c := range conditions {
 		sort.Slice(c.Reasons, func(i, j int) bool { return cmp.Less(c.Reasons[i], c.Reasons[j]) })
 	}
@@ -155,36 +153,45 @@ func generateConditionsFile(tmpl *template.Template, src string, packageName str
 		b := conditions[j]
 		return cmp.Less(a.Name, b.Name) || (a.Name == b.Name && cmp.Less(a.RemovalVerb, b.RemovalVerb))
 	})
-	err = tmpl.ExecuteTemplate(genFile, "zz_generated.OBJECT.go.tmpl", map[string]interface{}{
-		"PackageName": packageName,
-		"ObjectType":  object.Name,
-		"Conditions":  conditions,
-	})
-	if err != nil {
+
+	// Execute template
+	b := &bytes.Buffer{}
+	tmplContext := map[string]interface{}{"PackageName": packageName, "ObjectType": object.Name, "Conditions": conditions}
+	if err := tmpl.ExecuteTemplate(b, "zz_generated.OBJECT.go.tmpl", tmplContext); err != nil {
 		return errors.New("failed to generate '%s': %w", genFilename, err)
+	}
+
+	// Format results for Go standards - so IDEs won't complain/change the code
+	if formattedBytes, err := format.Source(b.Bytes()); err != nil {
+		return errors.New("failed to format '%s': %w", genFilename, err)
+	} else if err := os.WriteFile(genFilename, formattedBytes, 0644); err != nil {
+		return errors.New("failed to write to '%s': %w", genFilename, err)
 	}
 	return nil
 }
 
 func generateConstantsFile(tmpl *template.Template, dir string, packageName string, constants map[string]string) error {
 	genFilename := fmt.Sprintf("%s/zz_generated.constants.go", filepath.Dir(dir))
-	genFile, err := os.Create(genFilename)
-	if err != nil {
-		return errors.New("failed to create file '%s': %w", genFilename, err)
-	}
-	defer genFile.Close()
 
+	// Sort data to prevent diffs due to unpredictable symbol parsing order
 	var constantsList [][]string
 	for k, v := range constants {
 		constantsList = append(constantsList, []string{k, v})
 	}
 	sort.Slice(constantsList, func(i, j int) bool { return cmp.Less(constantsList[i][0], constantsList[j][0]) })
-	err = tmpl.ExecuteTemplate(genFile, "zz_generated.conditions.go.tmpl", map[string]interface{}{
-		"PackageName": packageName,
-		"Constants":   constantsList,
-	})
-	if err != nil {
+
+	// Execute template
+	b := &bytes.Buffer{}
+	tmplContext := map[string]interface{}{"PackageName": packageName, "Constants": constantsList}
+	if err := tmpl.ExecuteTemplate(b, "zz_generated.conditions.go.tmpl", tmplContext); err != nil {
 		return errors.New("failed to generate '%s': %w", genFilename, err)
+	}
+
+	// Format results for Go standards - so IDEs won't complain/change the code
+	if formattedBytes, err := format.Source(b.Bytes()); err != nil {
+		return errors.New("failed to format '%s': %w", genFilename, err)
+	} else if err := os.WriteFile(genFilename, formattedBytes, 0644); err != nil {
+		return errors.New("failed to write to '%s': %w", genFilename, err)
 	}
 	return nil
 }
