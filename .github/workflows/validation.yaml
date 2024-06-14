@@ -27,3 +27,10 @@ jobs:
           args: --timeout=30m
           version: latest
           working-directory: backend
+      - run: |
+          rm -vrf backend/api/v1/zz_* deploy/app/crd/*.yaml
+          cd backend && go generate ./...
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "Go code generation created modifications - run 'go generate ./...' locally again."
+            exit 1
+          fi
