@@ -22,7 +22,7 @@ jobs:
           go-version-file: backend/go.mod
       - run: go mod download -x
         working-directory: backend
-      - run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3
+      - run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
       - run: |
           rm -vrf backend/api/v1/zz_* deploy/app/crd/*.yaml
           cd backend && go generate ./...
