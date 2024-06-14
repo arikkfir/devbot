@@ -1,7 +1,7 @@
 package {{$.PackageName}}
 
 const (
-{{- range $k, $v := .Constants}}
-	{{$k}} = "{{$v}}"
+{{- range $i, $kv := .Constants}}
+	{{index $kv 0}} = "{{index $kv 1}}"
 {{- end}}
 )
