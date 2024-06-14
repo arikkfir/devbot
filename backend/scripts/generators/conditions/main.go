@@ -1,12 +1,10 @@
 package main
 
 import (
+	"cmp"
 	"embed"
 	_ "embed"
 	"fmt"
-	"github.com/arikkfir/devbot/backend/internal/util/k8s"
-	"github.com/jessevdk/go-flags"
-	"github.com/secureworks/errors"
 	"go/ast"
 	"go/doc"
 	"go/parser"
@@ -16,8 +14,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 	"text/template"
+
+	"github.com/jessevdk/go-flags"
+	"github.com/secureworks/errors"
+
+	"github.com/arikkfir/devbot/backend/internal/util/k8s"
 )
 
 var (
@@ -143,6 +147,14 @@ func generateConditionsFile(tmpl *template.Template, src string, packageName str
 	}
 	defer genFile.Close()
 
+	for _, c := range conditions {
+		sort.Slice(c.Reasons, func(i, j int) bool { return cmp.Less(c.Reasons[i], c.Reasons[j]) })
+	}
+	sort.Slice(conditions, func(i, j int) bool {
+		a := conditions[i]
+		b := conditions[j]
+		return cmp.Less(a.Name, b.Name) || (a.Name == b.Name && cmp.Less(a.RemovalVerb, b.RemovalVerb))
+	})
 	err = tmpl.ExecuteTemplate(genFile, "zz_generated.OBJECT.go.tmpl", map[string]interface{}{
 		"PackageName": packageName,
 		"ObjectType":  object.Name,
@@ -162,9 +174,14 @@ func generateConstantsFile(tmpl *template.Template, dir string, packageName stri
 	}
 	defer genFile.Close()
 
+	var constantsList [][]string
+	for k, v := range constants {
+		constantsList = append(constantsList, []string{k, v})
+	}
+	sort.Slice(constantsList, func(i, j int) bool { return cmp.Less(constantsList[i][0], constantsList[j][0]) })
 	err = tmpl.ExecuteTemplate(genFile, "zz_generated.conditions.go.tmpl", map[string]interface{}{
 		"PackageName": packageName,
-		"Constants":   constants,
+		"Constants":   constantsList,
 	})
 	if err != nil {
 		return errors.New("failed to generate '%s': %w", genFilename, err)
@@ -265,6 +282,8 @@ func main() {
 		for _, condition := range constants.Conditions {
 			if _, ok := mergedConstants[condition.Name]; !ok {
 				mergedConstants[condition.Name] = condition.Name
+			}
+			if _, ok := mergedConstants[condition.RemovalVerb]; !ok {
 				mergedConstants[condition.RemovalVerb] = condition.RemovalVerb
 			}
 			for _, reason := range condition.Reasons {
