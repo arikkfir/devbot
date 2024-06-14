@@ -2,7 +2,7 @@
 // +kubebuilder:object:generate=true
 // +groupName=devbot.kfirs.com
 //
-//go:generate controller-gen object crd paths="." output:crd:artifacts:config=../../internal/devctl/resources/.devbot/crd
+//go:generate controller-gen object crd paths="." output:crd:artifacts:config=../../internal/devctl/bootstrap/resources/.devbot/crd
 //go:generate go run ../../scripts/generators/conditions .
 package v1
 
