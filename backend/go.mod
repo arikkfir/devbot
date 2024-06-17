@@ -6,7 +6,7 @@ replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
 
 require (
 	github.com/arikkfir/command v0.3.0
-	github.com/arikkfir/justest v0.3.1
+	github.com/arikkfir/justest v0.5.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-logr/logr v1.4.2
 	github.com/go-playground/webhooks/v6 v6.3.0
@@ -32,7 +32,7 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
-	github.com/alecthomas/chroma/v2 v2.13.0 // indirect
+	github.com/alecthomas/chroma/v2 v2.14.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
