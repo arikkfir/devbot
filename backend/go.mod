@@ -5,7 +5,7 @@ go 1.22.3
 replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
 
 require (
-	github.com/arikkfir/command v0.3.0
+	github.com/arikkfir/command v0.5.1
 	github.com/arikkfir/justest v0.3.1
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-logr/logr v1.4.2
