@@ -19,9 +19,9 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/secureworks/errors v0.1.2
 	golang.org/x/crypto v0.24.0
-	k8s.io/api v0.30.1
+	k8s.io/api v0.30.2
 	k8s.io/apiextensions-apiserver v0.30.1
-	k8s.io/apimachinery v0.30.1
+	k8s.io/apimachinery v0.30.2
 	k8s.io/client-go v0.30.1
 	k8s.io/klog/v2 v2.120.1
 	sigs.k8s.io/controller-runtime v0.18.4
