@@ -6,27 +6,23 @@ metadata:
 build:
   artifacts:
     - image: ghcr.io/arikkfir/devbot/apply-job
-      context: backend
       docker:
-        dockerfile: Dockerfile.apply-job
+        dockerfile: build/Dockerfile.apply-job
         buildArgs:
           CUSTOM_GO_GCFLAGS: "all=-N -l"
     - image: ghcr.io/arikkfir/devbot/bake-job
-      context: backend
       docker:
-        dockerfile: Dockerfile.bake-job
+        dockerfile: build/Dockerfile.bake-job
         buildArgs:
           CUSTOM_GO_GCFLAGS: "all=-N -l"
     - image: ghcr.io/arikkfir/devbot/clone-job
-      context: backend
       docker:
-        dockerfile: Dockerfile.clone-job
+        dockerfile: build/Dockerfile.clone-job
         buildArgs:
           CUSTOM_GO_GCFLAGS: "all=-N -l"
     - image: ghcr.io/arikkfir/devbot/controller
-      context: backend
       docker:
-        dockerfile: Dockerfile.controller
+        dockerfile: build/Dockerfile.controller
         buildArgs:
           CUSTOM_GO_GCFLAGS: "all=-N -l"
       requires:
@@ -36,10 +32,9 @@ build:
           alias: BAKE_JOB
         - image: ghcr.io/arikkfir/devbot/clone-job
           alias: CLONE_JOB
-    - image: ghcr.io/arikkfir/devbot/github-webhook
-      context: backend
+    - image: ghcr.io/arikkfir/devbot/webhooks
       docker:
-        dockerfile: Dockerfile.github-webhook
+        dockerfile: build/Dockerfile.webhooks
         buildArgs:
           CUSTOM_GO_GCFLAGS: "all=-N -l"
   tagPolicy:
@@ -55,18 +50,35 @@ manifests:
     paths:
       - deploy/local
 deploy:
-  kubectl:
-    defaultNamespace: devbot
+  helm:
+    releases:
+      - name: local
+        chartPath: ./deploy/chart
+        namespace: devbot
+        createNamespace: true
+        wait: true
+        setValueTemplates:
+          controller.image.repository: "{{.IMAGE_REPO_ghcr_io_arikkfir_devbot_controller}}"
+          controller.image.tag: "{{.IMAGE_TAG_ghcr_io_arikkfir_devbot_controller}}@{{.IMAGE_DIGEST_ghcr_io_arikkfir_devbot_controller}}"
+          webhooks.image.repository: "{{.IMAGE_REPO_ghcr_io_arikkfir_devbot_webhooks}}"
+          webhooks.image.tag: "{{.IMAGE_TAG_ghcr_io_arikkfir_devbot_webhooks}}@{{.IMAGE_DIGEST_ghcr_io_arikkfir_devbot_webhooks}}"
+        setValues:
+          controller.image.pullPolicy: Always
+          controller.env:
+            - name: DISABLE_JSON_LOGGING
+              value: "true"
+            - name: LOG_LEVEL
+              value: "trace"
+          webhooks.image.pullPolicy: Always
+          webhooks.env:
+            - name: DISABLE_JSON_LOGGING
+              value: "true"
+            - name: LOG_LEVEL
+              value: "trace"
   kubeContext: kind-devbot
 portForward:
   - resourceType: service
-    resourceName: devbot-github-webhook
+    resourceName: local-devbot-webhooks
     namespace: devbot
     port: 80
     localPort: 8080
-profiles:
-  - name: ide
-    build:
-      tagPolicy:
-        customTemplate:
-          template: "sha-local"

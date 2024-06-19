@@ -1,7 +1,7 @@
 .PHONY: generate
 generate:
-	rm -vrf backend/api/v1/zz_* deploy/app/crd/*.yaml
-	cd backend && go generate ./...
+	rm -vrf api/v1/zz_* deploy/chart/crds/*.yaml
+	go generate ./...
 
 .PHONY: delete-e2e-leftovers
 delete-e2e-leftovers:
@@ -26,15 +26,3 @@ ensure-local-cluster:
 .PHONY: skaffold-dev
 dev: ensure-local-cluster
 	skaffold dev
-
-.PHONY: build
-build: generate ensure-local-cluster
-	skaffold build --profile=ide
-
-.PHONY: load-images-to-kind
-load-images-to-kind: build
-	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/apply-job:sha-local ghcr.io/arikkfir/devbot/apply-job:sha-local
-	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/bake-job:sha-local ghcr.io/arikkfir/devbot/bake-job:sha-local
-	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/clone-job:sha-local ghcr.io/arikkfir/devbot/clone-job:sha-local
-	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/controller:sha-local ghcr.io/arikkfir/devbot/controller:sha-local
-	kind load --name devbot docker-image ghcr.io/arikkfir/devbot/github-webhook:sha-local ghcr.io/arikkfir/devbot/github-webhook:sha-local

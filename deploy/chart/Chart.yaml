@@ -1,0 +1,24 @@
+apiVersion: v2
+name: devbot
+description: Opinionated GitOps bot for the modern team.
+type: application
+version: 0.0.0
+appVersion: 0.0.0-local
+home: https://github.com/arikkfir/devbot
+maintainers:
+  - name: Arik Kfir
+    email: arik@kfirs.com
+    url: https://github.com/arikkfir
+icon: https://raw.githubusercontent.com/arikkfir/devbot/main/assets/logo.png
+keywords:
+  - iac
+  - gitops
+  - k8s
+  - kubernetes
+  - flux
+  - fluxcd
+  - argo
+  - argocd
+deprecated: false
+sources:
+  - https://github.com/arikkfir/devbot

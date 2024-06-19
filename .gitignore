@@ -6,7 +6,6 @@
 *.dll
 *.so
 *.dylib
-backend/*/bin/*
 
 # Temporary files
 *.swp

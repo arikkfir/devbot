@@ -36,8 +36,7 @@ To run the full tests suite locally, you can do the following:
 
 ```bash
 $ skaffold build -q | skaffold deploy --build-artifacts=-
-$ (cd backend && go test ./...)   # run backend tests
-$ (cd frontend && npm test)       # run frontend tests (NOT IMPLEMENTED YET)
+$ go test ./...                   # run tests
 $ skaffold delete                 # undeploy from the local cluster
 ```
 
