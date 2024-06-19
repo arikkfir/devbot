@@ -21,7 +21,7 @@ jobs:
     steps:
       - run: |
           cat > calling_workflow.json <<EOF
-          ${{ github.event }}
+          ${{ toJSON(github.event) }}
           EOF
           cat calling_workflow.json
 
