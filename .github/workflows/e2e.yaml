@@ -1,19 +1,9 @@
 name: End-to-end Tests
 
 on:
-  workflow_call:
-    inputs:
-      devctl-artifact-id:
-        description: The ID of the artifact containing "devctl" binary for Linux/amd64.
-        required: true
-        type: string
-    secrets:
-      GROUNDCOVER_API_KEY:
-        description: Groundcover API key used for connecting to the GroundCover portal.
-        required: true
-      PAT:
-        description: The GitHub PAT to be passed to "devctl".
-        required: true
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
 
 defaults:
   run:
