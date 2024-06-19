@@ -1,0 +1,37 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.22.3 AS builder
+
+# Compiler arguments
+ARG SKAFFOLD_GO_GCFLAGS=""
+ARG TARGETOS="linux"
+ARG TARGETARCH
+
+# Application variables
+ARG VERSION
+
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod go mod download
+
+COPY api api/
+COPY cmd/deployment-clone/main.go cmd/deployment-clone/
+COPY internal/util/observability/logging_hook.go internal/util/observability/
+COPY internal/util/observability/otel_hook.go internal/util/observability/
+COPY internal/util/observability/zerolog_logr_adapter.go internal/util/observability/
+COPY internal/util/version/version.go internal/util/version/
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build \
+      -gcflags="${SKAFFOLD_GO_GCFLAGS}" \
+      -ldflags "-X github.com/arikkfir/devbot/internal/util/version.Version=${VERSION}" \
+      -o deployment-clone \
+      cmd/deployment-clone/main.go
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/deployment-clone /usr/local/bin/
+USER 65532:65532
+ENV GOTRACEBACK=single
+ENTRYPOINT ["/usr/local/bin/deployment-clone"]

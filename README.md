@@ -58,3 +58,17 @@ Alpha. Do not use.
   - [ ] Detect and fail on dead code
   - [ ] Build & publish Docker images
   - [ ] Build & publish `devctl`
+- [ ] Create a `Makefile` target that creates the local ignored files, using 1Password as a way to populate their values
+
+
+```shell
+	#	groundcover deploy \
+	#		--yes \
+	#		--cluster-name kind-$(shell whoami) \
+	#		--custom-metrics \
+	#		--git-commit-hash-key-name devbot.kfirs.com/commit-hash \
+	#		--git-repository-url-key-name devbot.kfirs.com/repository-url \
+	#		--kube-state-metrics \
+	#		--kube-context kind-devbot
+
+```

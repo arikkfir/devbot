@@ -1,0 +1,95 @@
+commitSHA: "unknown"
+
+controller:
+
+  # image holds the configuration for obtaining the controller container image: repository, tag & pull policy.
+  image:
+
+    # repository is the container image repository of the controller image.
+    repository: ghcr.io/arikkfir/devbot/controller
+
+    # tag is the container image tag of the controller image.
+    tag: local
+
+    # pullPolicy holds the Kubernetes image pull policy used for pulling the container image when running in the pod.
+    pullPolicy: IfNotPresent
+
+  # rbac specifies the permissions management configuration for the controller.
+  rbac:
+
+    # annotations allows specifying a set of annotations to add to the controller Kubernetes service account.
+    annotations: { }
+
+  # resources allows customizing the amount of CPU & memory requirements to provide to the controller pods.
+  resources:
+
+    # limits specifies the maximum amount of CPU & memory that controller pods will be allowed to get.
+    limits:
+
+      # cpu specifies the maximum amount of CPU that controller pods will be allowed to get.
+      cpu: 2048m
+
+      # memory specifies the maximum amount of memory that controller pods will be allowed to get.
+      memory: 128Mi
+
+    # requests specifies the minimum amount of CPU & memory that controller pods will get.
+    requests:
+
+      # cpu specifies the minimum amount of CPU that controller pods will get.
+      cpu: 512m
+
+      # memory specifies the minimum amount of memory that controller pods will get.
+      memory: 64Mi
+
+  # extraArgs allows to specify additional CLI arguments to send to the controller pods.
+  extraArgs: [ ]
+
+  # extraEnv allows to specify additional environment variables to send to the controller pods.
+  extraEnv: [ ]
+
+webhooks:
+
+  # image holds the configuration for obtaining the webhooks container image: repository, tag & pull policy.
+  image:
+
+    # repository is the container image repository of the webhooks image.
+    repository: ghcr.io/arikkfir/devbot/webhooks
+
+    # tag is the container image tag of the webhooks image.
+    tag: local
+
+    # pullPolicy holds the Kubernetes image pull policy used for pulling the container image when running in the pod.
+    pullPolicy: IfNotPresent
+
+  # rbac specifies the permissions management configuration for the webhooks.
+  rbac:
+
+    # annotations allows specifying a set of annotations to add to the webhooks Kubernetes service account.
+    annotations: { }
+
+  # resources allows customizing the amount of CPU & memory requirements to provide to the webhooks pods.
+  resources:
+
+    # limits specifies the maximum amount of CPU & memory that webhooks pods will be allowed to get.
+    limits:
+
+      # cpu specifies the maximum amount of CPU that webhooks pods will be allowed to get.
+      cpu: 50m
+
+      # memory specifies the maximum amount of memory that webhooks pods will be allowed to get.
+      memory: 32Mi
+
+    # requests specifies the minimum amount of CPU & memory that webhooks pods will get.
+    requests:
+
+      # cpu specifies the minimum amount of CPU that webhooks pods will get.
+      cpu: 50m
+
+      # memory specifies the minimum amount of memory that webhooks pods will get.
+      memory: 32Mi
+
+  # extraArgs allows to specify additional CLI arguments to send to the webhooks pods.
+  extraArgs: [ ]
+
+  # extraEnv allows to specify additional environment variables to send to the webhooks pods.
+  extraEnv: [ ]

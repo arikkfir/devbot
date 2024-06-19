@@ -1,0 +1,55 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.22.3 AS builder
+
+# Compiler arguments
+ARG SKAFFOLD_GO_GCFLAGS=""
+ARG TARGETOS="linux"
+ARG TARGETARCH
+
+# Application variables
+ARG APPLY_JOB
+ARG BAKE_JOB
+ARG CLONE_JOB
+ARG VERSION
+
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod go mod download
+
+COPY api api/
+COPY cmd/controller/main.go cmd/controller/
+COPY internal/controller/application_controller.go internal/controller/
+COPY internal/controller/deployment_controller.go internal/controller/
+COPY internal/controller/environment_controller.go internal/controller/
+COPY internal/controller/phase.go internal/controller/
+COPY internal/controller/repository_controller.go internal/controller/
+COPY internal/util/k8s/conditions.go internal/util/k8s/
+COPY internal/util/k8s/owned_by.go internal/util/k8s/
+COPY internal/util/k8s/reconciliation.go internal/util/k8s/
+COPY internal/util/k8s/result.go internal/util/k8s/
+COPY internal/util/k8s/status.go internal/util/k8s/
+COPY internal/util/lang/duration.go internal/util/lang/
+COPY internal/util/lang/pointers.go internal/util/lang/
+COPY internal/util/observability/logging_hook.go internal/util/observability/
+COPY internal/util/observability/otel_hook.go internal/util/observability/
+COPY internal/util/observability/zerolog_logr_adapter.go internal/util/observability/
+COPY internal/util/strings/hash.go internal/util/strings/
+COPY internal/util/strings/names.go internal/util/strings/
+COPY internal/util/strings/slug.go internal/util/strings/
+COPY internal/util/version/version.go internal/util/version/
+RUN --mount=type=cache,target=/root/.cache/go-build --mount=type=cache,target=/go/pkg/mod \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build \
+      -gcflags="${SKAFFOLD_GO_GCFLAGS}" \
+      -ldflags "-X github.com/arikkfir/devbot/internal/util/version.Version=${VERSION} -X github.com/arikkfir/devbot/internal/controller.ApplyJobImage=${APPLY_JOB} -X github.com/arikkfir/devbot/internal/controller.BakeJobImage=${BAKE_JOB} -X github.com/arikkfir/devbot/internal/controller.CloneJobImage=${CLONE_JOB}" \
+      -o controller \
+      cmd/controller/main.go
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/controller /usr/local/bin/
+USER 65532:65532
+ENV GOTRACEBACK=single
+ENTRYPOINT ["/usr/local/bin/controller"]

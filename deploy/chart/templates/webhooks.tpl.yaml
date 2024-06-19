@@ -1,0 +1,155 @@
+{{- $prefix := include "devbot.prefix" . -}}
+{{ $clusterRoleName := printf "%s-%s" $prefix "webhooks-permissions" }}
+{{ $serviceAccountName := printf "%s-%s" $prefix "webhooks" }}
+{{ $componentName := "webhooks" }}
+{{/*----------------------------------------------------------------------------------------------------------------*/}}
+{{/* TODO: https://opentelemetry.io/docs/kubernetes/helm/collector/#host-metrics-preset */}}
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+    {{ range $name, $value := .Values.webhooks.rbac.annotations -}}
+    {{ $name }}: {{ $value | quote }}
+    {{- end -}}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ $serviceAccountName | quote }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ $clusterRoleName | quote }}
+rules:
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ repositories ]
+    verbs: [ get, list, patch, update, watch ]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ printf "%s-%s" $prefix "webhooks-permissions" | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $clusterRoleName | quote }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName | quote }}
+    namespace: {{ .Release.Namespace }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ printf "%s-%s" $prefix "webhooks" | quote }}
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    {{- include "devbot.versionAgnosticLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ printf "%s-%s" $prefix "webhooks" | quote }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "devbot.versionAgnosticLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $componentName | quote }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+      labels:
+        {{- include "devbot.versionAgnosticLabels" . | nindent 8 }}
+        app.kubernetes.io/component: {{ $componentName | quote }}
+    spec:
+      containers:
+        - image: {{ .Values.webhooks.image.repository }}:{{ .Values.webhooks.image.tag | default .Chart.AppVersion }}
+          {{- if not (empty .Values.webhooks.extraArgs) }}
+          args:
+            {{- toYaml .Values.webhooks.extraArgs | nindent 12 }}
+          {{- end }}
+          {{- if not (empty .Values.webhooks.extraEnv) }}
+          env:
+            {{- toYaml .Values.webhooks.extraEnv | nindent 12 }}
+          {{- end }}
+          name: webhooks
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 9000
+              name: health
+            - containerPort: 8000
+              name: metrics
+          resources:
+            limits:
+              cpu: {{ .Values.webhooks.resources.limits.cpu | quote }}
+              memory: {{ .Values.webhooks.resources.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.webhooks.resources.requests.cpu | quote }}
+              memory: {{ .Values.webhooks.resources.requests.memory | quote }}
+          livenessProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 5
+            terminationGracePeriodSeconds: 30
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
+          startupProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
+      enableServiceLinks: false
+      serviceAccountName: {{ $serviceAccountName | quote }}

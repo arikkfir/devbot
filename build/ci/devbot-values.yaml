@@ -1,0 +1,34 @@
+controller:
+  resources:
+    limits:
+      cpu: 512m
+      memory: 128Mi
+    requests:
+      cpu: 512m
+      memory: 64Mi
+  extraEnv:
+    - name: DISABLE_JSON_LOGGING
+      value: "T"
+    - name: LOG_LEVEL
+      value: "trace"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://otel-gateway.observability.svc:4318"
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: "http/protobuf"
+webhooks:
+  resources:
+    limits:
+      cpu: 50m
+      memory: 32Mi
+    requests:
+      cpu: 50m
+      memory: 32Mi
+  extraEnv:
+    - name: DISABLE_JSON_LOGGING
+      value: "T"
+    - name: LOG_LEVEL
+      value: "trace"
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: "http://otel-gateway.observability.svc:4318"
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: "http/protobuf"

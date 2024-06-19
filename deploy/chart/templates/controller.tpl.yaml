@@ -1,0 +1,224 @@
+{{- $prefix := include "devbot.prefix" . -}}
+{{ $clusterRoleName := printf "%s-%s" $prefix "controller-global-permissions" }}
+{{ $localRoleName := printf "%s-%s" $prefix "controller-local-permissions" }}
+{{ $serviceAccountName := printf "%s-%s" $prefix "controller" }}
+{{ $componentName := "controller" }}
+{{/*----------------------------------------------------------------------------------------------------------------*/}}
+{{/* TODO: https://opentelemetry.io/docs/kubernetes/helm/collector/#host-metrics-preset */}}
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+    {{ range $name, $value := .Values.webhooks.rbac.annotations -}}
+    {{ $name }}: {{ $value | quote }}
+    {{- end }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ $serviceAccountName | quote }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ $clusterRoleName | quote }}
+rules:
+
+  # Application CRD reconciliation
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ applications ]
+    verbs: [ get, list, patch, update, watch ]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ applications/status ]
+    verbs: [ get, patch, update ]
+
+  # Environment CRD reconciliation
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ environments ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ environments/status ]
+    verbs: [ get, patch, update ]
+
+  # Deployment CRD reconciliation
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ deployments ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ deployments/status ]
+    verbs: [ get, patch, update ]
+
+  # Deployment jobs
+  - apiGroups: [ batch ]
+    resources: [ jobs ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+  - apiGroups: [ "" ]
+    resources: [ persistentvolumeclaims ]
+    verbs: [ create, delete, get, list, patch, update, watch ]
+
+  # Repository CRD reconciliation
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ repositories ]
+    verbs: [ get, list, patch, update, watch ]
+  - apiGroups: [ devbot.kfirs.com ]
+    resources: [ repositories/status ]
+    verbs: [ get, patch, update ]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ $localRoleName | quote }}
+rules:
+
+  # Leader election
+  - apiGroups: [ "" ]
+    resources: [configmaps]
+    verbs: [get,list,watch,create,update,patch,delete]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get,list,watch,create,update,patch,delete]
+  - apiGroups: [ "" ]
+    resources: [events]
+    verbs: [create,patch]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ printf "%s-%s" $prefix "controller-global-permissions" | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $clusterRoleName | quote }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName | quote }}
+    namespace: {{ .Release.Namespace }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ printf "%s-%s" $prefix "controller-local-permissions" | quote }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $localRoleName | quote }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $serviceAccountName | quote }}
+    namespace: {{ .Release.Namespace }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+  labels:
+    {{- include "devbot.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ $componentName | quote }}
+  name: {{ printf "%s-%s" $prefix "controller" | quote }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "devbot.versionAgnosticLabels" . | nindent 6 }}
+      app.kubernetes.io/component: {{ $componentName | quote }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        app.kubernetes.io/commit-hash: {{ .Values.commitSHA | quote }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+      labels:
+        {{- include "devbot.versionAgnosticLabels" . | nindent 8 }}
+        app.kubernetes.io/component: {{ $componentName | quote }}
+    spec:
+      containers:
+        - image: {{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+          args:
+            - "--enable-leader-election"
+          {{- if not (empty .Values.controller.extraArgs) }}
+            {{- toYaml .Values.controller.extraArgs | nindent 12 }}
+          {{- end }}
+          {{- if not (empty .Values.controller.extraEnv) }}
+          env:
+            {{- toYaml .Values.controller.extraEnv | nindent 12 }}
+          {{- end }}
+          name: controller
+          ports:
+            - containerPort: 8000
+              name: metrics
+            - containerPort: 9000
+              name: health
+          resources:
+            limits:
+              cpu: {{ .Values.controller.resources.limits.cpu | quote }}
+              memory: {{ .Values.controller.resources.limits.memory | quote }}
+            requests:
+              cpu: {{ .Values.controller.resources.requests.cpu | quote }}
+              memory: {{ .Values.controller.resources.requests.memory | quote }}
+          livenessProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 5
+            terminationGracePeriodSeconds: 30
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
+          startupProbe:
+            httpGet:
+              port: health
+              path: /healthz
+            failureThreshold: 3
+            periodSeconds: 1
+            timeoutSeconds: 1
+      enableServiceLinks: false
+      serviceAccountName: {{ $serviceAccountName | quote }}
+      volumes:
+        - name: s
+          secret:
+            secretName: a
+            optional: false
+            items:
+              - key: k
+                path: a.json

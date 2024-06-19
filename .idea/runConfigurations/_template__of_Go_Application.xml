@@ -1,5 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="true" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="devbot" />
     <working_directory value="$PROJECT_DIR$" />
     <envs>
       <env name="DISABLE_JSON_LOGGING" value="true" />
@@ -16,6 +17,7 @@
       </ENTRIES>
     </EXTENSION>
     <kind value="FILE" />
+    <package value="github.com/arikkfir/devbot" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$" />
     <method v="2" />
