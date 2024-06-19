@@ -6,29 +6,25 @@ metadata:
 build:
   artifacts:
     - image: ghcr.io/arikkfir/devbot/apply-job
-      context: backend
       docker:
-        dockerfile: Dockerfile.apply-job
+        dockerfile: build/Dockerfile.apply-job
         buildArgs:
-          CUSTOM_GO_GCFLAGS: "all=-N -l"
+          VERSION: v0.0.0+local
     - image: ghcr.io/arikkfir/devbot/bake-job
-      context: backend
       docker:
-        dockerfile: Dockerfile.bake-job
+        dockerfile: build/Dockerfile.bake-job
         buildArgs:
-          CUSTOM_GO_GCFLAGS: "all=-N -l"
+          VERSION: v0.0.0+local
     - image: ghcr.io/arikkfir/devbot/clone-job
-      context: backend
       docker:
-        dockerfile: Dockerfile.clone-job
+        dockerfile: build/Dockerfile.clone-job
         buildArgs:
-          CUSTOM_GO_GCFLAGS: "all=-N -l"
+          VERSION: v0.0.0+local
     - image: ghcr.io/arikkfir/devbot/controller
-      context: backend
       docker:
-        dockerfile: Dockerfile.controller
+        dockerfile: build/Dockerfile.controller
         buildArgs:
-          CUSTOM_GO_GCFLAGS: "all=-N -l"
+          VERSION: v0.0.0+local
       requires:
         - image: ghcr.io/arikkfir/devbot/apply-job
           alias: APPLY_JOB
@@ -36,37 +32,86 @@ build:
           alias: BAKE_JOB
         - image: ghcr.io/arikkfir/devbot/clone-job
           alias: CLONE_JOB
-    - image: ghcr.io/arikkfir/devbot/github-webhook
-      context: backend
+    - image: ghcr.io/arikkfir/devbot/webhooks
       docker:
-        dockerfile: Dockerfile.github-webhook
+        dockerfile: build/Dockerfile.webhooks
         buildArgs:
-          CUSTOM_GO_GCFLAGS: "all=-N -l"
-  tagPolicy:
-    gitCommit:
-      variant: CommitSha
-      ignoreChanges: true
+          VERSION: v0.0.0+local
   local:
     push: false
     useBuildkit: true
     concurrency: 0
-manifests:
-  kustomize:
-    paths:
-      - deploy/local
 deploy:
-  kubectl:
-    defaultNamespace: devbot
   kubeContext: kind-devbot
+  helm:
+    releases:
+      - name: local-devbot
+        chartPath: ./deploy/chart
+        namespace: devbot
+        createNamespace: true
+        wait: true
+        setValueTemplates:
+          commitSHA: local
+          controller:
+            image:
+              repository: "{{.IMAGE_REPO_ghcr_io_arikkfir_devbot_controller}}"
+              tag: "{{.IMAGE_TAG_ghcr_io_arikkfir_devbot_controller}}@{{.IMAGE_DIGEST_ghcr_io_arikkfir_devbot_controller}}"
+              pullPolicy: Never # These images are only present locally, not remotely
+            extraEnv:
+              - name: DISABLE_JSON_LOGGING
+                value: "T"
+              - name: LOG_LEVEL
+                value: "trace"
+              - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                value: "http://otel-gateway.observability.svc:4318"
+              - name: OTEL_EXPORTER_OTLP_PROTOCOL
+                value: "http/protobuf"
+            resources:
+              requests:
+                cpu: 1000m
+                memory: 128Mi
+              limits:
+                cpu: 2000m
+                memory: 1Gi
+          webhooks:
+            image:
+              repository: "{{.IMAGE_REPO_ghcr_io_arikkfir_devbot_webhooks}}"
+              tag: "{{.IMAGE_TAG_ghcr_io_arikkfir_devbot_webhooks}}@{{.IMAGE_DIGEST_ghcr_io_arikkfir_devbot_webhooks}}"
+              pullPolicy: Never # These images are only present locally, not remotely
+            extraEnv:
+              - name: DISABLE_JSON_LOGGING
+                value: "T"
+              - name: LOG_LEVEL
+                value: "trace"
+              - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                value: "http://otel-gateway.observability.svc:4318"
+              - name: OTEL_EXPORTER_OTLP_PROTOCOL
+                value: "http/protobuf"
+            resources:
+              requests:
+                cpu: 512m
+                memory: 128Mi
+              limits:
+                cpu: 1000m
+                memory: 512Mi
 portForward:
   - resourceType: service
-    resourceName: devbot-github-webhook
+    resourceName: local-devbot-webhooks
     namespace: devbot
-    port: 80
-    localPort: 8080
-profiles:
-  - name: ide
-    build:
-      tagPolicy:
-        customTemplate:
-          template: "sha-local"
+    port: http
+    localPort: 8081
+  - resourceType: service
+    resourceName: grafana
+    namespace: observability
+    port: service
+    localPort: 9000
+  - resourceType: service
+    resourceName: prometheus-server
+    namespace: observability
+    port: http
+    localPort: 9001
+  - resourceType: service
+    resourceName: jaeger-instance-query
+    namespace: observability
+    port: http-query
+    localPort: 9002

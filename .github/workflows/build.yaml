@@ -3,7 +3,8 @@ name: Build
 on:
   push:
     branches: [main]
-    tags: [v*]
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+**
   pull_request:
     types: [ opened, reopened, synchronize ]
 
@@ -13,12 +14,30 @@ defaults:
 
 jobs:
 
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      dockerTag: ${{ fromJSON(steps.metadata.outputs.result).dockerTag }}
+      version: ${{ fromJSON(steps.metadata.outputs.result).version }}
+    steps:
+      - uses: actions/github-script@v7
+        id: metadata
+        with:
+          script: |
+            const ref = context["ref"].replace("refs/tags/", ""), sha = context["sha"]
+            if (context["eventName"] === "push" && /^v\d+\.\d+\.\d+/.test(ref)) {
+                return { dockerTag: ref, version: `${ref}+${sha}` }
+            } else {
+                return { dockerTag: sha, version: `v0.0.0+${sha}` }
+            }
+
   build-images:
     runs-on: ubuntu-latest
+    needs: [metadata]
     strategy:
       fail-fast: true
       matrix:
-        image: [ apply-job, bake-job, clone-job, controller, github-webhook ]
+        image: [ apply-job, bake-job, clone-job, controller, webhooks ]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -28,82 +47,66 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
-        id: meta
-        with:
-          images: ghcr.io/arikkfir/devbot/${{ matrix.image }}
-          tags: |
-            type=semver,pattern=v{{major}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=semver,pattern=v{{major}}.{{minor}}.{{patch}}
-            type=semver,pattern=v{{version}}
-            type=sha,format=long            
-            type=sha,format=short
       - uses: docker/build-push-action@v5
         with:
-          annotations: ${{ steps.meta.outputs.annotations }}
           build-args: |
-            APPLY_JOB=ghcr.io/arikkfir/devbot/apply-job:sha-${{ github.sha }}
-            BAKE_JOB=ghcr.io/arikkfir/devbot/bake-job:sha-${{ github.sha }}
-            CLONE_JOB=ghcr.io/arikkfir/devbot/clone-job:sha-${{ github.sha }}
-            VERSION=0.0.0+${{ github.sha }}
+            APPLY_JOB=ghcr.io/arikkfir/devbot/apply-job:${{ needs.metadata.outputs.dockerTag }}
+            BAKE_JOB=ghcr.io/arikkfir/devbot/bake-job:${{ needs.metadata.outputs.dockerTag }}
+            CLONE_JOB=ghcr.io/arikkfir/devbot/clone-job:${{ needs.metadata.outputs.dockerTag }}
+            VERSION=${{ needs.metadata.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          context: backend
-          file: backend/Dockerfile.${{ matrix.image }}
+          context: .
+          file: build/Dockerfile.${{ matrix.image }}
           platforms: linux/amd64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ghcr.io/arikkfir/devbot/${{ matrix.image }}:${{ needs.metadata.outputs.dockerTag }}
 
-  build-devctl:
+  build-helm-chart:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        arch: [ amd64, arm64 ]
-        os: [ darwin, linux ]
-    outputs:
-      linux-amd64-id: "${{ steps.artifact.outputs.linux-amd64-id }}"
+    needs: [metadata]
+    env:
+      TAG: ${{ needs.metadata.outputs.dockerTag }}
+      VERSION: ${{ needs.metadata.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+      - run: echo -n ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
+      - run: yq -i ".commitSHA=\"${TAG}\" | .controller.image.tag=\"${TAG}\" | .webhooks.image.tag=\"${TAG}\"" deploy/chart/values.yaml
+      - run: helm lint deploy/chart/
+      - run: helm package --version ${VERSION} --app-version ${VERSION} deploy/chart/ --destination ./
+      - run: helm push devbot-${VERSION}.tgz oci://ghcr.io/${GITHUB_ACTOR}
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [metadata, build-images, build-helm-chart]
+    env:
+      TAG: ${{ needs.metadata.outputs.dockerTag }}
+      VERSION: ${{ needs.metadata.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          cache-dependency-path: backend/go.sum
-          go-version-file: backend/go.mod
+          go-version-file: go.mod
       - run: go mod download -x
-        working-directory: backend
-      - run: |
-          go build \
-            -gcflags="${GO_GCFLAGS}" \
-            -ldflags "${LDFLAGS}" \
-            -o devctl-${GOOS}-${GOARCH} \
-            cmd/devctl/main.go
-        working-directory: backend
-        env:
-          CGO_ENABLED: "0"
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-          GO_GCFLAGS: ""
-          LDFLAGS: "-X github.com/arikkfir/devbot/backend/internal/util/version.Version=0.0.0+${{ github.sha }}"
-      - uses: actions/upload-artifact@v4
-        id: upload
+      - run: go install github.com/onsi/ginkgo/v2/ginkgo
+      - uses: helm/kind-action@v1
         with:
-          name: devctl-${{ matrix.os }}-${{ matrix.arch }}
-          path: backend/devctl-${{ matrix.os }}-${{ matrix.arch }}
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-      - run: echo "${GOOS}-${GOARCH}-id=${{ steps.upload.outputs.artifact-id }}" >> "$GITHUB_OUTPUT"
-        id: artifact
+          cluster_name: devbot
+          version: v0.23.0
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.15.2
+      - run: echo -n ${GITHUB_TOKEN} | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
         env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-
-  call-e2e:
-    uses: ./.github/workflows/e2e.yaml
-    needs: [build-images, build-devctl]
-    secrets:
-      GROUNDCOVER_API_KEY: ${{ secrets.GROUNDCOVER_API_KEY }}
-      PAT: ${{ secrets.PAT }}
-    with:
-      devctl-artifact-id: "${{ needs.build-devctl.outputs.linux-amd64-id }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: make setup-observability
+      - run: |
+          helm install local-devbot oci://ghcr.io/arikkfir/devbot --version ${VERSION} \
+            --create-namespace --namespace devbot \
+            --values build/ci/devbot-values.yaml
+      - run: make e2e
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
