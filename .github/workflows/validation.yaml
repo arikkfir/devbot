@@ -23,6 +23,16 @@ jobs:
           go-version-file: backend/go.mod
       - run: go mod download -x
         working-directory: backend
+      - run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
+        working-directory: backend
+      - run: |
+          rm -vrf api/v1/zz_*
+          go generate ./...
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "Go code generation created modifications - run 'go generate ./...' locally again."
+            exit 1
+          fi
+        working-directory: backend
       - uses: golangci/golangci-lint-action@v6
         with:
           args: --timeout=30m
