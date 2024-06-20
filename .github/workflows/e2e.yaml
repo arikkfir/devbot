@@ -53,7 +53,7 @@ jobs:
           GROUNDCOVER_API_KEY: ${{ secrets.GROUNDCOVER_API_KEY }}
       - run: helm install --create-namespace devbot oci://ghcr.io/arikkfir/devbot --version 0.0.0+${PR_SHA}
         env:
-          PR_SHA: ${{ context.payload.workflow_run.pull_requests[0].head.sha }}
+          PR_SHA: ${{ github.event.workflow_run.pull_requests[0].head.sha }}
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
