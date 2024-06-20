@@ -2,10 +2,6 @@ name: Build
 
 on:
   push:
-    branches: [main]
-    tags: [v*]
-  pull_request:
-    types: [ opened, reopened, synchronize ]
 
 defaults:
   run:
@@ -18,7 +14,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        image: [ apply-job, bake-job, clone-job, controller, github-webhook ]
+        image: [ apply-job, bake-job, clone-job, controller, webhooks ]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -33,77 +29,37 @@ jobs:
         with:
           images: ghcr.io/arikkfir/devbot/${{ matrix.image }}
           tags: |
-            type=semver,pattern=v{{major}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=semver,pattern=v{{major}}.{{minor}}.{{patch}}
-            type=semver,pattern=v{{version}}
-            type=sha,format=long            
-            type=sha,format=short
+            type=sha,format=long,prefix=
+            type=sha,format=short,prefix=
       - uses: docker/build-push-action@v5
         with:
           annotations: ${{ steps.meta.outputs.annotations }}
           build-args: |
-            APPLY_JOB=ghcr.io/arikkfir/devbot/apply-job:sha-${{ github.sha }}
-            BAKE_JOB=ghcr.io/arikkfir/devbot/bake-job:sha-${{ github.sha }}
-            CLONE_JOB=ghcr.io/arikkfir/devbot/clone-job:sha-${{ github.sha }}
-            VERSION=0.0.0+${{ github.sha }}
+            APPLY_JOB=ghcr.io/arikkfir/devbot/apply-job:${{ github.sha }}
+            BAKE_JOB=ghcr.io/arikkfir/devbot/bake-job:${{ github.sha }}
+            CLONE_JOB=ghcr.io/arikkfir/devbot/clone-job:${{ github.sha }}
+            BUILD=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          context: backend
-          file: backend/Dockerfile.${{ matrix.image }}
+          context: .
+          file: build/Dockerfile.${{ matrix.image }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
 
-  build-devctl:
+  build-helm-chart:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        arch: [ amd64, arm64 ]
-        os: [ darwin, linux ]
-    outputs:
-      linux-amd64-id: "${{ steps.artifact.outputs.linux-amd64-id }}"
+    env:
+      VERSION: 0.0.0+${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: azure/setup-helm@v4
         with:
-          cache-dependency-path: backend/go.sum
-          go-version-file: backend/go.mod
-      - run: go mod download -x
-        working-directory: backend
-      - run: |
-          go build \
-            -gcflags="${GO_GCFLAGS}" \
-            -ldflags "${LDFLAGS}" \
-            -o devctl-${GOOS}-${GOARCH} \
-            cmd/devctl/main.go
-        working-directory: backend
+          version: v3.15.2
+      - run: echo -n ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
+      - run: yq -i ".controller.image.tag=\"${TAG}\" | .webhooks.image.tag=\"${TAG}\"" deploy/chart/values.yaml
         env:
-          CGO_ENABLED: "0"
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-          GO_GCFLAGS: ""
-          LDFLAGS: "-X github.com/arikkfir/devbot/backend/internal/util/version.Version=0.0.0+${{ github.sha }}"
-      - uses: actions/upload-artifact@v4
-        id: upload
-        with:
-          name: devctl-${{ matrix.os }}-${{ matrix.arch }}
-          path: backend/devctl-${{ matrix.os }}-${{ matrix.arch }}
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
-      - run: echo "${GOOS}-${GOARCH}-id=${{ steps.upload.outputs.artifact-id }}" >> "$GITHUB_OUTPUT"
-        id: artifact
-        env:
-          GOOS: ${{ matrix.os }}
-          GOARCH: ${{ matrix.arch }}
-
-  call-e2e:
-    uses: ./.github/workflows/e2e.yaml
-    needs: [build-images, build-devctl]
-    secrets:
-      GROUNDCOVER_API_KEY: ${{ secrets.GROUNDCOVER_API_KEY }}
-      PAT: ${{ secrets.PAT }}
-    with:
-      devctl-artifact-id: "${{ needs.build-devctl.outputs.linux-amd64-id }}"
+          TAG: ${{ github.sha }}
+      - run: helm lint deploy/chart/
+      - run: helm package --version ${VERSION} --app-version ${VERSION} deploy/chart/ --destination ./
+      - run: helm push devbot-${VERSION}.tgz oci://ghcr.io/${GITHUB_ACTOR}
