@@ -20,14 +20,13 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            console.info(JSON.stringify(context, null, 4))
             let prNumber = context.payload.workflow_run.pull_requests[0].number
             const labels = await github.rest.issues.listLabelsOnIssue({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: prNumber
             });
-            core.setOutput('clusterName', `kind-${prNumber}-${context.runNumber}-${context.runAttempt}`)
+            core.setOutput('clusterName', `kind-${prNumber}-${{ github.run_number }}-${{ github.run_attempt }}`)
             core.setOutput("deployGroundCover", labels.data.some(label => label.name === "deploy-groundcover"));
             core.setOutput("slowdownTestsFactor", labels.data.some(label => label.name === "slowdown-tests") ? 10 : 1);
       - uses: helm/kind-action@v1
