@@ -17,8 +17,8 @@ github.com/arikkfir/command v0.5.1 h1:MhxeTL5rOH+tHLtjyGW/81JE8/09UKC9ZlrIqPqGXd
 github.com/arikkfir/command v0.5.1/go.mod h1:Ik1no2LxAyrc679c1lAmmA89oz6DbhVt+qgzyFJZIIo=
 github.com/arikkfir/go-errors v0.0.9 h1:LloniIlcrceOZXx/RMx7POat8k1KAS9a6lFV5VZxTGU=
 github.com/arikkfir/go-errors v0.0.9/go.mod h1:llVbUedarGeNyKdYQYIoai8AJvhO3giWoV/3YmBvPUc=
-github.com/arikkfir/justest v0.6.0 h1:iD9eJvUUIIFgpFU+HScEMbqmkQF2nlA9r2+0bbe9Ucw=
-github.com/arikkfir/justest v0.6.0/go.mod h1:/jh9qJpKex1I+ziRNtkqLOr3effGBf60raZtS/yR+to=
+github.com/arikkfir/justest v0.7.0 h1:TGhc2RwlwGK8LFAc3UXywcX/1nO6zmU6mC4s4m6FM0g=
+github.com/arikkfir/justest v0.7.0/go.mod h1:/jh9qJpKex1I+ziRNtkqLOr3effGBf60raZtS/yR+to=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
