@@ -6,7 +6,7 @@ replace github.com/secureworks/errors => github.com/arikkfir/go-errors v0.0.9
 
 require (
 	github.com/arikkfir/command v0.5.1
-	github.com/arikkfir/justest v0.6.0
+	github.com/arikkfir/justest v0.7.0
 	github.com/blang/semver/v4 v4.0.0
 	github.com/getsentry/sentry-go v0.28.0
 	github.com/go-git/go-git/v5 v5.12.0
