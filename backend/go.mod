@@ -14,7 +14,7 @@ require (
 	github.com/go-playground/webhooks/v6 v6.3.0
 	github.com/google/go-github/v56 v56.0.0
 	github.com/google/go-github/v62 v62.0.0
-	github.com/jessevdk/go-flags v1.5.0
+	github.com/jessevdk/go-flags v1.6.1
 	github.com/lucasepe/codename v0.2.0
 	github.com/rs/zerolog v1.33.0
 	github.com/secureworks/errors v0.1.2
