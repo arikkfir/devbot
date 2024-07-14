@@ -59,10 +59,6 @@ undeploy:
 	kubectl get namespaces -oname | grep -v -E 'default|devbot|kube|local' | sort | xargs -I@ kubectl delete @  || true
 	kubectl delete namespace devbot || true
 	kubectl delete crd repositories.devbot.kfirs.com applications.devbot.kfirs.com deployments.devbot.kfirs.com environments.devbot.kfirs.com || true
-	gh repo list devbot-testing --json=nameWithOwner \
-      | jq '.[]|.nameWithOwner' -r \
-      | sort \
-      | xargs -I@ gh repo delete --yes @
 
 .PHONY: dev
 dev:
