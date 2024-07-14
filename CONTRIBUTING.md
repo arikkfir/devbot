@@ -6,38 +6,40 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 ## Setup
 
-### Install required toolchains
+Local development is done by installing the necessary tools, creating a local `kind` cluster, along with an
+observability layer that helps debugging the system and gaining insights into what it does.
+
+This can be accomplished by the following commands:
 
 ```bash
-$ brew install go node                                                # language toolchains
-$ brew install kind kubebuilder kubernetes-cli kustomize skaffold     # Kubernetes development tooling
-$ brew install yq jq                                                  # useful tools often used ad-hoc or by scripts
-$ go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0  # used to generate CRDs from controller code
-$ npm install -g smee-client                                          # used by tests to tunnel webhook requests
+$ brew install make go kind kubebuilder kubernetes-cli kustomize skaffold yq jq node
+$ make setup
+$ make create-local-cluster
+$ make setup-observability
 ```
 
-### Create a local Kubernetes cluster
+## Developing
+
+The easiest way to get up & running once a local cluster has been created, is using Skaffold to (continuously) deploy
+the Helm chart into the cluster. Skaffold will keep the deployed chart updated with any code changes you make
+automatically, and can be run from the CLI, or from a JetBrains/VSCode plugin.
+
+Here is how to run the application from the CLI, assuming a cluster has been created:
 
 ```bash
-$ ./hack/bin/setup-cluster.sh
+$ make dev
 ```
 
-### Developing
+This will run `skaffold dev` which will package & deploy the Helm chart, and will keep doing so as you make changes to
+the code.
 
-In our experience, the best development experience is to use Skaffold in conjunction with its respective IDE plugin 
-(either JetBrains or VSCode usually). This allows for a very fast development cycle, where changes are automatically
-reflected in the cluster.
+## Testing
 
-This will also allow for local debugging of the code.
-
-### Testing
-
-To run the full tests suite locally, you can do the following:
+To run the full tests suite locally, [ensure you have a running cluster](#setup) and that `devbot` is deployed to it
+(see [Developing](#developing) above), then run the following:
 
 ```bash
-$ skaffold build -q | skaffold deploy --build-artifacts=-
-$ go test ./...                   # run tests
-$ skaffold delete                 # undeploy from the local cluster
+$ make e2e
 ```
 
 ## Issues and PRs
@@ -50,8 +52,8 @@ at the links below if you're not sure how to open a PR.
 
 ## Submitting a pull request
 
-1. Make sure you set up your local development environment as described above.
-2. [Fork](https://github.com/arikkfir/devbot/fork) and clone the repository.
+1. [Fork](https://github.com/arikkfir/devbot/fork) and clone the repository.
+2. Make sure you set up your local development environment as described above.
 3. Create a new branch: `git checkout -b my-branch-name`.
 4. Make your change, add your feature/bug specific tests, and make sure the entire tests suite passes (see above)
 5. Push to your fork, and submit a pull request
@@ -61,7 +63,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 
 - Write and update tests.
 - Keep your changes as focused as possible
-  - Break up your change to smaller, separate & decoupled changes - reviewing will be easier & faster
+  - Smaller PRs make faster & easier reviews, which make faster acceptance & merges
   - Keep each PR focused on one specific change
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
 - Provide any and all necessary information in the PR description to help reviewers understand the context and impact of

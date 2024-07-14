@@ -24,6 +24,7 @@ deploy/otel-collector-gcp/service-account-key.json:
 
 .PHONY: setup
 setup:
+	npm install -g smee-client
 	go mod download -x
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
 	go install github.com/onsi/ginkgo/v2/ginkgo@v2.19.0
@@ -56,7 +57,7 @@ undeploy:
 	kubectl delete --all --all-namespaces environments.devbot.kfirs.com || true
 	kubectl delete --all --all-namespaces applications.devbot.kfirs.com || true
 	kubectl delete --all --all-namespaces repositories.devbot.kfirs.com || true
-	kubectl get namespaces -oname | grep -v -E 'default|devbot|kube|local' | sort | xargs -I@ kubectl delete @  || true
+	kubectl get namespaces -oname | grep -v -E 'default|devbot|kube|cert-manager|observability' | sort | xargs -I@ kubectl delete @  || true
 	kubectl delete namespace devbot || true
 	kubectl delete crd repositories.devbot.kfirs.com applications.devbot.kfirs.com deployments.devbot.kfirs.com environments.devbot.kfirs.com || true
 
