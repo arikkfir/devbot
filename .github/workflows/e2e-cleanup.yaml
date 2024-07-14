@@ -1,0 +1,21 @@
+name: Build
+
+on:
+  schedule:
+    - cron: '0 02 * * *'
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -e -u -x -o pipefail {0}
+
+jobs:
+
+  reap-e2e-github-repositories:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          gh repo list devbot-testing --json=nameWithOwner \
+            | jq '.[]|.nameWithOwner' -r \
+            | sort \
+            | xargs -I@ gh repo delete --yes @
