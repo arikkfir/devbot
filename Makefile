@@ -19,9 +19,6 @@ else
 endif
 #-----------------------------------------------------------------------------------------------------------------------
 
-deploy/otel-collector-gcp/service-account-key.json:
-	gcloud iam service-accounts keys create ./deploy/otel-collector-gcp/service-account-key.json --iam-account=otel-collector@arikkfir.iam.gserviceaccount.com
-
 .PHONY: setup
 setup:
 	npm install -g smee-client
