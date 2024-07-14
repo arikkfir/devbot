@@ -17,6 +17,8 @@ ports:
     containerPort: 9090
     protocol: TCP
 presets:
+  logsCollection:
+    enabled: true
   kubernetesAttributes:
     enabled: true
     extractAllPodLabels: true
@@ -54,6 +56,11 @@ config:
                 replacement: $$1:$$2
                 target_label: __address__
   processors:
+    attributes/clusterid:
+      actions:
+        - key: cluster_id
+          value: local
+          action: insert
     k8sattributes:
       extract:
         metadata:
@@ -123,8 +130,14 @@ config:
   exporters:
     prometheus:
       endpoint: "0.0.0.0:9090"
+    googlecloud:
+      log:
+        default_log_name: "devbot.kfirs.com/dev"
   service:
     pipelines:
+      logs:
+        processors: [ attributes/clusterid ]
+        exporters: [ googlecloud ]
       metrics:
         receivers: [ prometheus ]
         processors: [ transform/prometheus-labels ]

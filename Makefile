@@ -17,10 +17,16 @@ ifdef E2E_VERBOSITY # Set E2E_VERBOSITY to "-v" or "-vv" for extra output
 else
 	GINKGO_FLAGS := $(GINKGO_FLAGS) --succinct
 endif
+GCP_PROJECT := $(shell gcloud config get core/project)
 #-----------------------------------------------------------------------------------------------------------------------
 
+deploy/local/security/gcp-service-account/service-account-key.json:
+	gcloud iam service-accounts keys create \
+		./deploy/local/security/gcp-service-account/service-account-key.json \
+		--iam-account=otel-collector@$(GCP_PROJECT).iam.gserviceaccount.com
+
 .PHONY: setup
-setup:
+setup: deploy/local/security/gcp-service-account/service-account-key.json
 	npm install -g smee-client
 	go mod download -x
 	go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0

@@ -102,6 +102,12 @@ jobs:
       - run: echo -n ${GITHUB_TOKEN} | helm registry login ghcr.io --username ${{ github.actor }} --password-stdin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: |
+          cat > deploy/local/security/gcp-service-account/service-account-key.json <<EOF
+          ${GCP_SERVICE_ACCOUNT_KEY}
+          EOF
+        env:
+          GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_OTEL_SERVICE_ACCOUNT_KEY }}
       - run: make setup-observability
       - run: |
           helm install local-devbot oci://ghcr.io/arikkfir/devbot --version ${VERSION} \

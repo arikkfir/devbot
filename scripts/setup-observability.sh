@@ -32,10 +32,12 @@ helm upgrade --install prometheus prometheus --repo https://prometheus-community
   --values ./deploy/local/observability/prometheus/prometheus-values.yaml
 
 # Install the OTEL collector agent
+kubectl apply -k deploy/local/security/gcp-service-account
 helm upgrade --install otel-agent opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
   --namespace observability \
   --description "Agent (daemonset) OTEL collector for pull telemetry." \
   --values ./deploy/local/observability/otel/collector/agent-values.yaml \
+  --set "config.exporters.googlecloud.project=$(gcloud config get core/project)" \
   --version "${OTEL_CHART_VERSION}"
 helm upgrade --install otel-gateway opentelemetry-collector --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
   --namespace observability \
